@@ -3,6 +3,44 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --accent-1: #f0f0f0;
+    --accent-2: #e0e0e0;
+    --border: #e5e5e5;
+  }
+  
+  /* Koyu tema temel renkler */
+  :root {
+    /* Ana renkler */
+    --background: #0c0c0f;
+    --foreground: #f8f8f8;
+    --primary-dark: #1a1a1f;
+    --primary-medium: #23232b;
+    --primary-light: #2c2c35;
+  
+    /* Vurgu renkleri */
+    --accent-gold: #d4af37;
+    --accent-silver: #c0c0c0;
+    --accent-bronze: #cd7f32;
+  
+    /* Metin renkleri */
+    --text-primary: #f8f8f8;
+    --text-secondary: #a0a0a0;
+    --text-muted: #707070;
+  
+    /* Sınır renkleri */
+    --border-dark: #191922;
+    --border-medium: #252532;
+    --border-light: #33333f;
+  
+    /* Özel gölgeler */
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.5);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.7);
+  
+    /* Gradyanlar */
+    --gradient-primary: linear-gradient(to bottom, #23232b, #15151a);
+    --gradient-accent: linear-gradient(to right, var(--accent-silver), #a5a5a5);
+    --gradient-gold: linear-gradient(135deg, #d4af37, #ffd700, #d4af37);
 }
 
 @theme inline {
@@ -12,15 +50,69 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans, Arial, Helvetica, sans-serif);
+}
+
+/* Genel stil ayarları */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+/* Profesyonel scrollbar stili */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--primary-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary-light);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Buton hover stili */
+.btn-hover-effect {
+  transition: all 0.3s ease;
+}
+
+.btn-hover-effect:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Animasyonlu gradyan arka plan */
+@keyframes gradientAnimation {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animated-gradient {
+  background: linear-gradient(-45deg, #121218, #1a1a22, #23232b, #15151d);
+  background-size: 400% 400%;
+  animation: gradientAnimation 15s ease infinite;
 }

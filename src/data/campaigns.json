@@ -1,0 +1,32 @@
+[
+    {
+        "id": "1",
+        "name": "Yaz İndirimi",
+        "description": "Tüm yaz ürünlerinde %20 indirim",
+        "startDate": "2023-06-01T00:00:00.000Z",
+        "endDate": "2023-08-31T23:59:59.000Z",
+        "status": "active",
+        "sentEmails": 1250,
+        "clickRate": 32.4
+    },
+    {
+        "id": "2",
+        "name": "Kış Kampanyası",
+        "description": "Kış ürünlerinde büyük indirim",
+        "startDate": "2023-12-01T00:00:00.000Z",
+        "endDate": "2024-02-28T23:59:59.000Z",
+        "status": "planned",
+        "sentEmails": 0,
+        "clickRate": 0
+    },
+    {
+        "id": "3",
+        "name": "Bahar Fırsatları",
+        "description": "Bahar koleksiyonunda özel fiyatlar",
+        "startDate": "2023-03-15T00:00:00.000Z",
+        "endDate": "2023-05-15T23:59:59.000Z",
+        "status": "completed",
+        "sentEmails": 1875,
+        "clickRate": 45.2
+    }
+]
