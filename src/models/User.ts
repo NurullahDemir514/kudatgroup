@@ -3,7 +3,7 @@ import mongoose, { Schema, models } from 'mongoose';
 export interface IUser {
     _id?: string;
     name: string;
-    email: string;
+    email?: string;
     password: string;
     role: string;
     status?: 'active' | 'inactive';
@@ -20,8 +20,9 @@ const userSchema = new Schema<IUser>(
         },
         email: {
             type: String,
-            required: [true, 'Email zorunlu'],
+            required: false,
             unique: true,
+            sparse: true,
         },
         password: {
             type: String,
