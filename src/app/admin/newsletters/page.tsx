@@ -1,6 +1,10 @@
 ﻿"use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import { FaPlus, FaEdit, FaTrash, FaSpinner, FaTimes } from "react-icons/fa";
+import { format } from "date-fns";
+import { tr } from "date-fns/locale";
 
 interface INewsletter {
     _id?: string;
@@ -35,6 +39,8 @@ export default function NewslettersPage() {
     const [formError, setFormError] = useState<string | null>(null);
     const [formSubmitting, setFormSubmitting] = useState(false);
     const [actionStatus, setActionStatus] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isNewSubscriberOpen, setIsNewSubscriberOpen] = useState(false);
 
     // Sayfa yüklendiğinde verileri getir
     useEffect(() => {
@@ -88,16 +94,13 @@ export default function NewslettersPage() {
     });
 
     // Tarih formatı
-    const formatDate = (dateString: string | Date) => {
+    const formatDate = (dateString: string) => {
         if (!dateString) return "-";
-        const date = new Date(dateString);
-        return date.toLocaleDateString("tr-TR", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-        });
+        try {
+            return format(new Date(dateString), "dd MMMM yyyy HH:mm", { locale: tr });
+        } catch (error) {
+            return dateString;
+        }
     };
 
     // Abone detay modalını göster
@@ -273,220 +276,401 @@ export default function NewslettersPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-gray-300 via-white to-gray-400">
-                    Bülten Abonelikleri
+            {/* Başlık ve Kontrol Bölümü */}
+            <div className="bg-black bg-opacity-40 border border-gray-800 rounded-xl p-4 sm:p-6 backdrop-blur-sm">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4">
+                    <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-gray-300 via-white to-gray-400 mb-3 sm:mb-0">
+                        E-Bülten Aboneleri
                 </h1>
+
+                    <button
+                        onClick={() => {
+                            setIsNewSubscriberOpen(true);
+                            setFormData({
+                                name: "",
+                                phone: "",
+                                email: "",
+                                companyName: "",
+                                taxNumber: "",
+                                active: true,
+                                notes: "",
+                            });
+                        }}
+                        className="flex items-center px-4 py-2 text-sm bg-gradient-to-r from-gray-300 to-gray-400 text-gray-900 font-medium rounded-lg hover:from-gray-400 hover:to-gray-500 transition-all"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        Yeni Abone Ekle
+                    </button>
             </div>
 
-            {/* Arama alanı */}
-            <div className="relative flex-1">
+                {/* Özet Bilgi Kartları */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
+                    <div className="rounded-lg bg-black bg-opacity-30 border border-gray-800 p-3">
+                        <div className="flex items-center">
+                            <div className="p-2 rounded-lg bg-blue-900/20 text-blue-400 border border-blue-800/40 mr-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 className="text-xs font-medium uppercase tracking-wider text-gray-500">Toplam Abone</h3>
+                                <p className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-gray-300 via-white to-gray-400">
+                                    {newsletters.length}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="rounded-lg bg-black bg-opacity-30 border border-gray-800 p-3">
+                        <div className="flex items-center">
+                            <div className="p-2 rounded-lg bg-emerald-900/20 text-emerald-400 border border-emerald-800/40 mr-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 className="text-xs font-medium uppercase tracking-wider text-gray-500">Aktif Aboneler</h3>
+                                <p className="text-lg font-bold text-emerald-400">
+                                    {newsletters.filter(n => n.active).length}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="rounded-lg bg-black bg-opacity-30 border border-gray-800 p-3">
+                        <div className="flex items-center">
+                            <div className="p-2 rounded-lg bg-red-900/20 text-red-400 border border-red-800/40 mr-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 className="text-xs font-medium uppercase tracking-wider text-gray-500">Pasif Aboneler</h3>
+                                <p className="text-lg font-bold text-red-400">
+                                    {newsletters.filter(n => !n.active).length}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="rounded-lg bg-black bg-opacity-30 border border-gray-800 p-3">
+                        <div className="flex items-center">
+                            <div className="p-2 rounded-lg bg-amber-900/20 text-amber-400 border border-amber-800/40 mr-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 className="text-xs font-medium uppercase tracking-wider text-gray-500">Son 30 Gün</h3>
+                                <p className="text-lg font-bold text-amber-400">
+                                    {newsletters.filter(n => {
+                                        const thirtyDaysAgo = new Date();
+                                        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                                        return new Date(n.subscriptionDate) >= thirtyDaysAgo;
+                                    }).length}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Arama ve Filtreleme */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="relative flex-grow">
+                        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
                 <input
-                    type="text"
-                    placeholder="Abone ara... (Ad, email, şirket adı veya vergi no)"
-                    className="w-full rounded-md border border-gray-600 bg-black bg-opacity-50 px-4 py-2 pl-10 text-silver focus:border-silver focus:outline-none focus:ring-1 focus:ring-silver placeholder-gray-400"
+                            type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                <div className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-5 w-5"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                    >
-                        <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                            placeholder="Abonelerde ara... (ad, email, şirket vb.)"
+                            className="w-full rounded-lg border border-gray-800 bg-black bg-opacity-70 pl-10 pr-4 py-2 text-gray-300 focus:border-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-700"
                         />
-                    </svg>
+                    </div>
+
+                    <select
+                        className="rounded-lg border border-gray-800 bg-black bg-opacity-70 px-4 py-2 text-gray-300 w-full sm:w-48"
+                        onChange={(e) => {
+                            if (e.target.value === "active") {
+                                setNewsletters(newsletters.filter(n => n.active));
+                            } else if (e.target.value === "inactive") {
+                                setNewsletters(newsletters.filter(n => !n.active));
+                            } else {
+                                fetchNewsletters();
+                            }
+                        }}
+                    >
+                        <option value="all">Tüm Aboneler</option>
+                        <option value="active">Aktif Aboneler</option>
+                        <option value="inactive">Pasif Aboneler</option>
+                    </select>
                 </div>
             </div>
 
             {/* İşlem durumu mesajı */}
             {actionStatus && (
-                <div className={`rounded-md p-4 text-sm ${actionStatus.type === "success"
+                <div className={`rounded-xl p-4 text-sm transition-all duration-300 transform scale-100 ${actionStatus.type === "success"
                     ? "bg-emerald-900 bg-opacity-20 text-emerald-200 border border-emerald-800"
                     : "bg-red-900 bg-opacity-20 text-red-200 border border-red-800"
                     }`}>
+                    <div className="flex items-center">
+                        {actionStatus.type === "success" ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        )}
                     {actionStatus.message}
+                    </div>
                 </div>
             )}
 
             {/* Hata mesajı */}
             {error && (
-                <div className="rounded-md bg-red-900 bg-opacity-20 p-4 text-sm text-red-200 border border-red-800">
-                    {error}
+                <div className="rounded-xl bg-red-900 bg-opacity-20 p-4 text-sm text-red-200 border border-red-800 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p>{error}</p>
                 </div>
             )}
 
             {/* Yükleniyor göstergesi */}
             {loading ? (
-                <div className="flex justify-center py-8">
-                    <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-t-2 border-silver"></div>
+                <div className="flex flex-col items-center justify-center py-12">
+                    <div className="h-16 w-16 animate-spin rounded-full border-b-2 border-t-2 border-gray-300"></div>
+                    <p className="mt-4 text-sm text-gray-400">Aboneler yükleniyor...</p>
                 </div>
             ) : (
                 <>
                     {/* Abonelikleri göster */}
                     {newsletters.length === 0 ? (
-                        <div className="rounded-md bg-black bg-opacity-50 p-4 text-sm text-silver border border-gray-800">
-                            Henüz kayıtlı bülten aboneliği bulunmuyor.
+                            <div className="rounded-xl bg-black bg-opacity-50 p-8 text-center border border-gray-800">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                </svg>
+                                <h3 className="mt-4 text-lg font-medium text-gray-300">Henüz kayıtlı bülten aboneliği bulunmuyor</h3>
+                                <p className="mt-2 text-sm text-gray-500">Yeni aboneler ekleyerek e-bülten göndermeye başlayabilirsiniz.</p>
+                                <button
+                                    onClick={() => {
+                                        setIsNewSubscriberOpen(true);
+                                        setFormData({
+                                            name: "",
+                                            phone: "",
+                                            email: "",
+                                            companyName: "",
+                                            taxNumber: "",
+                                            active: true,
+                                            notes: "",
+                                        });
+                                    }}
+                                    className="mt-4 inline-flex items-center px-4 py-2 text-sm bg-gradient-to-r from-gray-300 to-gray-400 text-gray-900 font-medium rounded-lg hover:from-gray-400 hover:to-gray-500 transition-all"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                    </svg>
+                                    İlk Aboneyi Ekle
+                                </button>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto rounded-lg border border-gray-800 bg-black bg-opacity-40 shadow-xl">
-                            <table className="min-w-full divide-y divide-gray-800">
-                                <thead className="bg-gradient-to-r from-zinc-900 to-black">
-                                    <tr>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-silver">
+                                <div className="bg-black bg-opacity-40 border border-gray-800 rounded-xl overflow-hidden backdrop-blur-sm">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full min-w-full divide-y divide-gray-800">
+                                            <thead className="bg-gradient-to-r from-black to-zinc-900">
+                                                <tr>
+                                                    <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400">
                                             Ad Soyad
                                         </th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-silver">
+                                                    <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400 hidden sm:table-cell">
                                             Telefon
                                         </th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-silver">
+                                                    <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400">
                                             E-posta
                                         </th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-silver">
+                                                    <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400 hidden md:table-cell">
                                             Şirket Bilgileri
                                         </th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-silver">
+                                                    <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400 hidden lg:table-cell">
                                             Kayıt Tarihi
                                         </th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-silver">
+                                                    <th scope="col" className="px-3 sm:px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-400">
                                             Durum
                                         </th>
-                                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-silver">
+                                                    <th scope="col" className="px-3 sm:px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-400">
                                             İşlemler
                                         </th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-800 bg-black bg-opacity-60">
-                                    {filteredNewsletters.map((newsletter) => (
-                                        <tr key={newsletter._id} className="hover:bg-zinc-900 hover:bg-opacity-50 transition-colors">
-                                            <td className="px-6 py-4">
-                                                <div className="text-sm font-medium text-silver">{newsletter.name || "-"}</div>
+                                                {filteredNewsletters.map((newsletter, index) => (
+                                                    <tr key={newsletter._id} className={`${index % 2 === 0 ? 'bg-black bg-opacity-20' : ''} hover:bg-zinc-900 hover:bg-opacity-50 transition-colors group`}>
+                                                        <td className="px-3 sm:px-6 py-3 sm:py-4">
+                                                            <div className="flex items-center">
+                                                                <div className="h-8 w-8 flex-shrink-0 rounded-full bg-gradient-to-r from-gray-700 to-gray-800 flex items-center justify-center text-gray-300 text-xs mr-3">
+                                                                    {newsletter.name?.charAt(0).toUpperCase() || "?"}
+                                                                </div>
+                                                                <div>
+                                                                    <div className="text-sm font-medium text-gray-200">{newsletter.name || "-"}</div>
+                                                                    <div className="text-xs text-gray-400 mt-1 sm:hidden">
+                                                                        {newsletter.email || "-"}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
                                             </td>
-                                            <td className="px-6 py-4">
+                                                        <td className="px-3 sm:px-6 py-3 sm:py-4 hidden sm:table-cell">
                                                 <div className="text-sm text-gray-300">
+                                                                {newsletter.phone ? (
                                                     <a
                                                         href={`tel:${newsletter.phone}`}
-                                                        className="hover:text-white hover:underline"
+                                                                        className="hover:text-white hover:underline flex items-center"
                                                     >
-                                                        {newsletter.phone || "-"}
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                                                        </svg>
+                                                                        {newsletter.phone}
                                                     </a>
+                                                                ) : (
+                                                                    <span className="text-gray-500 italic">Belirtilmemiş</span>
+                                                                )}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4">
+                                                        <td className="px-3 sm:px-6 py-3 sm:py-4 hidden sm:table-cell">
                                                 <div className="text-sm text-gray-300">
                                                     {newsletter.email ? (
                                                         <a
                                                             href={`mailto:${newsletter.email}`}
-                                                            className="hover:text-white hover:underline"
+                                                                        className="hover:text-white hover:underline flex items-center"
                                                         >
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                                                        </svg>
                                                             {newsletter.email}
                                                         </a>
                                                     ) : (
-                                                        "-"
+                                                                        <span className="text-gray-500 italic">Belirtilmemiş</span>
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4">
+                                                        <td className="px-3 sm:px-6 py-3 sm:py-4 hidden md:table-cell">
                                                 <div className="text-sm text-gray-300">
                                                     {newsletter.companyName ? (
                                                         <div>
                                                             <div className="font-medium">{newsletter.companyName}</div>
                                                             {newsletter.taxNumber && (
                                                                 <div className="text-xs text-gray-400 mt-1">
-                                                                    Vergi No: {newsletter.taxNumber}
+                                                                                <span className="text-gray-500">Vergi No:</span> {newsletter.taxNumber}
                                                                 </div>
                                                             )}
                                                         </div>
                                                     ) : (
-                                                        "-"
+                                                                        <span className="text-gray-500 italic">Belirtilmemiş</span>
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4">
+                                                        <td className="px-3 sm:px-6 py-3 sm:py-4 hidden lg:table-cell">
                                                 <div className="text-sm text-gray-300">
                                                     {newsletter.subscriptionDate ? (
                                                         <div>
-                                                            <div>{formatDate(newsletter.subscriptionDate)}</div>
+                                                                        <div className="flex items-center">
+                                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                                            </svg>
+                                                                            {formatDate(newsletter.subscriptionDate instanceof Date ? newsletter.subscriptionDate.toISOString() : newsletter.subscriptionDate)}
+                                                                        </div>
+                                                                        {newsletter.createdAt && (
                                                             <div className="text-xs text-gray-400 mt-1">
-                                                                {newsletter.createdAt &&
-                                                                    `Güncellenme: ${formatDate(newsletter.updatedAt || newsletter.createdAt)}`
-                                                                }
+                                                                                <span className="text-gray-500">Güncellenme:</span> {formatDate(newsletter.updatedAt instanceof Date ? newsletter.updatedAt.toISOString() : newsletter.updatedAt)}
                                                             </div>
+                                                                        )}
                                                         </div>
                                                     ) : (
-                                                        "-"
+                                                                        <span className="text-gray-500 italic">Belirtilmemiş</span>
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4">
-                                                <div
-                                                    className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${newsletter.active
-                                                        ? "bg-emerald-900 bg-opacity-30 text-emerald-300 border border-emerald-800"
-                                                        : "bg-red-900 bg-opacity-30 text-red-300 border border-red-800"
-                                                        }`}
-                                                >
-                                                    <span className={`h-2 w-2 rounded-full ${newsletter.active ? "bg-emerald-400" : "bg-red-400"
-                                                        } mr-1.5`}></span>
-                                                    {newsletter.active ? "Aktif" : "Pasif"}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
-                                                <button
-                                                    onClick={() => handleToggleStatus(newsletter)}
-                                                    className={`mr-3 ${newsletter.active
-                                                        ? "text-red-400 hover:text-red-300"
-                                                        : "text-emerald-400 hover:text-emerald-300"
-                                                        } transition-colors`}
-                                                    title={newsletter.active ? "Pasif Yap" : "Aktif Yap"}
-                                                >
-                                                    {newsletter.active ? "Pasif Yap" : "Aktif Yap"}
-                                                </button>
+                                                        <td className="px-3 sm:px-6 py-3 sm:py-4 text-center">
+                                                            <button
+                                                                onClick={() => handleToggleStatus(newsletter)}
+                                                                className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold transition-colors cursor-pointer ${newsletter.active
+                                                                    ? "bg-emerald-900/30 text-emerald-300 border border-emerald-800/50 hover:bg-emerald-800/30"
+                                                                    : "bg-red-900/30 text-red-300 border border-red-800/50 hover:bg-red-800/30"
+                                                                    }`}
+                                                            >
+                                                                <span className={`h-1.5 w-1.5 rounded-full ${newsletter.active ? "bg-emerald-400" : "bg-red-400"} mr-1.5`}></span>
+                                                                {newsletter.active ? "Aktif" : "Pasif"}
+                                                            </button>
+                                                        </td>
+                                                        <td className="px-3 sm:px-6 py-3 sm:py-4 text-right text-sm whitespace-nowrap">
+                                                            <div className="flex flex-row justify-end space-x-2 opacity-70 group-hover:opacity-100">
                                                 <button
                                                     onClick={() => handleShowDetails(newsletter)}
-                                                    className="mr-3 text-gray-400 hover:text-white transition-colors"
+                                                                    className="p-1.5 rounded bg-gray-800 text-gray-300 hover:bg-gray-700 transition-colors"
                                                     title="Detayları Göster"
                                                 >
-                                                    Detaylar
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                                    </svg>
                                                 </button>
                                                 <button
                                                     onClick={() => handleDeleteSubscriber(newsletter._id as string)}
-                                                    className="text-gray-400 hover:text-red-300 transition-colors"
+                                                                    className="p-1.5 rounded bg-red-900 bg-opacity-20 text-red-300 border border-red-900/20 hover:bg-red-950/50 transition-colors"
                                                     title="Aboneyi Sil"
                                                 >
-                                                    Sil
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                    </svg>
                                                 </button>
+                                                            </div>
                                             </td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
                         </div>
-                    )}
-                    <div className="text-sm text-gray-400 mt-4">
-                        Toplam {filteredNewsletters.length} abone gösteriliyor
-                        {searchTerm && ` (filtrelendi: ${searchTerm})`}
+
+                                    {/* Bilgi footer */}
+                                    <div className="border-t border-gray-800 bg-black bg-opacity-40 p-3 flex items-center justify-between">
+                                        <div className="text-xs text-gray-400">
+                                            Toplam <span className="font-medium text-gray-300">{filteredNewsletters.length}</span> abone gösteriliyor
+                                            {searchTerm && <span className="ml-1">(<span className="text-gray-300">"{searchTerm}"</span> için filtrelendi)</span>}
+                                        </div>
+                                        <div className="flex items-center">
+                                            {searchTerm && (
+                                                <button
+                                                    onClick={() => setSearchTerm("")}
+                                                    className="text-xs text-gray-400 hover:text-white hover:underline flex items-center"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                    Filtreyi Temizle
+                                                </button>
+                                            )}
                     </div>
+                                </div>
+                            </div>
+                        )}
                 </>
             )}
 
-            {/* Abone detay modali */}
+            {/* Abone Düzenleme Modal */}
             {showModal && selectedNewsletter && (
-                <div className="fixed inset-0 z-10 flex items-center justify-center bg-black bg-opacity-80">
-                    <div className="w-full max-w-md rounded-lg border border-silver/30 bg-gradient-to-b from-zinc-900 to-black p-6 shadow-xl">
-                        <div className="mb-4 flex items-center justify-between">
-                            <h2 className="text-xl font-semibold text-silver">
+                <div className="fixed inset-0 z-50 flex items-center justify-center overflow-x-hidden overflow-y-auto">
+                    <div className="fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm transition-opacity" onClick={handleCloseModal}></div>
+                    <div className="relative mx-auto w-full max-w-2xl transform rounded-xl bg-zinc-950 p-5 sm:p-6 shadow-xl transition-all border border-gray-800">
+                        <div className="mb-5 flex items-center justify-between border-b border-gray-800 pb-4">
+                            <h2 className="text-lg sm:text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-gray-300 via-white to-gray-400">
                                 Abone Detayları
                             </h2>
                             <button
                                 onClick={handleCloseModal}
-                                className="rounded-full p-1 text-silver hover:bg-zinc-800 hover:text-white"
+                                className="rounded-full p-1 text-gray-400 hover:bg-zinc-800 hover:text-white transition-colors"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -495,137 +679,380 @@ export default function NewslettersPage() {
                         </div>
 
                         {formError && (
-                            <div className="mb-4 rounded-md bg-red-900 bg-opacity-20 p-3 text-sm text-red-200 border border-red-800">
+                            <div className="mb-4 rounded-lg bg-red-900 bg-opacity-20 p-3 text-sm text-red-200 border border-red-800 flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
                                 {formError}
                             </div>
                         )}
 
                         <form onSubmit={handleSubmitForm}>
-                            <div className="mb-4">
-                                <label htmlFor="name" className="mb-1 block text-sm font-medium text-silver">
+                            <div className="mb-5 grid grid-cols-1 gap-5 sm:grid-cols-2">
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-300">
                                     Ad Soyad
                                 </label>
                                 <input
-                                    type="text"
-                                    id="name"
+                                        type="text"
                                     name="name"
                                     value={formData.name}
                                     onChange={handleInputChange}
-                                    className="w-full rounded-md border border-gray-700 bg-black bg-opacity-60 px-3 py-2 text-silver focus:border-silver focus:outline-none focus:ring-1 focus:ring-silver"
+                                        className="w-full rounded-lg border border-gray-800 bg-black bg-opacity-80 px-3 py-2 text-gray-300 placeholder-gray-500 shadow-sm focus:border-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-700 sm:text-sm"
                                 />
                             </div>
-
-                            <div className="mb-4">
-                                <label htmlFor="phone" className="mb-1 block text-sm font-medium text-silver">
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-300">
                                     Telefon
                                 </label>
                                 <input
-                                    type="text"
-                                    id="phone"
+                                        type="text"
                                     name="phone"
                                     value={formData.phone}
                                     onChange={handleInputChange}
-                                    className="w-full rounded-md border border-gray-700 bg-black bg-opacity-60 px-3 py-2 text-silver focus:border-silver focus:outline-none focus:ring-1 focus:ring-silver"
+                                        className="w-full rounded-lg border border-gray-800 bg-black bg-opacity-80 px-3 py-2 text-gray-300 placeholder-gray-500 shadow-sm focus:border-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-700 sm:text-sm"
                                 />
                             </div>
-
-                            <div className="mb-4">
-                                <label htmlFor="email" className="mb-1 block text-sm font-medium text-silver">
+                                <div className="space-y-2 sm:col-span-2">
+                                    <label className="block text-sm font-medium text-gray-300">
                                     E-posta
                                 </label>
                                 <input
-                                    type="email"
-                                    id="email"
+                                        type="email"
                                     name="email"
                                     value={formData.email}
                                     onChange={handleInputChange}
-                                    className="w-full rounded-md border border-gray-700 bg-black bg-opacity-60 px-3 py-2 text-silver focus:border-silver focus:outline-none focus:ring-1 focus:ring-silver"
+                                        className="w-full rounded-lg border border-gray-800 bg-black bg-opacity-80 px-3 py-2 text-gray-300 placeholder-gray-500 shadow-sm focus:border-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-700 sm:text-sm"
                                 />
                             </div>
-
-                            <div className="mb-4">
-                                <label htmlFor="companyName" className="mb-1 block text-sm font-medium text-silver">
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-300">
                                     Şirket Adı
                                 </label>
                                 <input
-                                    type="text"
-                                    id="companyName"
+                                        type="text"
                                     name="companyName"
                                     value={formData.companyName}
                                     onChange={handleInputChange}
-                                    className="w-full rounded-md border border-gray-700 bg-black bg-opacity-60 px-3 py-2 text-silver focus:border-silver focus:outline-none focus:ring-1 focus:ring-silver"
+                                        className="w-full rounded-lg border border-gray-800 bg-black bg-opacity-80 px-3 py-2 text-gray-300 placeholder-gray-500 shadow-sm focus:border-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-700 sm:text-sm"
                                 />
                             </div>
-
-                            <div className="mb-4">
-                                <label htmlFor="taxNumber" className="mb-1 block text-sm font-medium text-silver">
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-300">
                                     Vergi Numarası
                                 </label>
                                 <input
-                                    type="text"
-                                    id="taxNumber"
+                                        type="text"
                                     name="taxNumber"
                                     value={formData.taxNumber}
                                     onChange={handleInputChange}
-                                    className="w-full rounded-md border border-gray-700 bg-black bg-opacity-60 px-3 py-2 text-silver focus:border-silver focus:outline-none focus:ring-1 focus:ring-silver"
+                                        className="w-full rounded-lg border border-gray-800 bg-black bg-opacity-80 px-3 py-2 text-gray-300 placeholder-gray-500 shadow-sm focus:border-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-700 sm:text-sm"
                                 />
                             </div>
-
-                            <div className="mb-4">
-                                <label htmlFor="notes" className="mb-1 block text-sm font-medium text-silver">
+                                <div className="space-y-2 sm:col-span-2">
+                                    <label className="block text-sm font-medium text-gray-300">
                                     Notlar
                                 </label>
-                                <textarea
-                                    id="notes"
+                                    <textarea
                                     name="notes"
                                     value={formData.notes}
                                     onChange={handleInputChange}
                                     rows={3}
-                                    className="w-full rounded-md border border-gray-700 bg-black bg-opacity-60 px-3 py-2 text-silver focus:border-silver focus:outline-none focus:ring-1 focus:ring-silver"
+                                        className="w-full rounded-lg border border-gray-800 bg-black bg-opacity-80 px-3 py-2 text-gray-300 placeholder-gray-500 shadow-sm focus:border-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-700 sm:text-sm"
                                 ></textarea>
+                                </div>
                             </div>
 
-                            <div className="mb-4 flex items-center">
+                            <div className="mb-5 flex items-center">
+                                <div className="flex items-center h-5">
                                 <input
                                     type="checkbox"
-                                    id="active"
+                                        id="subscribe-active"
                                     name="active"
                                     checked={formData.active}
-                                    onChange={handleInputChange}
-                                    className="h-4 w-4 rounded border-gray-700 bg-black text-silver focus:ring-silver"
-                                />
-                                <label htmlFor="active" className="ml-2 block text-sm text-silver">
-                                    Aktif
+                                        onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
+                                        className="h-4 w-4 rounded border-gray-700 bg-black text-gray-300 focus:ring-gray-700 focus:ring-opacity-50"
+                                    />
+                                </div>
+                                <label
+                                    htmlFor="subscribe-active"
+                                    className="ml-2 block text-sm text-gray-300"
+                                >
+                                    Bu abone aktif olarak e-bülten almaya devam etsin
                                 </label>
                             </div>
 
-                            <div className="mb-4 p-3 bg-zinc-900 bg-opacity-60 rounded-md text-sm text-gray-400 border border-gray-800">
-                                <div className="mb-1 font-medium text-silver">Sistem Bilgileri:</div>
-                                <div>Abone Tarihi: {selectedNewsletter.subscriptionDate ? formatDate(selectedNewsletter.subscriptionDate) : "-"}</div>
-                                <div>Oluşturulma: {selectedNewsletter.createdAt ? formatDate(selectedNewsletter.createdAt) : "-"}</div>
-                                <div>Son Güncelleme: {selectedNewsletter.updatedAt ? formatDate(selectedNewsletter.updatedAt) : "-"}</div>
+                            <div className="rounded-lg border border-gray-800 bg-black bg-opacity-40 p-4">
+                                <h3 className="mb-3 text-sm font-medium text-gray-300">
+                                    Sistem Bilgileri
+                                </h3>
+                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 text-xs text-gray-400">
+                                    <div className="rounded-lg bg-black bg-opacity-30 border border-gray-800 p-2">
+                                        <span className="font-medium text-gray-500">Abonelik Tarihi:</span>
+                                        <div className="mt-1">
+                                            {selectedNewsletter.subscriptionDate
+                                                ? formatDate(selectedNewsletter.subscriptionDate instanceof Date ? selectedNewsletter.subscriptionDate.toISOString() : selectedNewsletter.subscriptionDate)
+                                                : "-"}
+                                        </div>
+                                    </div>
+                                    <div className="rounded-lg bg-black bg-opacity-30 border border-gray-800 p-2">
+                                        <span className="font-medium text-gray-500">Oluşturulma Tarihi:</span>
+                                        <div className="mt-1">
+                                            {selectedNewsletter.createdAt
+                                                ? formatDate(selectedNewsletter.createdAt instanceof Date ? selectedNewsletter.createdAt.toISOString() : selectedNewsletter.createdAt)
+                                                : "-"}
+                                        </div>
+                                    </div>
+                                    <div className="rounded-lg bg-black bg-opacity-30 border border-gray-800 p-2">
+                                        <span className="font-medium text-gray-500">Son Güncelleme:</span>
+                                        <div className="mt-1">
+                                            {selectedNewsletter.updatedAt
+                                                ? formatDate(selectedNewsletter.updatedAt instanceof Date ? selectedNewsletter.updatedAt.toISOString() : selectedNewsletter.updatedAt)
+                                                : "-"}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div className="mt-6 flex justify-end space-x-3">
+                            <div className="mt-5 flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-4">
                                 <button
                                     type="button"
                                     onClick={handleCloseModal}
-                                    className="rounded-md border border-gray-700 bg-transparent px-4 py-2 text-silver transition-colors hover:bg-zinc-900"
+                                    className="mt-3 sm:mt-0 w-full sm:w-auto inline-flex justify-center rounded-lg border border-transparent bg-gray-800 px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 focus:outline-none transition-colors"
                                 >
-                                    İptal
+                                    Vazgeç
+                                </button>
+                                <div className="flex space-x-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleDeleteSubscriber(selectedNewsletter._id as string)}
+                                        className="w-full sm:w-auto inline-flex justify-center rounded-lg border border-red-900/30 bg-red-900/20 px-4 py-2 text-sm font-medium text-red-300 hover:bg-red-900/30 focus:outline-none transition-colors"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                        Aboneyi Sil
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={formSubmitting}
-                                    className="rounded-md bg-gradient-to-r from-zinc-800 to-gray-900 px-4 py-2 text-silver transition-all hover:from-zinc-700 hover:to-gray-800 border border-silver/30 disabled:opacity-70"
+                                        className="w-full sm:w-auto inline-flex justify-center items-center rounded-lg bg-gradient-to-r from-gray-300 to-gray-400 px-4 py-2 text-sm font-medium text-gray-900 shadow-sm hover:from-gray-400 hover:to-gray-500 focus:outline-none transition-colors"
                                 >
                                     {formSubmitting ? (
-                                        <div className="flex items-center space-x-2">
-                                            <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-t-2 border-silver"></div>
-                                            <span>İşleniyor...</span>
-                                        </div>
+                                            <>
+                                                <svg
+                                                    className="h-4 w-4 animate-spin mr-1.5"
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <circle
+                                                        className="opacity-25"
+                                                        cx="12"
+                                                        cy="12"
+                                                        r="10"
+                                                        stroke="currentColor"
+                                                        strokeWidth="4"
+                                                    ></circle>
+                                                    <path
+                                                        className="opacity-75"
+                                                        fill="currentColor"
+                                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                                    ></path>
+                                                </svg>
+                                                Kaydediliyor...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" />
+                                                </svg>
+                                                Değişiklikleri Kaydet
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Yeni Abone Ekleme Modal */}
+            {isNewSubscriberOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center overflow-x-hidden overflow-y-auto">
+                    <div className="fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm transition-opacity" onClick={() => setIsNewSubscriberOpen(false)}></div>
+                    <div className="relative mx-auto w-full max-w-2xl transform rounded-xl bg-zinc-950 p-5 sm:p-6 shadow-xl transition-all border border-gray-800">
+                        <div className="mb-5 flex items-center justify-between border-b border-gray-800 pb-4">
+                            <h2 className="text-lg sm:text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-gray-300 via-white to-gray-400">
+                                Yeni Abone Ekle
+                            </h2>
+                            <button
+                                onClick={() => setIsNewSubscriberOpen(false)}
+                                className="rounded-full p-1 text-gray-400 hover:bg-zinc-800 hover:text-white transition-colors"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        {formError && (
+                            <div className="mb-4 rounded-lg bg-red-900 bg-opacity-20 p-3 text-sm text-red-200 border border-red-800 flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                {formError}
+                            </div>
+                        )}
+
+                        <form onSubmit={handleSubmitForm}>
+                            <div className="mb-5 grid grid-cols-1 gap-5 sm:grid-cols-2">
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-300">
+                                        Ad Soyad <span className="text-red-400">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="name"
+                                        value={formData.name}
+                                        onChange={handleInputChange}
+                                        placeholder="Abonenin adı ve soyadı"
+                                        className="w-full rounded-lg border border-gray-800 bg-black bg-opacity-80 px-3 py-2 text-gray-300 placeholder-gray-600 shadow-sm focus:border-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-700 sm:text-sm"
+                                        required
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-300">
+                                        Telefon
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="phone"
+                                        value={formData.phone}
+                                        onChange={handleInputChange}
+                                        placeholder="Telefon numarası"
+                                        className="w-full rounded-lg border border-gray-800 bg-black bg-opacity-80 px-3 py-2 text-gray-300 placeholder-gray-600 shadow-sm focus:border-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-700 sm:text-sm"
+                                    />
+                                </div>
+                                <div className="space-y-2 sm:col-span-2">
+                                    <label className="block text-sm font-medium text-gray-300">
+                                        E-posta <span className="text-red-400">*</span>
+                                    </label>
+                                    <input
+                                        type="email"
+                                        name="email"
+                                        value={formData.email}
+                                        onChange={handleInputChange}
+                                        placeholder="ornek@email.com"
+                                        className="w-full rounded-lg border border-gray-800 bg-black bg-opacity-80 px-3 py-2 text-gray-300 placeholder-gray-600 shadow-sm focus:border-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-700 sm:text-sm"
+                                        required
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-300">
+                                        Şirket Adı
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="companyName"
+                                        value={formData.companyName}
+                                        onChange={handleInputChange}
+                                        placeholder="İsteğe bağlı"
+                                        className="w-full rounded-lg border border-gray-800 bg-black bg-opacity-80 px-3 py-2 text-gray-300 placeholder-gray-600 shadow-sm focus:border-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-700 sm:text-sm"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-300">
+                                        Vergi Numarası
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="taxNumber"
+                                        value={formData.taxNumber}
+                                        onChange={handleInputChange}
+                                        placeholder="İsteğe bağlı"
+                                        className="w-full rounded-lg border border-gray-800 bg-black bg-opacity-80 px-3 py-2 text-gray-300 placeholder-gray-600 shadow-sm focus:border-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-700 sm:text-sm"
+                                    />
+                                </div>
+                                <div className="space-y-2 sm:col-span-2">
+                                    <label className="block text-sm font-medium text-gray-300">
+                                        Notlar
+                                    </label>
+                                    <textarea
+                                        name="notes"
+                                        value={formData.notes}
+                                        onChange={handleInputChange}
+                                        placeholder="Abone hakkında ekstra bilgiler"
+                                        rows={3}
+                                        className="w-full rounded-lg border border-gray-800 bg-black bg-opacity-80 px-3 py-2 text-gray-300 placeholder-gray-600 shadow-sm focus:border-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-700 sm:text-sm"
+                                    ></textarea>
+                                </div>
+                            </div>
+
+                            <div className="mb-5">
+                                <div className="flex items-center">
+                                    <input
+                                        type="checkbox"
+                                        id="new-subscribe-active"
+                                        name="active"
+                                        checked={formData.active}
+                                        onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
+                                        className="h-4 w-4 rounded border-gray-700 bg-black text-gray-300 focus:ring-gray-700 focus:ring-opacity-50"
+                                    />
+                                    <label
+                                        htmlFor="new-subscribe-active"
+                                        className="ml-2 block text-sm text-gray-300"
+                                    >
+                                        Abone aktif olarak e-bülten alacak
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsNewSubscriberOpen(false)}
+                                    className="mt-3 sm:mt-0 w-full sm:w-auto inline-flex justify-center rounded-lg border border-transparent bg-gray-800 px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 focus:outline-none transition-colors"
+                                >
+                                    Vazgeç
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={formSubmitting}
+                                    className="w-full sm:w-auto inline-flex justify-center items-center rounded-lg bg-gradient-to-r from-gray-300 to-gray-400 px-4 py-2 text-sm font-medium text-gray-900 shadow-sm hover:from-gray-400 hover:to-gray-500 focus:outline-none transition-colors"
+                                >
+                                    {formSubmitting ? (
+                                        <>
+                                            <svg
+                                                className="h-4 w-4 animate-spin mr-1.5"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <circle
+                                                    className="opacity-25"
+                                                    cx="12"
+                                                    cy="12"
+                                                    r="10"
+                                                    stroke="currentColor"
+                                                    strokeWidth="4"
+                                                ></circle>
+                                                <path
+                                                    className="opacity-75"
+                                                    fill="currentColor"
+                                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                                ></path>
+                                            </svg>
+                                            Ekleniyor...
+                                        </>
                                     ) : (
-                                        "Güncelle"
+                                            <>
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                                </svg>
+                                                Aboneyi Ekle
+                                            </>
                                     )}
                                 </button>
                             </div>

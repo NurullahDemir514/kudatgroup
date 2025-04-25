@@ -323,123 +323,91 @@ const SalesForm: React.FC<SalesFormProps> = ({
     const taxAmount = (subTotal - discountAmount) * (taxRate / 100);
 
     return (
-        <div className="p-6 bg-black bg-opacity-30 border border-gray-800 rounded-lg shadow-lg">
-            <div className="mb-6 border-b border-gray-800 pb-4">
-                <h2 className="text-xl font-semibold text-silver">
-                    {initialData ? 'Satış Düzenle' : 'Yeni Satış'}
-                </h2>
-            </div>
-            <form onSubmit={handleSubmit}>
-                {/* Sekmeler */}
-                <div className="border-b border-gray-800 mb-6">
-                    <div className="flex flex-wrap -mb-px">
+        <div className="bg-gray-800 text-white p-4 sm:p-6 md:p-8 rounded-lg shadow-lg">
+            <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Sekme Butonları - Responsive tasarım için düzenlendi */}
+                <div className="flex flex-wrap gap-2 mb-6 border-b border-gray-700 pb-2 overflow-x-auto">
                         <button
                             type="button"
-                            className={`mr-2 py-2 px-4 font-medium ${activeTab === 'basic'
-                                ? 'text-white border-b-2 border-white'
-                                : 'text-gray-400 hover:text-gray-300'}`}
-                            onClick={() => setActiveTab('basic')}
+                        className={`px-3 py-2 rounded-t-md text-sm font-medium ${activeTab === 'info' ? 'bg-gray-700 text-white' : 'bg-gray-900 text-gray-400 hover:text-white'}`}
+                        onClick={() => setActiveTab('info')}
                         >
                             Temel Bilgiler
                         </button>
                         <button
                             type="button"
-                            className={`mr-2 py-2 px-4 font-medium ${activeTab === 'invoice'
-                                ? 'text-white border-b-2 border-white'
-                                : 'text-gray-400 hover:text-gray-300'}`}
+                        className={`px-3 py-2 rounded-t-md text-sm font-medium ${activeTab === 'items' ? 'bg-gray-700 text-white' : 'bg-gray-900 text-gray-400 hover:text-white'}`}
+                        onClick={() => setActiveTab('items')}
+                    >
+                        Ürünler
+                    </button>
+                    <button
+                        type="button"
+                        className={`px-3 py-2 rounded-t-md text-sm font-medium ${activeTab === 'invoice' ? 'bg-gray-700 text-white' : 'bg-gray-900 text-gray-400 hover:text-white'}`}
                             onClick={() => setActiveTab('invoice')}
                         >
                             Fatura Bilgileri
                         </button>
                         <button
                             type="button"
-                            className={`mr-2 py-2 px-4 font-medium ${activeTab === 'delivery'
-                                ? 'text-white border-b-2 border-white'
-                                : 'text-gray-400 hover:text-gray-300'}`}
+                        className={`px-3 py-2 rounded-t-md text-sm font-medium ${activeTab === 'delivery' ? 'bg-gray-700 text-white' : 'bg-gray-900 text-gray-400 hover:text-white'}`}
                             onClick={() => setActiveTab('delivery')}
                         >
-                            Teslimat Bilgileri
+                        Teslimat
                         </button>
                         <button
                             type="button"
-                            className={`mr-2 py-2 px-4 font-medium ${activeTab === 'payment'
-                                ? 'text-white border-b-2 border-white'
-                                : 'text-gray-400 hover:text-gray-300'}`}
+                        className={`px-3 py-2 rounded-t-md text-sm font-medium ${activeTab === 'payment' ? 'bg-gray-700 text-white' : 'bg-gray-900 text-gray-400 hover:text-white'}`}
                             onClick={() => setActiveTab('payment')}
                         >
-                            Ödeme Detayları
-                        </button>
-                        <button
-                            type="button"
-                            className={`mr-2 py-2 px-4 font-medium ${activeTab === 'items'
-                                ? 'text-white border-b-2 border-white'
-                                : 'text-gray-400 hover:text-gray-300'}`}
-                            onClick={() => setActiveTab('items')}
-                        >
-                            Ürünler
-                        </button>
-                    </div>
+                        Ödeme
+                    </button>
                 </div>
 
                 {/* Temel Bilgiler Sekmesi */}
-                {activeTab === 'basic' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
+                {activeTab === 'info' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                        <div className="sm:col-span-2 relative">
                             <label htmlFor="customerName" className="block text-sm font-medium text-gray-400 mb-2">
                                 Müşteri Adı*
                             </label>
-                            <div className="relative">
                                 <input
                                     type="text"
                                     id="customerName"
                                     name="customerName"
                                     value={formData.customerName || ''}
-                                    onChange={handleCustomerNameChange}
-                                    required
+                                onChange={handleCustomerNameChange}
                                     autoComplete="off"
                                     className="w-full p-3 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
-                                />
-
-                                {/* Müşteri arama sonuçları */}
-                                {showCustomerList && (
-                                    <div className="absolute z-10 mt-1 w-full bg-gray-900 border border-gray-700 rounded-md shadow-lg max-h-60 overflow-auto customer-list">
-                                        {isLoadingCustomers ? (
-                                            <div className="p-3 text-center text-gray-300">
-                                                <div className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                                                <span className="ml-2">Müşteriler yükleniyor...</span>
-                                            </div>
-                                        ) : filteredCustomers.length > 0 ? (
-                                            <ul>
-                                                {filteredCustomers.map(customer => (
+                                required
+                            />
+                            {/* Müşteri dropdown - Responsive hale getirildi */}
+                            {showCustomerList && filteredCustomers.length > 0 && (
+                                <div
+                                    className="absolute z-50 mt-1 w-full bg-gray-800 border border-gray-700 rounded-md shadow-lg max-h-60 overflow-y-auto"
+                                >
+                                    <ul className="py-1 text-sm text-gray-300">
+                                        {filteredCustomers.map((customer) => (
                                                     <li
                                                         key={customer._id}
-                                                        onClick={() => selectCustomer(customer)}
-                                                        className="p-3 hover:bg-gray-800 cursor-pointer text-silver border-b border-gray-800 last:border-b-0"
-                                                    >
-                                                        <div className="font-medium">{customer.name}</div>
-                                                        <div className="text-xs text-gray-400 flex items-center space-x-2">
-                                                            {customer.phone && <span>{customer.phone}</span>}
-                                                            {customer.email && <span>{customer.email}</span>}
-                                                        </div>
+                                                className="cursor-pointer px-4 py-2 hover:bg-gray-700"
+                                                onClick={() => selectCustomer(customer)}
+                                            >
+                                                <div>{customer.name}</div>
+                                                {customer.phone && <div className="text-xs text-gray-400">{customer.phone}</div>}
                                                     </li>
                                                 ))}
-                                            </ul>
-                                        ) : (
-                                            <div className="p-3 text-center text-gray-400">
-                                                Müşteri bulunamadı
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
+                                    </ul>
+                                </div>
+                            )}
                         </div>
                         <div>
-                            <label htmlFor="customerPhone" className="block text-sm font-medium text-gray-400 mb-2">
+                            <label htmlFor="phone" className="block text-sm font-medium text-gray-400 mb-2">
                                 Telefon
                             </label>
                             <input
-                                type="text"
-                                id="customerPhone"
+                                type="tel"
+                                id="phone"
                                 name="customerPhone"
                                 value={formData.customerPhone || ''}
                                 onChange={handleInputChange}
@@ -447,51 +415,32 @@ const SalesForm: React.FC<SalesFormProps> = ({
                             />
                         </div>
                         <div>
-                            <label htmlFor="customerEmail" className="block text-sm font-medium text-gray-400 mb-2">
+                            <label htmlFor="email" className="block text-sm font-medium text-gray-400 mb-2">
                                 E-posta
                             </label>
                             <input
                                 type="email"
-                                id="customerEmail"
+                                id="email"
                                 name="customerEmail"
                                 value={formData.customerEmail || ''}
                                 onChange={handleInputChange}
                                 className="w-full p-3 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
                             />
                         </div>
-                        <div>
-                            <label htmlFor="saleDate" className="block text-sm font-medium text-gray-400 mb-2">
-                                Satış Tarihi*
+                        <div className="sm:col-span-2">
+                            <label htmlFor="address" className="block text-sm font-medium text-gray-400 mb-2">
+                                Adres
                             </label>
-                            <input
-                                type="date"
-                                id="saleDate"
-                                name="saleDate"
-                                value={formData.saleDate ? new Date(formData.saleDate).toISOString().split('T')[0] : ''}
-                                onChange={(e) => handleDateChange(e, 'saleDate')}
-                                required
+                            <textarea
+                                id="address"
+                                name="invoiceAddress"
+                                value={formData.invoiceAddress || ''}
+                                onChange={handleInputChange}
+                                rows={2}
                                 className="w-full p-3 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
                             />
                         </div>
-                        <div>
-                            <label htmlFor="paymentMethod" className="block text-sm font-medium text-gray-400 mb-2">
-                                Ödeme Yöntemi*
-                            </label>
-                            <select
-                                id="paymentMethod"
-                                name="paymentMethod"
-                                value={formData.paymentMethod || 'Nakit'}
-                                onChange={handleInputChange}
-                                required
-                                className="w-full p-3 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
-                            >
-                                <option value="Nakit">Nakit</option>
-                                <option value="Kredi Kartı">Kredi Kartı</option>
-                                <option value="Havale/EFT">Havale/EFT</option>
-                                <option value="Diğer">Diğer</option>
-                            </select>
-                        </div>
-                        <div className="md:col-span-2">
+                        <div className="sm:col-span-2">
                             <label htmlFor="notes" className="block text-sm font-medium text-gray-400 mb-2">
                                 Notlar
                             </label>
@@ -509,7 +458,7 @@ const SalesForm: React.FC<SalesFormProps> = ({
 
                 {/* Fatura Bilgileri Sekmesi */}
                 {activeTab === 'invoice' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                         <div>
                             <label htmlFor="invoiceNumber" className="block text-sm font-medium text-gray-400 mb-2">
                                 Fatura Numarası
@@ -536,7 +485,7 @@ const SalesForm: React.FC<SalesFormProps> = ({
                                 className="w-full p-3 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
                             />
                         </div>
-                        <div className="md:col-span-2">
+                        <div className="sm:col-span-2">
                             <label htmlFor="invoiceAddress" className="block text-sm font-medium text-gray-400 mb-2">
                                 Fatura Adresi
                             </label>
@@ -554,8 +503,8 @@ const SalesForm: React.FC<SalesFormProps> = ({
 
                 {/* Teslimat Bilgileri Sekmesi */}
                 {activeTab === 'delivery' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="md:col-span-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                        <div className="sm:col-span-2">
                             <label htmlFor="deliveryAddress" className="block text-sm font-medium text-gray-400 mb-2">
                                 Teslimat Adresi
                             </label>
@@ -603,7 +552,7 @@ const SalesForm: React.FC<SalesFormProps> = ({
 
                 {/* Ödeme Detayları Sekmesi */}
                 {activeTab === 'payment' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                         <div>
                             <label htmlFor="paymentStatus" className="block text-sm font-medium text-gray-400 mb-2">
                                 Ödeme Durumu
@@ -668,8 +617,8 @@ const SalesForm: React.FC<SalesFormProps> = ({
                 {/* Ürünler Sekmesi */}
                 {activeTab === 'items' && (
                     <div>
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-6">
-                            <div className="md:col-span-5">
+                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 mb-6">
+                            <div className="sm:col-span-5">
                                 <label htmlFor="productId" className="block text-sm font-medium text-gray-400 mb-2">
                                     Ürün
                                 </label>
@@ -687,7 +636,7 @@ const SalesForm: React.FC<SalesFormProps> = ({
                                     ))}
                                 </select>
                             </div>
-                            <div className="md:col-span-3">
+                            <div className="sm:col-span-3">
                                 <label htmlFor="quantity" className="block text-sm font-medium text-gray-400 mb-2">
                                     Miktar
                                 </label>
@@ -700,10 +649,10 @@ const SalesForm: React.FC<SalesFormProps> = ({
                                     className="w-full p-3 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
                                 />
                             </div>
-                            <div className="md:col-span-4 flex items-end">
+                            <div className="sm:col-span-4 flex items-end">
                                 <button
                                     type="button"
-                                    className={`w-full py-3 px-6 flex items-center justify-center rounded-md ${!productId || quantity <= 0
+                                    className={`w-full py-3 px-4 sm:px-6 flex items-center justify-center rounded-md ${!productId || quantity <= 0
                                         ? 'bg-gray-700 text-gray-300 cursor-not-allowed'
                                         : 'bg-gray-700 text-white hover:bg-gray-600'
                                         }`}
@@ -713,36 +662,39 @@ const SalesForm: React.FC<SalesFormProps> = ({
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                                     </svg>
-                                    Ekle
+                                    <span className="hidden sm:inline">Ekle</span>
                                 </button>
                             </div>
                         </div>
 
-                        {/* Ürün Listesi */}
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm text-left text-gray-300">
-                                <thead className="text-xs uppercase bg-gray-800 text-gray-400">
-                                    <tr>
-                                        <th className="px-4 py-3">Ürün</th>
-                                        <th className="px-4 py-3">Birim Fiyat</th>
-                                        <th className="px-4 py-3">Miktar</th>
-                                        <th className="px-4 py-3">Toplam</th>
-                                        <th className="px-4 py-3 w-16"></th>
+                        {/* Ürün Listesi - Responsive tablo tasarımı */}
+                        <div className="overflow-x-auto -mx-4 sm:mx-0">
+                            <div className="inline-block min-w-full align-middle">
+                                <div className="overflow-hidden shadow-sm">
+                                    <table className="min-w-full divide-y divide-gray-700">
+                                        <thead className="bg-gray-800">
+                                            <tr>
+                                                <th scope="col" className="py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Ürün</th>
+                                                <th scope="col" className="py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Birim Fiyat</th>
+                                                <th scope="col" className="py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Miktar</th>
+                                                <th scope="col" className="py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Toplam</th>
+                                                <th scope="col" className="py-3 px-2 sm:px-4 text-center text-xs font-medium text-gray-400 uppercase tracking-wider w-16"></th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                        <tbody className="bg-gray-900 divide-y divide-gray-800">
                                     {formData.items && formData.items.length > 0 ? (
                                         formData.items.map((item, index) => (
-                                            <tr key={index} className="border-b border-gray-800">
-                                                <td className="px-4 py-3">{item.productName}</td>
-                                                <td className="px-4 py-3">{formatCurrency(item.unitPrice)}</td>
-                                                <td className="px-4 py-3">{item.quantity}</td>
-                                                <td className="px-4 py-3">{formatCurrency(item.totalPrice)}</td>
-                                                <td className="px-4 py-3 text-center">
+                                            <tr key={index}>
+                                                <td className="py-2 px-2 sm:px-4 whitespace-nowrap text-sm text-gray-300">{item.productName}</td>
+                                                <td className="py-2 px-2 sm:px-4 whitespace-nowrap text-sm text-gray-300">{formatCurrency(item.unitPrice)}</td>
+                                                <td className="py-2 px-2 sm:px-4 whitespace-nowrap text-sm text-gray-300">{item.quantity}</td>
+                                                <td className="py-2 px-2 sm:px-4 whitespace-nowrap text-sm text-gray-300">{formatCurrency(item.totalPrice)}</td>
+                                                <td className="py-2 px-2 sm:px-4 whitespace-nowrap text-center">
                                                     <button
                                                         type="button"
                                                         onClick={() => removeItem(index)}
                                                         className="p-1 rounded-full text-gray-400 hover:bg-gray-700 hover:text-white"
+                                                        aria-label="Sil"
                                                     >
                                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -753,45 +705,47 @@ const SalesForm: React.FC<SalesFormProps> = ({
                                         ))
                                     ) : (
                                         <tr>
-                                            <td colSpan={5} className="px-4 py-3 text-center">Henüz ürün eklenmedi</td>
+                                                        <td colSpan={5} className="py-3 px-2 sm:px-4 text-center text-sm text-gray-400">Henüz ürün eklenmedi</td>
                                         </tr>
                                     )}
                                 </tbody>
                                 <tfoot className="bg-gray-900">
                                     <tr className="border-t border-gray-800">
-                                        <td colSpan={3} className="px-4 py-3 text-right font-medium">Ara Toplam:</td>
-                                        <td colSpan={2} className="px-4 py-3">{formatCurrency(subTotal)}</td>
+                                                <td colSpan={3} className="py-2 px-2 sm:px-4 text-right text-sm font-medium text-gray-300">Ara Toplam:</td>
+                                                <td colSpan={2} className="py-2 px-2 sm:px-4 text-sm text-gray-300">{formatCurrency(subTotal)}</td>
                                     </tr>
                                     <tr>
-                                        <td colSpan={3} className="px-4 py-3 text-right font-medium">İndirim:</td>
-                                        <td colSpan={2} className="px-4 py-3">-{formatCurrency(discountAmount)}</td>
+                                                <td colSpan={3} className="py-2 px-2 sm:px-4 text-right text-sm font-medium text-gray-300">İndirim:</td>
+                                                <td colSpan={2} className="py-2 px-2 sm:px-4 text-sm text-gray-300">-{formatCurrency(discountAmount)}</td>
                                     </tr>
                                     <tr>
-                                        <td colSpan={3} className="px-4 py-3 text-right font-medium">KDV (%{taxRate}):</td>
-                                        <td colSpan={2} className="px-4 py-3">{formatCurrency(taxAmount)}</td>
+                                                <td colSpan={3} className="py-2 px-2 sm:px-4 text-right text-sm font-medium text-gray-300">KDV (%{taxRate}):</td>
+                                                <td colSpan={2} className="py-2 px-2 sm:px-4 text-sm text-gray-300">{formatCurrency(taxAmount)}</td>
                                     </tr>
                                     <tr className="border-t border-gray-800 font-bold">
-                                        <td colSpan={3} className="px-4 py-3 text-right">Genel Toplam:</td>
-                                        <td colSpan={2} className="px-4 py-3">{formatCurrency(formData.totalAmount || 0)}</td>
+                                                <td colSpan={3} className="py-2 px-2 sm:px-4 text-right text-sm text-gray-300">Genel Toplam:</td>
+                                                <td colSpan={2} className="py-2 px-2 sm:px-4 text-sm text-white">{formatCurrency(formData.totalAmount || 0)}</td>
                                     </tr>
                                 </tfoot>
                             </table>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}
 
-                <div className="flex justify-end space-x-4 mt-8">
+                <div className="flex flex-col sm:flex-row justify-end gap-3 sm:space-x-4 mt-8">
                     <button
                         type="button"
                         onClick={onCancel}
-                        className="px-6 py-3 bg-gray-800 text-silver rounded-md hover:bg-gray-700"
+                        className="px-4 py-2 sm:px-6 sm:py-3 bg-gray-800 text-silver rounded-md hover:bg-gray-700 w-full sm:w-auto"
                     >
                         İptal
                     </button>
                     <button
                         type="submit"
                         disabled={!formData.customerName || !formData.items || formData.items.length === 0}
-                        className={`px-6 py-3 rounded-md flex items-center ${!formData.customerName || !formData.items || formData.items.length === 0
+                        className={`px-4 py-2 sm:px-6 sm:py-3 rounded-md flex items-center justify-center w-full sm:w-auto ${!formData.customerName || !formData.items || formData.items.length === 0
                             ? 'bg-gray-700 text-gray-300 cursor-not-allowed'
                             : 'bg-gray-600 text-white hover:bg-gray-500'
                             }`}

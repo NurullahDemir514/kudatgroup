@@ -45,18 +45,7 @@ export async function GET(req: NextRequest) {
                 name: "hello_world",
                 language: {
                     code: "en_US"
-                },
-                components: [
-                    {
-                        type: "body",
-                        parameters: [
-                            {
-                                type: "text",
-                                text: "Test User"
-                            }
-                        ]
-                    }
-                ]
+                }
             }
         };
 

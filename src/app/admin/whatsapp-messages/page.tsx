@@ -127,7 +127,7 @@ export default function WhatsAppMessagesPage() {
             // Parametreleri hazırla
             const params: Record<string, string> = {};
 
-            if (selectedTemplate) {
+            if (selectedTemplate && selectedTemplate.paramCount > 0) {
                 for (let i = 1; i <= selectedTemplate.paramCount; i++) {
                     const paramValue = data.params[`param${i}` as keyof typeof data.params];
                     if (paramValue) {
@@ -184,7 +184,7 @@ export default function WhatsAppMessagesPage() {
                 status: "APPROVED",
                 category: "UTILITY",
                 language: "en_US",
-                paramCount: 1
+                paramCount: 0 // Parametre yok
             }
         ]);
     }, []);
@@ -276,11 +276,19 @@ export default function WhatsAppMessagesPage() {
                                                 <span className="text-silver">{selectedTemplate.language}</span>
                                             </div>
                                         </div>
-                                        <div>
-                                            <span className="text-gray-400 text-sm">Durum:</span>{" "}
-                                            <span className={`text-sm ${selectedTemplate.status === 'APPROVED' ? 'text-emerald-400' : 'text-yellow-400'}`}>
-                                                {selectedTemplate.status === 'APPROVED' ? 'Onaylandı' : selectedTemplate.status}
-                                            </span>
+                                        <div className="grid grid-cols-2 gap-2 text-sm mb-2">
+                                            <div>
+                                                <span className="text-gray-400">Durum:</span>{" "}
+                                                <span className={`${selectedTemplate.status === 'APPROVED' ? 'text-emerald-400' : 'text-yellow-400'}`}>
+                                                    {selectedTemplate.status === 'APPROVED' ? 'Onaylandı' : selectedTemplate.status}
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <span className="text-gray-400">Parametreler:</span>{" "}
+                                                <span className="text-silver">
+                                                    {selectedTemplate.paramCount > 0 ? `${selectedTemplate.paramCount} adet` : 'Yok'}
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
                                 )}
@@ -289,21 +297,27 @@ export default function WhatsAppMessagesPage() {
                                 {selectedTemplate && (
                                     <div className="p-4 bg-gray-800 bg-opacity-40 rounded-md border border-gray-700">
                                         <h3 className="text-md font-medium text-silver mb-3">Şablon Parametreleri</h3>
-                                        <div className="space-y-3">
-                                            {Array.from({ length: selectedTemplate.paramCount }).map((_, index) => (
-                                                <div key={`param${index + 1}`}>
-                                                    <label className="block text-gray-300 text-sm font-medium mb-1">
-                                                        Parametre {index + 1}
-                                                    </label>
-                                                    <input
-                                                        type="text"
-                                                        {...register(`params.param${index + 1}` as any)}
-                                                        className="w-full px-3 py-2 rounded-md border border-gray-700 bg-black bg-opacity-50 text-silver text-sm focus:border-silver focus:outline-none"
-                                                        placeholder={`Parametre ${index + 1} değeri`}
-                                                    />
-                                                </div>
-                                            ))}
-                                        </div>
+                                        {selectedTemplate.paramCount > 0 ? (
+                                            <div className="space-y-3">
+                                                {Array.from({ length: selectedTemplate.paramCount }).map((_, index) => (
+                                                    <div key={`param${index + 1}`}>
+                                                        <label className="block text-gray-300 text-sm font-medium mb-1">
+                                                            Parametre {index + 1}
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            {...register(`params.param${index + 1}` as any)}
+                                                            className="w-full px-3 py-2 rounded-md border border-gray-700 bg-black bg-opacity-50 text-silver text-sm focus:border-silver focus:outline-none"
+                                                            placeholder={`Parametre ${index + 1} değeri`}
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="p-3 bg-gray-900 bg-opacity-50 rounded-md text-gray-300 text-sm">
+                                                Bu şablon herhangi bir parametre gerektirmiyor. Bu şablon sabit bir metin içerir ve özelleştirilebilir alanlar bulunmamaktadır.
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 

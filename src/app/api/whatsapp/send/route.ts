@@ -113,16 +113,16 @@ async function sendMessages(subscribers: any[], templateId: string, customParams
         switch (templateId) {
             case "hosgeldiniz":
                 // Bu şablon aktif değil, hello_world kullanalım
-                message = WhatsAppTemplates.helloWorld(name);
+                message = WhatsAppTemplates.helloWorld();
                 break;
 
             case "hello_world":
-                message = WhatsAppTemplates.helloWorld(name);
+                message = WhatsAppTemplates.helloWorld();
                 break;
 
             // Diğer durumlar için varsayılan olarak hello_world şablonunu kullan
             default:
-                message = WhatsAppTemplates.helloWorld(name);
+                message = WhatsAppTemplates.helloWorld();
         }
 
         // Telefon numarasını ayarla (WhatsApp formatına: 905xxxxxxxxx)

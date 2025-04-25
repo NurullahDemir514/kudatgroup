@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { ISale } from "@/models/Sale";
 import { IProduct } from "@/models/Product";
 import SalesForm from "./SalesForm";
@@ -53,6 +53,17 @@ export default function SalesPage() {
             },
         ],
     });
+
+    // Tarih bazında filtreleme seçenekleri
+    const dateFilterOptions = [
+        { value: '', label: 'Tüm Tarihler' },
+        { value: 'today', label: 'Bugün' },
+        { value: 'yesterday', label: 'Dün' },
+        { value: 'thisWeek', label: 'Bu Hafta' },
+        { value: 'lastWeek', label: 'Geçen Hafta' },
+        { value: 'thisMonth', label: 'Bu Ay' },
+        { value: 'lastMonth', label: 'Geçen Ay' },
+    ];
 
     // Satışları API'den getir
     useEffect(() => {

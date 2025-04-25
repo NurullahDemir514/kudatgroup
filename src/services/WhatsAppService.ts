@@ -170,13 +170,11 @@ export class WhatsAppTemplates {
         };
     }
 
-    static helloWorld(name: string): IWhatsAppMessage {
+    static helloWorld(): IWhatsAppMessage {
         return {
             to: "",
             templateName: "hello_world",
-            templateParams: {
-                name: name
-            },
+            templateParams: {}, // Parametre yok - boş nesne
             language: "en_US" // İngilizce (US) şablon
         };
     }
