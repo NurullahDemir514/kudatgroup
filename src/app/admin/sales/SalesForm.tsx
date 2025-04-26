@@ -12,6 +12,11 @@ interface ICustomer {
     email?: string;
     address?: string;
     taxNumber?: string;
+    isSubscriber?: boolean; // E-bülten abonesi mi?
+    addressCity?: string;
+    addressDistrict?: string;
+    addressStreet?: string;
+    addressBuildingNo?: string;
 }
 
 interface SalesFormProps {
@@ -128,14 +133,38 @@ const SalesForm: React.FC<SalesFormProps> = ({
 
     // Müşteri seçildiğinde bilgileri form alanlarına doldur
     const selectCustomer = (customer: ICustomer) => {
+        // Adres bilgilerini birleştir
+        let fullAddress = '';
+
+        if (customer.isSubscriber) {
+            // E-bülten abonesi ise adres bilgilerini subscriptions modeli formatından alıyoruz
+            if (customer.addressCity) {
+                fullAddress += customer.addressCity;
+            }
+            if (customer.addressDistrict) {
+                fullAddress += fullAddress ? `, ${customer.addressDistrict}` : customer.addressDistrict;
+            }
+            if (customer.addressStreet) {
+                fullAddress += fullAddress ? `, ${customer.addressStreet}` : customer.addressStreet;
+            }
+            if (customer.addressBuildingNo) {
+                fullAddress += fullAddress ? ` No: ${customer.addressBuildingNo}` : `No: ${customer.addressBuildingNo}`;
+            }
+
+            console.log(`E-bülten abonesi için adres oluşturuldu: ${fullAddress}`);
+        } else {
+            // Normal müşteri ise varsa adres bilgisini kullan
+            fullAddress = customer.address || '';
+        }
+
         setFormData({
             ...formData,
             customerName: customer.name,
             customerPhone: customer.phone || '',
             customerEmail: customer.email || '',
-            invoiceAddress: customer.address || '',
+            invoiceAddress: fullAddress || '',
             taxNumber: customer.taxNumber || '',
-            deliveryAddress: customer.address || '', // Aynı adresi teslimat adresi olarak da kullan
+            deliveryAddress: fullAddress || '', // Aynı adresi teslimat adresi olarak da kullan
         });
 
         // Liste kapanmadan önce küçük bir gecikme ekleyerek UI'nin düzgün çalışmasını sağla
@@ -149,16 +178,62 @@ const SalesForm: React.FC<SalesFormProps> = ({
         const fetchCustomers = async () => {
             try {
                 setIsLoadingCustomers(true);
-                const response = await fetch('/api/customers');
-                const result = await response.json();
+                console.log("Müşteri ve abone verileri alınıyor...");
 
-                if (result.success) {
-                    setCustomers(result.data);
+                // Müşteri verileri
+                const customersResponse = await fetch('/api/customers');
+                const customersResult = await customersResponse.json();
+
+                // Müşteri verilerini işle
+                let allContacts: ICustomer[] = [];
+                if (customersResult.success) {
+                    console.log(`${customersResult.data.length} müşteri yüklendi`);
+                    allContacts = [...customersResult.data];
                 } else {
-                    console.error('Müşteri listesi yüklenirken hata:', result.error);
+                    console.error('Müşteri listesi yüklenirken hata:', customersResult.error);
                 }
+
+                // Bülten aboneleri için endpoint'i kontrol et
+                try {
+                    const subscribersResponse = await fetch('/api/whatsapp/subscribers');
+                    const subscribersResult = await subscribersResponse.json();
+
+                    if (subscribersResult.success) {
+                        console.log(`${subscribersResult.data.length} bülten abonesi yüklendi`);
+                        // Aboneleri müşteri formatına dönüştür ve isSubscriber özelliğini ekle
+                        const formattedSubscribers = subscribersResult.data.map((sub: any) => ({
+                            _id: sub._id,
+                            name: sub.name || sub.email,
+                            email: sub.email,
+                            phone: sub.phone || '',
+                            isSubscriber: true,
+                            // Adres bilgilerini de ekle
+                            addressCity: sub.addressCity,
+                            addressDistrict: sub.addressDistrict,
+                            addressStreet: sub.addressStreet,
+                            addressBuildingNo: sub.addressBuildingNo,
+                            taxNumber: sub.taxNumber
+                        }));
+
+                        // Aynı email'e sahip olanları müşteri listesinden filtrele
+                        const uniqueSubscribers = formattedSubscribers.filter((sub: ICustomer) =>
+                            !allContacts.some(customer => customer.email === sub.email && sub.email)
+                        );
+
+                        console.log(`${uniqueSubscribers.length} benzersiz abone ekleniyor`);
+                        // Benzersiz aboneleri ekle
+                        allContacts = [...allContacts, ...uniqueSubscribers];
+                    } else {
+                        console.error('Aboneler yüklenirken hata:', subscribersResult.error);
+                    }
+                } catch (subErr) {
+                    console.error('Abone verileri alınırken hata oluştu:', subErr);
+                }
+
+                console.log(`Toplam ${allContacts.length} kişi yüklendi`);
+                setCustomers(allContacts);
             } catch (err) {
-                console.error('Müşteri listesi yüklenirken hata:', err);
+                console.error('Veri yükleme hatası:', err);
             } finally {
                 setIsLoadingCustomers(false);
             }
@@ -451,7 +526,7 @@ const SalesForm: React.FC<SalesFormProps> = ({
                                             <div className="py-3 px-3 text-center text-xs sm:text-sm text-gray-400">
                                                 <div className="flex justify-center items-center space-x-2">
                                                     <div className="animate-spin h-4 w-4 border-2 border-gray-500 rounded-full border-t-transparent"></div>
-                                                    <span>Müşteriler yükleniyor...</span>
+                                                    <span>Kişiler yükleniyor...</span>
                                                 </div>
                                             </div>
                                         ) : filteredCustomers.length > 0 ? (
@@ -460,17 +535,26 @@ const SalesForm: React.FC<SalesFormProps> = ({
                                                         <li
                                                             key={customer._id}
                                                             className="cursor-pointer px-3 py-2 hover:bg-gray-700"
-                                                onClick={() => selectCustomer(customer)}
-                                            >
-                                                            <div className="font-medium">{customer.name}</div>
-                                                {customer.phone && <div className="text-xs text-gray-400">{customer.phone}</div>}
-                                                            {customer.email && <div className="text-xs text-gray-400">{customer.email}</div>}
-                                            </li>
-                                        ))}
+                                                            onClick={() => selectCustomer(customer)}
+                                                        >
+                                                            <div className="flex items-center">
+                                                                <div className="flex-1">
+                                                                    <div className="font-medium">{customer.name}</div>
+                                                                    {customer.phone && <div className="text-xs text-gray-400">{customer.phone}</div>}
+                                                                    {customer.email && <div className="text-xs text-gray-400">{customer.email}</div>}
+                                                                </div>
+                                                                {customer.isSubscriber && (
+                                                                    <span className="ml-2 bg-indigo-900 text-xs px-2 py-0.5 rounded-full text-indigo-200 border border-indigo-700">
+                                                                        Bülten
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </li>
+                                                    ))}
                                                 </ul>
                                         ) : (
                                             <div className="py-3 px-3 text-center text-xs sm:text-sm text-gray-400">
-                                                Sonuç bulunamadı. Yeni müşteri ekleyebilirsiniz.
+                                                        Sonuç bulunamadı. Yeni kişi ekleyebilirsiniz.
                                             </div>
                                         )}
                                     </div>
@@ -809,19 +893,19 @@ const SalesForm: React.FC<SalesFormProps> = ({
                                                                 <td className="py-2 px-2 sm:px-3 whitespace-nowrap text-xs sm:text-sm text-gray-300">{item.quantity}</td>
                                                                 <td className="py-2 px-2 sm:px-3 whitespace-nowrap text-xs sm:text-sm text-gray-300 font-medium">{formatCurrency(item.totalPrice)}</td>
                                                                 <td className="py-2 px-2 sm:px-3 whitespace-nowrap text-center">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => removeItem(index)}
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => removeItem(index)}
                                                                         className="p-1.5 rounded-full text-gray-400 hover:bg-red-800 hover:bg-opacity-30 hover:text-red-300 transition-colors"
-                                                        aria-label="Sil"
-                                                    >
+                                                                        aria-label="Sil"
+                                                                    >
                                                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                        </svg>
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                        </svg>
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        ))
                                                     ) : (
                                                         <tr>
                                                             <td colSpan={5} className="py-4 px-2 sm:px-3 text-center text-xs sm:text-sm text-gray-400">
