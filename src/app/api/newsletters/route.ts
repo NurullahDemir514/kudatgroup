@@ -17,6 +17,8 @@ export async function GET(req: NextRequest) {
             .skip(skip)
             .limit(limit);
 
+        console.log("API'den getirilen ilk kayıt:", newsletters[0]); // İlk kaydı kontrol et
+
         const total = await Newsletter.countDocuments({});
 
         return NextResponse.json({
@@ -41,11 +43,12 @@ export async function POST(req: NextRequest) {
         await connectToDatabase();
 
         const data = await req.json();
+        console.log("API'ye gelen veriler:", data);
 
         // Zorunlu alanları kontrol et
-        if (!data.name || !data.phone) {
+        if (!data.name || !data.phone || !data.addressCity) {
             return NextResponse.json(
-                { success: false, error: "İsim ve telefon numarası zorunludur" },
+                { success: false, error: "İsim, telefon numarası ve il bilgisi zorunludur" },
                 { status: 400 }
             );
         }
@@ -68,23 +71,38 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // Yeni bülten aboneliği oluştur
-        const newNewsletter = new Newsletter({
+        // Önemli adres bilgisi kontrol noktası
+        console.log("Kaydı oluşturmadan önce il bilgisi:", data.addressCity);
+
+        // Yeni bülten aboneliği oluştur - düzeltilmiş hali
+        const newNewsletterData = {
             name: data.name.trim(),
             phone: data.phone.trim(),
             email: data.email ? data.email.trim() : undefined,
             companyName: data.companyName ? data.companyName.trim() : undefined,
+            // Adres bilgilerini parçalı alıyoruz
+            addressCity: data.addressCity.trim(),
+            addressDistrict: data.addressDistrict ? data.addressDistrict.trim() : undefined,
+            addressStreet: data.addressStreet ? data.addressStreet.trim() : undefined,
+            addressPostalCode: data.addressPostalCode ? data.addressPostalCode.trim() : undefined,
             taxNumber: data.taxNumber ? data.taxNumber.trim() : undefined,
             whatsappEnabled: data.whatsappEnabled !== undefined ? data.whatsappEnabled : true,
             active: true,
             subscriptionDate: new Date(),
-        });
+        };
 
-        await newNewsletter.save();
+        console.log("Hazırlanan veri:", newNewsletterData);
+
+        // Mongoose modeli ile oluştur
+        const newNewsletter = new Newsletter(newNewsletterData);
+        console.log("Kaydedilecek Newsletter objesi:", JSON.stringify(newNewsletter.toObject()));
+
+        const savedNewsletter = await newNewsletter.save();
+        console.log("Kaydedilen Newsletter sonucu:", JSON.stringify(savedNewsletter.toObject()));
 
         return NextResponse.json({
             success: true,
-            data: newNewsletter,
+            data: savedNewsletter,
             message: "Bülten aboneliğiniz başarıyla oluşturuldu"
         });
     } catch (error: any) {

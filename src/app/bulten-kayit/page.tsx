@@ -10,6 +10,10 @@ type FormData = {
     phone: string;
     email?: string;
     companyName?: string;
+    addressCity: string;       // İl (zorunlu)
+    addressDistrict: string;   // İlçe (zorunlu)
+    addressStreet: string;     // Sokak/Cadde (zorunlu)
+    addressBuildingNo: string; // Bina no (zorunlu)
     taxNumber?: string;
     whatsappEnabled: boolean;
 };
@@ -27,6 +31,7 @@ export default function BultenKayitPage() {
     } = useForm<FormData>();
 
     const onSubmit = async (data: FormData) => {
+        console.log("Form verileri:", data);
         setIsSubmitting(true);
         setSubmitError(null);
 
@@ -221,6 +226,88 @@ export default function BultenKayitPage() {
                                                 />
                                             </div>
                                         </div>
+
+
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                                                <div>
+                                                    <label
+                                                        htmlFor="addressCity"
+                                                        className="block text-gray-700 font-medium mb-1 text-sm sm:text-base"
+                                                    >
+                                                        İl <span className="text-red-500">*</span>
+                                                    </label>
+                                                    <input
+                                                        id="addressCity"
+                                                        type="text"
+                                                        placeholder="İl"
+                                                        {...register("addressCity", { required: "İl alanı zorunludur" })}
+                                                        className="w-full px-3 sm:px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-800 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition-colors text-sm sm:text-base"
+                                                    />
+                                                    {errors.addressCity && (
+                                                        <p className="mt-1 text-xs sm:text-sm text-red-500">{errors.addressCity.message}</p>
+                                                    )}
+                                                </div>
+
+                                                <div>
+                                                    <label
+                                                        htmlFor="addressDistrict"
+                                                        className="block text-gray-700 font-medium mb-1 text-sm sm:text-base"
+                                                    >
+                                                        İlçe <span className="text-red-500">*</span>
+                                                    </label>
+                                                    <input
+                                                        id="addressDistrict"
+                                                        type="text"
+                                                        placeholder="İlçe"
+                                                        {...register("addressDistrict", { required: "İlçe alanı zorunludur" })}
+                                                        className="w-full px-3 sm:px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-800 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition-colors text-sm sm:text-base"
+                                                    />
+                                                    {errors.addressDistrict && (
+                                                        <p className="mt-1 text-xs sm:text-sm text-red-500">{errors.addressDistrict.message}</p>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                                                <div>
+                                                    <label
+                                                        htmlFor="addressStreet"
+                                                        className="block text-gray-700 font-medium mb-1 text-sm sm:text-base"
+                                                    >
+                                                        Sokak/Cadde <span className="text-red-500">*</span>
+                                                    </label>
+                                                    <input
+                                                        id="addressStreet"
+                                                        type="text"
+                                                        placeholder="Sokak veya cadde bilgisi"
+                                                        {...register("addressStreet", { required: "Sokak/Cadde alanı zorunludur" })}
+                                                        className="w-full px-3 sm:px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-800 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition-colors text-sm sm:text-base"
+                                                    />
+                                                    {errors.addressStreet && (
+                                                        <p className="mt-1 text-xs sm:text-sm text-red-500">{errors.addressStreet.message}</p>
+                                                    )}
+                                                </div>
+
+                                                <div>
+                                                    <label
+                                                        htmlFor="addressBuildingNo"
+                                                        className="block text-gray-700 font-medium mb-1 text-sm sm:text-base"
+                                                    >
+                                                        Bina No <span className="text-red-500">*</span>
+                                                    </label>
+                                                    <input
+                                                        id="addressBuildingNo"
+                                                        type="text"
+                                                        placeholder="Bina numarası"
+                                                        {...register("addressBuildingNo", { required: "Bina numarası alanı zorunludur" })}
+                                                        className="w-full px-3 sm:px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-800 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition-colors text-sm sm:text-base"
+                                                    />
+                                                    {errors.addressBuildingNo && (
+                                                        <p className="mt-1 text-xs sm:text-sm text-red-500">{errors.addressBuildingNo.message}</p>
+                                                    )}
+                                                </div>
+                                            </div>
 
                                         <div className="flex items-start">
                                             <div className="flex items-center h-5">

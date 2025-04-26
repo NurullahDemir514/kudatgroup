@@ -12,10 +12,15 @@ interface INewsletter {
     phone: string;
     email?: string;
     companyName?: string;
+    addressCity: string;       // İl
+    addressDistrict?: string;  // İlçe
+    addressStreet?: string;    // Sokak/Cadde
+    addressBuildingNo?: string; // Bina no
     taxNumber?: string;
     active: boolean;
     subscriptionDate: Date;
     notes?: string;
+    companyAddress?: string;   // İşyeri adresi
     createdAt: Date;
     updatedAt: Date;
 }
@@ -32,9 +37,14 @@ export default function NewslettersPage() {
         phone: "",
         email: "",
         companyName: "",
+        addressCity: "",
+        addressDistrict: "",
+        addressStreet: "",
+        addressBuildingNo: "",
         taxNumber: "",
         active: true,
         notes: "",
+        companyAddress: "",
     });
     const [formError, setFormError] = useState<string | null>(null);
     const [formSubmitting, setFormSubmitting] = useState(false);
@@ -67,6 +77,8 @@ export default function NewslettersPage() {
             const data = await response.json();
 
             if (data.success) {
+                console.log("Admin sayfasına getirilen veriler:", data.data[0]); // İlk veriyi kontrol et
+                console.log("Bu veride companyAddress var mı?", data.data[0]?.companyAddress ? "Evet" : "Hayır");
                 setNewsletters(data.data);
             } else {
                 setError(data.error || "Bülten abonelikleri yüklenirken bir hata oluştu");
@@ -111,9 +123,14 @@ export default function NewslettersPage() {
             phone: newsletter.phone || "",
             email: newsletter.email || "",
             companyName: newsletter.companyName || "",
+            addressCity: newsletter.addressCity || "",
+            addressDistrict: newsletter.addressDistrict || "",
+            addressStreet: newsletter.addressStreet || "",
+            addressBuildingNo: newsletter.addressBuildingNo || "",
             taxNumber: newsletter.taxNumber || "",
             active: newsletter.active,
             notes: newsletter.notes || "",
+            companyAddress: newsletter.companyAddress || "",
         });
         setFormError(null);
         setShowModal(true);
@@ -144,8 +161,8 @@ export default function NewslettersPage() {
 
         try {
             // Form doğrulama
-            if (!formData.email || !formData.name) {
-                setFormError("Ad Soyad ve E-posta alanları zorunludur");
+            if (!formData.email || !formData.name || !formData.addressCity) {
+                setFormError("Ad Soyad, E-posta ve İl bilgisi alanları zorunludur");
                 setFormSubmitting(false);
                 return;
             }
@@ -291,9 +308,14 @@ export default function NewslettersPage() {
                                 phone: "",
                                 email: "",
                                 companyName: "",
+                                addressCity: "",
+                                addressDistrict: "",
+                                addressStreet: "",
+                                addressBuildingNo: "",
                                 taxNumber: "",
                                 active: true,
                                 notes: "",
+                                companyAddress: "",
                             });
                         }}
                         className="flex items-center px-4 py-2 text-sm bg-gradient-to-r from-gray-300 to-gray-400 text-gray-900 font-medium rounded-lg hover:from-gray-400 hover:to-gray-500 transition-all"
@@ -464,9 +486,14 @@ export default function NewslettersPage() {
                                             phone: "",
                                             email: "",
                                             companyName: "",
+                                            addressCity: "",
+                                            addressDistrict: "",
+                                            addressStreet: "",
+                                            addressBuildingNo: "",
                                             taxNumber: "",
                                             active: true,
                                             notes: "",
+                                            companyAddress: "",
                                         });
                                     }}
                                     className="mt-4 inline-flex items-center px-4 py-2 text-sm bg-gradient-to-r from-gray-300 to-gray-400 text-gray-900 font-medium rounded-lg hover:from-gray-400 hover:to-gray-500 transition-all"
@@ -495,6 +522,9 @@ export default function NewslettersPage() {
                                                     <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400 hidden md:table-cell">
                                             Şirket Bilgileri
                                         </th>
+                                                    <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400 hidden md:table-cell">
+                                                        Adres Bilgileri
+                                                    </th>
                                                     <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400 hidden lg:table-cell">
                                             Kayıt Tarihi
                                         </th>
@@ -572,6 +602,24 @@ export default function NewslettersPage() {
                                                     )}
                                                 </div>
                                             </td>
+                                                        <td className="px-3 sm:px-6 py-3 sm:py-4 hidden md:table-cell">
+                                                            <div className="text-sm text-gray-300">
+                                                                {newsletter.addressCity ? (
+                                                                    <div>
+                                                                        <div className="font-medium">{newsletter.addressCity}</div>
+                                                                        {newsletter.addressDistrict && (
+                                                                            <div className="text-xs text-gray-400 mt-1">
+                                                                                {newsletter.addressDistrict}
+                                                                                {newsletter.addressStreet && `, ${newsletter.addressStreet}`}
+                                                                                {newsletter.addressBuildingNo && ` No: ${newsletter.addressBuildingNo}`}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="text-gray-500 italic">Belirtilmemiş</span>
+                                                                )}
+                                                            </div>
+                                                        </td>
                                                         <td className="px-3 sm:px-6 py-3 sm:py-4 hidden lg:table-cell">
                                                 <div className="text-sm text-gray-300">
                                                     {newsletter.subscriptionDate ? (
@@ -751,15 +799,82 @@ export default function NewslettersPage() {
                             </div>
                                 <div className="space-y-2 sm:col-span-2">
                                     <label className="block text-sm font-medium text-gray-300">
-                                    Notlar
-                                </label>
+                                        İşyeri Adresi <span className="text-red-400">*</span>
+                                    </label>
                                     <textarea
-                                    name="notes"
-                                    value={formData.notes}
-                                    onChange={handleInputChange}
-                                    rows={3}
-                                        className="w-full rounded-lg border border-gray-800 bg-black bg-opacity-80 px-3 py-2 text-gray-300 placeholder-gray-500 shadow-sm focus:border-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-700 sm:text-sm"
-                                ></textarea>
+                                        name="companyAddress"
+                                        value={formData.companyAddress}
+                                        onChange={handleInputChange}
+                                        placeholder="İşyeri adresi"
+                                        rows={3}
+                                        className="w-full rounded-lg border border-gray-800 bg-black bg-opacity-80 px-3 py-2 text-gray-300 placeholder-gray-600 shadow-sm focus:border-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-700 sm:text-sm"
+                                        required
+                                    ></textarea>
+                                </div>
+                                <div className="space-y-2 sm:col-span-2">
+                                    <label className="block text-sm font-medium text-gray-300">
+                                        İl <span className="text-red-400">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="addressCity"
+                                        value={formData.addressCity}
+                                        onChange={handleInputChange}
+                                        placeholder="İl"
+                                        className="w-full rounded-lg border border-gray-800 bg-black bg-opacity-80 px-3 py-2 text-gray-300 placeholder-gray-600 shadow-sm focus:border-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-700 sm:text-sm"
+                                        required
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-300">
+                                        İlçe
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="addressDistrict"
+                                        value={formData.addressDistrict}
+                                        onChange={handleInputChange}
+                                        placeholder="İlçe"
+                                        className="w-full rounded-lg border border-gray-800 bg-black bg-opacity-80 px-3 py-2 text-gray-300 placeholder-gray-600 shadow-sm focus:border-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-700 sm:text-sm"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-300">
+                                        Sokak/Cadde
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="addressStreet"
+                                        value={formData.addressStreet}
+                                        onChange={handleInputChange}
+                                        placeholder="Sokak veya cadde"
+                                        className="w-full rounded-lg border border-gray-800 bg-black bg-opacity-80 px-3 py-2 text-gray-300 placeholder-gray-600 shadow-sm focus:border-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-700 sm:text-sm"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-300">
+                                        Bina No
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="addressBuildingNo"
+                                        value={formData.addressBuildingNo}
+                                        onChange={handleInputChange}
+                                        placeholder="Bina numarası"
+                                        className="w-full rounded-lg border border-gray-800 bg-black bg-opacity-80 px-3 py-2 text-gray-300 placeholder-gray-600 shadow-sm focus:border-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-700 sm:text-sm"
+                                    />
+                                </div>
+                                <div className="space-y-2 sm:col-span-2">
+                                    <label className="block text-sm font-medium text-gray-300">
+                                        Notlar
+                                    </label>
+                                    <textarea
+                                        name="notes"
+                                        value={formData.notes}
+                                        onChange={handleInputChange}
+                                        rows={3}
+                                        className="w-full rounded-lg border border-gray-800 bg-black bg-opacity-80 px-3 py-2 text-gray-300 placeholder-gray-600 shadow-sm focus:border-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-700 sm:text-sm"
+                                    ></textarea>
                                 </div>
                             </div>
 
@@ -972,6 +1087,73 @@ export default function NewslettersPage() {
                                         value={formData.taxNumber}
                                         onChange={handleInputChange}
                                         placeholder="İsteğe bağlı"
+                                        className="w-full rounded-lg border border-gray-800 bg-black bg-opacity-80 px-3 py-2 text-gray-300 placeholder-gray-600 shadow-sm focus:border-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-700 sm:text-sm"
+                                    />
+                                </div>
+                                <div className="space-y-2 sm:col-span-2">
+                                    <label className="block text-sm font-medium text-gray-300">
+                                        İşyeri Adresi <span className="text-red-400">*</span>
+                                    </label>
+                                    <textarea
+                                        name="companyAddress"
+                                        value={formData.companyAddress}
+                                        onChange={handleInputChange}
+                                        placeholder="İşyeri adresi"
+                                        rows={3}
+                                        className="w-full rounded-lg border border-gray-800 bg-black bg-opacity-80 px-3 py-2 text-gray-300 placeholder-gray-600 shadow-sm focus:border-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-700 sm:text-sm"
+                                        required
+                                    ></textarea>
+                                </div>
+                                <div className="space-y-2 sm:col-span-2">
+                                    <label className="block text-sm font-medium text-gray-300">
+                                        İl <span className="text-red-400">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="addressCity"
+                                        value={formData.addressCity}
+                                        onChange={handleInputChange}
+                                        placeholder="İl"
+                                        className="w-full rounded-lg border border-gray-800 bg-black bg-opacity-80 px-3 py-2 text-gray-300 placeholder-gray-600 shadow-sm focus:border-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-700 sm:text-sm"
+                                        required
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-300">
+                                        İlçe
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="addressDistrict"
+                                        value={formData.addressDistrict}
+                                        onChange={handleInputChange}
+                                        placeholder="İlçe"
+                                        className="w-full rounded-lg border border-gray-800 bg-black bg-opacity-80 px-3 py-2 text-gray-300 placeholder-gray-600 shadow-sm focus:border-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-700 sm:text-sm"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-300">
+                                        Sokak/Cadde
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="addressStreet"
+                                        value={formData.addressStreet}
+                                        onChange={handleInputChange}
+                                        placeholder="Sokak veya cadde"
+                                        className="w-full rounded-lg border border-gray-800 bg-black bg-opacity-80 px-3 py-2 text-gray-300 placeholder-gray-600 shadow-sm focus:border-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-700 sm:text-sm"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-300">
+                                        Bina No
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="addressBuildingNo"
+                                        value={formData.addressBuildingNo}
+                                        onChange={handleInputChange}
+                                        placeholder="Bina numarası"
                                         className="w-full rounded-lg border border-gray-800 bg-black bg-opacity-80 px-3 py-2 text-gray-300 placeholder-gray-600 shadow-sm focus:border-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-700 sm:text-sm"
                                     />
                                 </div>

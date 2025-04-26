@@ -6,6 +6,10 @@ export interface INewsletter {
     name: string;
     email?: string;
     companyName?: string;
+    addressCity: string;
+    addressDistrict?: string;
+    addressStreet?: string;
+    addressPostalCode?: string;
     taxNumber?: string;
     active: boolean;
     subscriptionDate: Date;
@@ -49,6 +53,23 @@ const newsletterSchema = new Schema<INewsletter>(
             type: String,
             trim: true,
         },
+        addressCity: {
+            type: String,
+            required: [true, 'İl bilgisi zorunludur'],
+            trim: true,
+        },
+        addressDistrict: {
+            type: String,
+            trim: true,
+        },
+        addressStreet: {
+            type: String,
+            trim: true,
+        },
+        addressPostalCode: {
+            type: String,
+            trim: true,
+        },
         taxNumber: {
             type: String,
             trim: true,
@@ -77,4 +98,11 @@ const newsletterSchema = new Schema<INewsletter>(
     { timestamps: true }
 );
 
-export const Newsletter = models.Newsletter || mongoose.model<INewsletter>('Newsletter', newsletterSchema); 
+// Mevcut model varsa siliyoruz ve yeniden oluşturuyoruz
+// Bu, eski model tanımının etkilerini temizleyecek
+if (mongoose.models.Newsletter) {
+    delete mongoose.models.Newsletter;
+}
+
+// Şimdi temiz bir şekilde modeli oluşturuyoruz
+export const Newsletter = mongoose.model<INewsletter>('Newsletter', newsletterSchema); 
