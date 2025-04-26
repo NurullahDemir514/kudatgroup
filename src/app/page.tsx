@@ -38,19 +38,19 @@ export default function Home() {
 
             {/* Masaüstü menü */}
             <nav className="hidden md:flex items-center space-x-6">
-              <Link href="/" className="text-gray-800 hover:text-teal-600 transition-colors font-medium">
+              <Link href="/" className="text-black hover:text-teal-600 transition-colors font-medium">
                 Ana Sayfa
               </Link>
-              <Link href="/products" className="text-gray-800 hover:text-teal-600 transition-colors font-medium">
+              <Link href="/products" className="text-black hover:text-teal-600 transition-colors font-medium">
                 Ürünler
               </Link>
-              <Link href="/perakende-satis" className="text-gray-800 hover:text-teal-600 transition-colors font-medium">
+              <Link href="/perakende-satis" className="text-black hover:text-teal-600 transition-colors font-medium">
                 Perakende Satış
               </Link>
-              <Link href="/toptan-satis" className="text-gray-800 hover:text-teal-600 transition-colors font-medium">
+              <Link href="/toptan-satis" className="text-black hover:text-teal-600 transition-colors font-medium">
                 Toptan Satış
               </Link>
-              <Link href="/bulten-kayit" className="text-gray-800 hover:text-teal-600 transition-colors font-medium">
+              <Link href="/bulten-kayit" className="text-black hover:text-teal-600 transition-colors font-medium">
                 Bülten
               </Link>
             </nav>
@@ -61,35 +61,35 @@ export default function Home() {
             <nav className="flex flex-col px-4 pb-4 space-y-3 border-t border-gray-100 pt-3">
               <Link
                 href="/"
-                className="text-gray-800 hover:text-teal-600 transition-colors py-2 px-3 rounded-md hover:bg-gray-50"
+                className="text-black hover:text-teal-600 transition-colors py-2 px-3 rounded-md hover:bg-gray-50"
                 onClick={() => setMenuOpen(false)}
               >
                 Ana Sayfa
               </Link>
               <Link
                 href="/products"
-                className="text-gray-800 hover:text-teal-600 transition-colors py-2 px-3 rounded-md hover:bg-gray-50"
+                className="text-black hover:text-teal-600 transition-colors py-2 px-3 rounded-md hover:bg-gray-50"
                 onClick={() => setMenuOpen(false)}
               >
                 Ürünler
               </Link>
               <Link
                 href="/perakende-satis"
-                className="text-gray-800 hover:text-teal-600 transition-colors py-2 px-3 rounded-md hover:bg-gray-50"
+                className="text-black hover:text-teal-600 transition-colors py-2 px-3 rounded-md hover:bg-gray-50"
                 onClick={() => setMenuOpen(false)}
               >
                 Perakende Satış
               </Link>
               <Link
                 href="/toptan-satis"
-                className="text-gray-800 hover:text-teal-600 transition-colors py-2 px-3 rounded-md hover:bg-gray-50"
+                className="text-black hover:text-teal-600 transition-colors py-2 px-3 rounded-md hover:bg-gray-50"
                 onClick={() => setMenuOpen(false)}
               >
                 Toptan Satış
               </Link>
               <Link
                 href="/bulten-kayit"
-                className="text-gray-800 hover:text-teal-600 transition-colors py-2 px-3 rounded-md hover:bg-gray-50"
+                className="text-black hover:text-teal-600 transition-colors py-2 px-3 rounded-md hover:bg-gray-50"
                 onClick={() => setMenuOpen(false)}
               >
                 Bülten
@@ -102,10 +102,10 @@ export default function Home() {
       <section className="flex-1 flex items-center justify-center pt-28 pb-16">
         <div className="container mx-auto px-4 relative z-10">
           <div className="text-center mb-12">
-            <h1 className="mb-4 text-3xl sm:text-5xl font-bold text-gray-800 drop-shadow-sm">
+            <h1 className="mb-4 text-3xl sm:text-5xl font-bold text-black drop-shadow-sm">
               Kudat Steel Jewelry
             </h1>
-            <p className="mx-auto max-w-lg text-base sm:text-lg text-gray-600">
+            <p className="mx-auto max-w-lg text-base sm:text-lg text-gray-800">
               Güç ve zarafeti bir araya getiren eşsiz çelik takı koleksiyonumuzla tarzınızı yeniden tanımlayın.
               Dayanıklılık ve şıklığın mükemmel uyumunu keşfedin.
             </p>
@@ -126,10 +126,10 @@ export default function Home() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                     </svg>
                   </div>
-                  <h2 className="ml-4 text-xl sm:text-2xl font-bold text-gray-800">Toptan Satış</h2>
+                  <h2 className="ml-4 text-xl sm:text-2xl font-bold text-black">Toptan Satış</h2>
                 </div>
 
-                <p className="text-gray-600 mb-6">
+                <p className="text-gray-800 mb-6">
                   Mağazanız veya işletmeniz için özel fiyatlar ve toplu alım avantajlarıyla çelik takı koleksiyonumuza erişin.
                 </p>
 
@@ -143,8 +143,8 @@ export default function Home() {
                       </div>
                     </div>
                     <div>
-                      <h3 className="text-lg font-medium text-gray-800">Çok Yakında</h3>
-                      <p className="text-sm text-gray-600">Toptan satış platformumuz hazırlanıyor. Lütfen takipte kalın.</p>
+                      <h3 className="text-lg font-medium text-black">Çok Yakında</h3>
+                      <p className="text-sm text-gray-800">Toptan satış platformumuz hazırlanıyor. Lütfen takipte kalın.</p>
                     </div>
                   </div>
 
@@ -174,10 +174,10 @@ export default function Home() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                     </svg>
                   </div>
-                  <h2 className="ml-4 text-xl sm:text-2xl font-bold text-gray-800">Perakende Satış</h2>
+                  <h2 className="ml-4 text-xl sm:text-2xl font-bold text-black">Perakende Satış</h2>
                 </div>
 
-                <p className="text-gray-600 mb-6">
+                <p className="text-gray-800 mb-6">
                   Özenle tasarlanmış çelik takı koleksiyonumuzu keşfedin ve kişisel stilinizi tamamlayacak parçaları seçin.
                 </p>
 
@@ -191,13 +191,13 @@ export default function Home() {
                       </div>
                     </div>
                     <div>
-                      <h3 className="text-lg font-medium text-gray-800">Çok Yakında</h3>
-                      <p className="text-sm text-gray-600">Perakende satış sitemiz hazırlanıyor. Lütfen takipte kalın.</p>
+                      <h3 className="text-lg font-medium text-black">Çok Yakında</h3>
+                      <p className="text-sm text-gray-800">Perakende satış sitemiz hazırlanıyor. Lütfen takipte kalın.</p>
                     </div>
                   </div>
 
                   <div
-                    className="mt-4 w-full px-4 py-3 rounded-lg bg-blue-600 text-white transition-all flex items-center justify-center space-x-2 hover:bg-blue-700"
+                    className="mt-4 w-full px-4 py-3 rounded-lg bg-teal-600 text-white transition-all flex items-center justify-center space-x-2 hover:bg-teal-700"
                   >
                     <span>Detaylar için Tıklayın</span>
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -217,9 +217,26 @@ export default function Home() {
             <div className="text-sm mb-2">
               <span className="text-teal-600 font-medium">Kudat Steel Jewelry</span>
             </div>
-            <div className="text-gray-600 text-sm">
-              <p>info@kudatsteel.com | +90 (555) 123 4567</p>
+            <div className="text-gray-800 text-sm">
+              <p><a href="mailto:kurumsal@kudatgroup.com" className="text-teal-600 hover:text-teal-700">kurumsal@kudatgroup.com</a> | +90 (555) 123 4567</p>
               <p className="mt-2">© {new Date().getFullYear()} Tüm hakları saklıdır.</p>
+            </div>
+
+            {/* Facebook Uygulama Politika Sayfaları */}
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <div className="flex justify-center gap-3 text-xs">
+                <Link href="/privacy-policy" className="text-teal-600 hover:text-teal-700 font-medium transition-colors">
+                  Gizlilik Politikası
+                </Link>
+                <span className="text-gray-400">•</span>
+                <Link href="/terms-of-service" className="text-teal-600 hover:text-teal-700 font-medium transition-colors">
+                  Kullanım Koşulları
+                </Link>
+                <span className="text-gray-400">•</span>
+                <Link href="/data-deletion" className="text-teal-600 hover:text-teal-700 font-medium transition-colors">
+                  Veri Silme Talimatları
+                </Link>
+              </div>
             </div>
           </div>
         </div>

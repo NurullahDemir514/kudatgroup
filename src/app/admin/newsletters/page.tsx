@@ -607,13 +607,11 @@ export default function NewslettersPage() {
                                                                 {newsletter.addressCity ? (
                                                                     <div>
                                                                         <div className="font-medium">{newsletter.addressCity}</div>
-                                                                        {newsletter.addressDistrict && (
-                                                                            <div className="text-xs text-gray-400 mt-1">
-                                                                                {newsletter.addressDistrict}
-                                                                                {newsletter.addressStreet && `, ${newsletter.addressStreet}`}
-                                                                                {newsletter.addressBuildingNo && ` No: ${newsletter.addressBuildingNo}`}
-                                                                            </div>
-                                                                        )}
+                                                                        <div className="text-xs text-gray-400 mt-1">
+                                                                            {newsletter.addressDistrict && newsletter.addressDistrict}
+                                                                            {newsletter.addressStreet && (newsletter.addressDistrict ? `, ${newsletter.addressStreet}` : newsletter.addressStreet)}
+                                                                            {newsletter.addressBuildingNo && ` No: ${newsletter.addressBuildingNo}`}
+                                                                        </div>
                                                                     </div>
                                                                 ) : (
                                                                     <span className="text-gray-500 italic">Belirtilmemiş</span>

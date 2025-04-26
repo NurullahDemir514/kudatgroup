@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
             addressCity: data.addressCity.trim(),
             addressDistrict: data.addressDistrict ? data.addressDistrict.trim() : undefined,
             addressStreet: data.addressStreet ? data.addressStreet.trim() : undefined,
-            addressPostalCode: data.addressPostalCode ? data.addressPostalCode.trim() : undefined,
+            addressBuildingNo: data.addressBuildingNo ? data.addressBuildingNo.trim() : undefined,
             taxNumber: data.taxNumber ? data.taxNumber.trim() : undefined,
             whatsappEnabled: data.whatsappEnabled !== undefined ? data.whatsappEnabled : true,
             active: true,
