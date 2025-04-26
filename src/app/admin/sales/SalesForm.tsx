@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { ISale, ISaleItem } from '@/models/Sale';
 import { IProduct } from '@/models/Product';
+import React from 'react';
 
 // Müşteri arayüzü
 interface ICustomer {
@@ -28,6 +29,8 @@ const SalesForm: React.FC<SalesFormProps> = ({
     products,
     onSubmit,
     onCancel,
+    formSubmitting = false,
+    formError,
 }) => {
     const [activeTab, setActiveTab] = useState('info');
     const [formData, setFormData] = useState<Partial<ISale>>({
@@ -59,6 +62,13 @@ const SalesForm: React.FC<SalesFormProps> = ({
     const [searchTerm, setSearchTerm] = useState('');
     const [showCustomerList, setShowCustomerList] = useState(false);
     const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
+
+    // Müşteri listesi referansı - Dışa tıklama kontrolü için
+    const customerListRef = React.useRef<HTMLDivElement>(null);
+    const customerInputRef = React.useRef<HTMLInputElement>(null);
+
+    // Müşteri arama gecikmesi için
+    const searchTimeout = React.useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
         if (initialData) {
@@ -94,15 +104,26 @@ const SalesForm: React.FC<SalesFormProps> = ({
         });
     };
 
-    // Müşteri ismi değiştiğinde arama listesini aç
+    // Müşteri ismi değiştiğinde arama listesini aç - Gecikme ekleyerek
     const handleCustomerNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
+
         setFormData({
             ...formData,
             customerName: value,
         });
+
         setSearchTerm(value);
-        setShowCustomerList(value.length > 0);
+
+        // Her değişiklikte önceki zaman aşımını temizle
+        if (searchTimeout.current) {
+            clearTimeout(searchTimeout.current);
+        }
+
+        // 300ms gecikme ile müşteri listesini gösterme/gizleme işlemi
+        searchTimeout.current = setTimeout(() => {
+            setShowCustomerList(value.length > 0);
+        }, 300);
     };
 
     // Müşteri seçildiğinde bilgileri form alanlarına doldur
@@ -116,8 +137,35 @@ const SalesForm: React.FC<SalesFormProps> = ({
             taxNumber: customer.taxNumber || '',
             deliveryAddress: customer.address || '', // Aynı adresi teslimat adresi olarak da kullan
         });
-        setShowCustomerList(false);
+
+        // Liste kapanmadan önce küçük bir gecikme ekleyerek UI'nin düzgün çalışmasını sağla
+        setTimeout(() => {
+            setShowCustomerList(false);
+        }, 100);
     };
+
+    // Müşteri listesini yükle
+    useEffect(() => {
+        const fetchCustomers = async () => {
+            try {
+                setIsLoadingCustomers(true);
+                const response = await fetch('/api/customers');
+                const result = await response.json();
+
+                if (result.success) {
+                    setCustomers(result.data);
+                } else {
+                    console.error('Müşteri listesi yüklenirken hata:', result.error);
+                }
+            } catch (err) {
+                console.error('Müşteri listesi yüklenirken hata:', err);
+            } finally {
+                setIsLoadingCustomers(false);
+            }
+        };
+
+        fetchCustomers();
+    }, []);
 
     // Filtrelenmiş müşteri listesi
     const filteredCustomers = customers.filter(customer =>
@@ -125,6 +173,31 @@ const SalesForm: React.FC<SalesFormProps> = ({
         (customer.phone && customer.phone.includes(searchTerm)) ||
         (customer.email && customer.email.toLowerCase().includes(searchTerm))
     ).slice(0, 5); // Maksimum 5 sonuç göster
+
+    // Dışarıdan tıklama ile müşteri listesini kapat - Geliştirilmiş sürüm
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            const target = e.target as Node;
+
+            // Eğer input veya müşteri listesi dışında bir yere tıklandıysa
+            if (
+                customerInputRef.current &&
+                customerListRef.current &&
+                !customerInputRef.current.contains(target) &&
+                !customerListRef.current.contains(target)
+            ) {
+                setShowCustomerList(false);
+            }
+        };
+
+        // Tıklama olayını ekle
+        document.addEventListener('mousedown', handleClickOutside);
+
+        // Temizleme fonksiyonu
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
 
     // Para formatı
     const formatCurrency = (amount: number) => {
@@ -194,32 +267,14 @@ const SalesForm: React.FC<SalesFormProps> = ({
         updatedItems.splice(index, 1);
 
         // Toplam tutarı yeniden hesapla
-        const subTotal = updatedItems.reduce((sum, item) => {
-            if (isNaN(item.totalPrice)) {
-                // Eğer totalPrice NaN ise, unitPrice ve quantity'i kullan
-                if (!isNaN(item.unitPrice) && !isNaN(item.quantity)) {
-                    return sum + (item.unitPrice * item.quantity);
-                }
-                return sum;
-            }
-            return sum + item.totalPrice;
-        }, 0);
-        const discountAmount = formData.discountAmount || 0;
-        const taxRate = formData.taxRate || 18;
-        const taxAmount = (subTotal - discountAmount) * (taxRate / 100);
-        const totalAmount = subTotal - discountAmount + taxAmount;
-
-        setFormData({
-            ...formData,
-            items: updatedItems,
-            totalAmount,
-        });
+        recalculateTotals(updatedItems);
     };
 
     const recalculateTotals = (items: ISaleItem[]) => {
         if (!items || items.length === 0) {
             setFormData({
                 ...formData,
+                items: [],
                 totalAmount: 0,
             });
             return;
@@ -263,45 +318,20 @@ const SalesForm: React.FC<SalesFormProps> = ({
 
     // İndirim veya vergi oranı değiştiğinde toplamları yeniden hesapla
     useEffect(() => {
-        recalculateTotals(formData.items || []);
+        if (formData.items && formData.items.length > 0) {
+            recalculateTotals(formData.items);
+        }
     }, [formData.discountAmount, formData.taxRate]);
 
-    // Müşteri listesini yükle
+    // Modal ilk açıldığında ilk sekmenin seçili olduğundan emin ol
     useEffect(() => {
-        const fetchCustomers = async () => {
-            try {
-                setIsLoadingCustomers(true);
-                const response = await fetch('/api/customers');
-                const result = await response.json();
+        // Modal ilk açıldığında info sekmesini seç
+        setActiveTab('info');
 
-                if (result.success) {
-                    setCustomers(result.data);
-                } else {
-                    console.error('Müşteri listesi yüklenirken hata:', result.error);
-                }
-            } catch (err) {
-                console.error('Müşteri listesi yüklenirken hata:', err);
-            } finally {
-                setIsLoadingCustomers(false);
-            }
-        };
-
-        fetchCustomers();
-    }, []);
-
-    // Dışarıdan tıklama ile müşteri listesini kapat
-    useEffect(() => {
-        const handleClickOutside = (e: MouseEvent) => {
-            const target = e.target as HTMLElement;
-            if (!target.closest('#customerName') && !target.closest('.customer-list')) {
-                setShowCustomerList(false);
-            }
-        };
-
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
+        // Modal açıldığında müşteri alanına otomatik odaklan
+        if (customerInputRef.current) {
+            customerInputRef.current.focus();
+        }
     }, []);
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -353,10 +383,10 @@ const SalesForm: React.FC<SalesFormProps> = ({
     const taxAmount = (subTotal - discountAmount) * (taxRate / 100);
 
     return (
-        <div className="bg-gray-800 rounded-lg">
+        <div className="bg-gray-800 rounded-lg shadow-xl border border-gray-700">
             <form onSubmit={handleSubmit}>
                 {/* Sekme Butonları - Responsive iyileştirmeler */}
-                <div className="flex flex-nowrap gap-0.5 mb-4 border-b border-gray-700 pb-1 overflow-x-auto scrollbar-hide">
+                <div className="flex flex-nowrap gap-0.5 mb-4 border-b border-gray-700 pb-1 overflow-x-auto scrollbar-hide bg-gray-900 p-1 rounded-t-lg">
                     {[
                         { id: 'info', name: 'Temel Bilgiler', shortName: 'Temel', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
                         { id: 'items', name: 'Ürünler', shortName: 'Ürünler', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
@@ -367,14 +397,14 @@ const SalesForm: React.FC<SalesFormProps> = ({
                         <button
                             key={tab.id}
                             type="button"
-                            className={`flex items-center whitespace-nowrap px-2 sm:px-3 py-2 rounded-t-md text-xs sm:text-sm font-medium transition-all duration-200 ${activeTab === tab.id
-                                ? 'bg-blue-600 text-white shadow-md'
+                            className={`flex items-center whitespace-nowrap px-2 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition-all duration-200 ${activeTab === tab.id
+                                ? 'bg-blue-600 text-white shadow-md scale-105 ring-2 ring-blue-400'
                                 : 'bg-gray-700 text-gray-300 hover:text-white hover:bg-gray-600'
-                                } ${tab.id === 'info' && activeTab !== 'info' ? 'border-l-2 border-blue-400' : ''}`}
+                                } ${tab.id === 'info' ? 'order-first' : ''}`}
                             onClick={() => setActiveTab(tab.id)}
                         >
                             <svg xmlns="http://www.w3.org/2000/svg"
-                                className="h-4 w-4 mr-1"
+                                className={`h-4 w-4 mr-1 ${activeTab === tab.id ? 'text-white' : 'text-gray-400'}`}
                                 fill="none"
                                 viewBox="0 0 24 24"
                                 stroke="currentColor">
@@ -387,7 +417,7 @@ const SalesForm: React.FC<SalesFormProps> = ({
                 </div>
 
                 {/* Form içeriği */}
-                <div className="space-y-3 mb-6">
+                <div className="space-y-3 mb-6 px-4 py-3">
                     {activeTab === 'info' && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-6">
                             <div className="sm:col-span-2 relative">
@@ -401,26 +431,48 @@ const SalesForm: React.FC<SalesFormProps> = ({
                                     value={formData.customerName || ''}
                                     onChange={handleCustomerNameChange}
                                     autoComplete="off"
+                                    ref={customerInputRef}
                                     className="w-full p-2 sm:p-3 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                    onFocus={() => {
+                                        // Input odaklandığında ve içerisinde metin varsa listeyi göster
+                                        if (formData.customerName && formData.customerName.length > 0) {
+                                            setShowCustomerList(true);
+                                        }
+                                    }}
                                     required
                                 />
-                                {/* Müşteri dropdown */}
-                                {showCustomerList && filteredCustomers.length > 0 && (
+                                {/* Müşteri dropdown - Geliştirilmiş yapı */}
+                                {showCustomerList && (
                                     <div
-                                        className="absolute z-50 mt-1 w-full bg-gray-800 border border-gray-700 rounded-md shadow-lg max-h-60 overflow-y-auto"
+                                        ref={customerListRef}
+                                        className="absolute z-50 mt-1 w-full bg-gray-800 border border-gray-700 rounded-md shadow-lg max-h-60 overflow-y-auto customer-list"
                                     >
-                                        <ul className="py-1 text-xs sm:text-sm text-gray-300">
-                                            {filteredCustomers.map((customer) => (
-                                                <li
-                                                    key={customer._id}
-                                                    className="cursor-pointer px-3 py-2 hover:bg-gray-700"
-                                                    onClick={() => selectCustomer(customer)}
-                                                >
-                                                    <div>{customer.name}</div>
-                                                    {customer.phone && <div className="text-xs text-gray-400">{customer.phone}</div>}
-                                                </li>
-                                            ))}
-                                        </ul>
+                                        {isLoadingCustomers ? (
+                                            <div className="py-3 px-3 text-center text-xs sm:text-sm text-gray-400">
+                                                <div className="flex justify-center items-center space-x-2">
+                                                    <div className="animate-spin h-4 w-4 border-2 border-gray-500 rounded-full border-t-transparent"></div>
+                                                    <span>Müşteriler yükleniyor...</span>
+                                                </div>
+                                            </div>
+                                        ) : filteredCustomers.length > 0 ? (
+                                                <ul className="py-1 text-xs sm:text-sm text-gray-300">
+                                                    {filteredCustomers.map((customer) => (
+                                                        <li
+                                                            key={customer._id}
+                                                            className="cursor-pointer px-3 py-2 hover:bg-gray-700"
+                                                            onClick={() => selectCustomer(customer)}
+                                                        >
+                                                            <div className="font-medium">{customer.name}</div>
+                                                            {customer.phone && <div className="text-xs text-gray-400">{customer.phone}</div>}
+                                                            {customer.email && <div className="text-xs text-gray-400">{customer.email}</div>}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                        ) : (
+                                            <div className="py-3 px-3 text-center text-xs sm:text-sm text-gray-400">
+                                                Sonuç bulunamadı. Yeni müşteri ekleyebilirsiniz.
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -811,23 +863,33 @@ const SalesForm: React.FC<SalesFormProps> = ({
                     )}
                 </div>
 
-                <div className="flex flex-col sm:flex-row justify-end gap-2 sm:space-x-4 pt-3 sm:pt-4 border-t border-gray-700">
+                {/* Form altındaki butonlar için ayrı bir alan */}
+                <div className="flex justify-end items-center gap-2 pt-4 mt-6 border-t border-gray-700">
+                    <div className="text-right mr-4">
+                        <div className="text-gray-400 text-xs mb-1">Toplam Tutar:</div>
+                        <div className="text-xl font-bold text-white">{formatCurrency(formData.totalAmount || 0)}</div>
+                    </div>
                     <button
                         type="button"
                         onClick={onCancel}
-                        className="px-3 py-2 sm:px-4 sm:py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 w-full sm:w-auto text-sm sm:text-base"
+                        className="px-4 py-2 bg-gray-700 text-gray-300 rounded-md hover:bg-gray-600 transition-colors"
                     >
-                        Vazgeç
+                        İptal
                     </button>
                     <button
                         type="submit"
-                        disabled={!formData.customerName || !formData.items || formData.items.length === 0}
-                        className={`px-3 py-2 sm:px-4 sm:py-2 rounded-md w-full sm:w-auto text-sm sm:text-base ${!formData.customerName || !formData.items || formData.items.length === 0
-                            ? 'bg-gray-700 text-gray-300 cursor-not-allowed'
-                            : 'bg-blue-600 text-white hover:bg-blue-500'
-                            }`}
+                        disabled={formSubmitting}
+                        className={`px-4 py-2 bg-blue-600 text-white rounded-md flex items-center justify-center min-w-[100px]
+                                ${formSubmitting ? 'opacity-70 cursor-not-allowed' : 'hover:bg-blue-500 transition-colors'}`}
                     >
-                        Satışı Kaydet
+                        {formSubmitting ? (
+                            <>
+                                <div className="animate-spin h-4 w-4 border-2 border-white rounded-full border-t-transparent mr-2"></div>
+                                <span>Kaydediliyor...</span>
+                            </>
+                        ) : (
+                            <span>Kaydet</span>
+                        )}
                     </button>
                 </div>
             </form>
