@@ -87,15 +87,34 @@ export async function PUT(
 
             // Ürün bilgilerini ekle/güncelle
             item.productName = product.name;
-            item.unitPrice = product.price;
-            item.totalPrice = product.price * item.quantity;
+            item.unitPrice = product.salePrice;
+            item.totalPrice = product.salePrice * item.quantity;
+
+            // NaN kontrolü
+            if (isNaN(item.totalPrice)) {
+                item.totalPrice = 0;
+            }
 
             // Toplam tutarı güncelle
             calculatedTotal += item.totalPrice;
         }
 
         // Toplam tutarı güncelle
-        data.totalAmount = calculatedTotal;
+        // Varsa indirim ve vergi hesabını da dahil et
+        const discountAmount = data.discountAmount || 0;
+        const taxRate = data.taxRate || 18;
+
+        const subTotal = calculatedTotal;
+        const taxAmount = (subTotal - discountAmount) * (taxRate / 100);
+        let totalAmount = subTotal - discountAmount + taxAmount;
+
+        // NaN kontrolü
+        if (isNaN(totalAmount)) {
+            totalAmount = 0;
+        }
+
+        // Toplam tutarı güncelle
+        data.totalAmount = totalAmount;
 
         // Satışı güncelle
         const updatedSale = await Sale.findByIdAndUpdate(

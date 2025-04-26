@@ -311,26 +311,72 @@ export default function SalesPage() {
     const handleSubmitForm = async (formData: any) => {
         setFormError(null);
         setFormSubmitting(true);
+        console.log("Form gönderiliyor:", formData);
 
         try {
             // Formdan gelen verileri doğrula
-            if (!formData.customerName.trim()) {
+            if (!formData.customerName || !formData.customerName.trim()) {
                 setFormError("Müşteri adı zorunludur");
                 setFormSubmitting(false);
                 return;
             }
 
-            if (formData.items.length === 0) {
+            if (!formData.items || formData.items.length === 0) {
                 setFormError("En az bir ürün eklemelisiniz");
                 setFormSubmitting(false);
                 return;
             }
 
             for (const item of formData.items) {
-                if (!item.product || item.quantity < 1) {
-                    setFormError("Tüm ürün satırları için ürün ve miktar belirtmelisiniz");
+                if (!item.product || item.quantity < 1 || isNaN(item.unitPrice) || isNaN(item.totalPrice)) {
+                    setFormError("Tüm ürün satırları için ürün ve geçerli miktar belirtmelisiniz");
                     setFormSubmitting(false);
                     return;
+                }
+            }
+
+            // Tarih formatını doğru şekilde hazırla
+            let formattedData = { ...formData };
+
+            // saleDate kontrolü
+            if (formData.saleDate) {
+                try {
+                    // Eğer tarih bir string ise, tarih nesnesine çevirmeye çalış
+                    if (typeof formData.saleDate === 'string') {
+                        formattedData.saleDate = new Date(formData.saleDate);
+                    }
+                    // Her durumda ISO formatına çevir
+                    formattedData.saleDate = new Date(formattedData.saleDate).toISOString();
+                } catch (err) {
+                    console.error("Satış tarihi formatı hatalı:", err);
+                    formattedData.saleDate = new Date().toISOString();
+                }
+            } else {
+                formattedData.saleDate = new Date().toISOString();
+            }
+
+            // Diğer tarihler için de aynı işlemi yap
+            if (formData.deliveryDate) {
+                try {
+                    if (typeof formData.deliveryDate === 'string') {
+                        formattedData.deliveryDate = new Date(formData.deliveryDate);
+                    }
+                    formattedData.deliveryDate = new Date(formattedData.deliveryDate).toISOString();
+                } catch (err) {
+                    console.error("Teslimat tarihi formatı hatalı:", err);
+                    formattedData.deliveryDate = null;
+                }
+            }
+
+            if (formData.dueDate) {
+                try {
+                    if (typeof formData.dueDate === 'string') {
+                        formattedData.dueDate = new Date(formData.dueDate);
+                    }
+                    formattedData.dueDate = new Date(formattedData.dueDate).toISOString();
+                } catch (err) {
+                    console.error("Son ödeme tarihi formatı hatalı:", err);
+                    formattedData.dueDate = null;
                 }
             }
 
@@ -340,18 +386,27 @@ export default function SalesPage() {
                 : "/api/sales";
             const method = isEditing ? "PUT" : "POST";
 
+            console.log("API İsteği gönderiliyor:", {
+                url,
+                method,
+                data: formattedData
+            });
+
             const response = await fetch(url, {
                 method,
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({
-                    ...formData,
-                    saleDate: new Date(formData.saleDate).toISOString(),
-                }),
+                body: JSON.stringify(formattedData),
             });
 
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`API Yanıtı: ${response.status} ${response.statusText} - ${errorText}`);
+            }
+
             const result = await response.json();
+            console.log("API Yanıtı:", result);
 
             if (result.success) {
                 // Satışlar listesini güncelle
@@ -370,8 +425,8 @@ export default function SalesPage() {
                 setFormError(result.error || "İşlem sırasında bir hata oluştu");
             }
         } catch (err) {
-            setFormError("Sunucu ile bağlantı kurulamadı");
-            console.error(err);
+            console.error("Hata detayı:", err);
+            setFormError(`Sunucu ile bağlantı sırasında hata: ${(err as Error).message}`);
         } finally {
             setFormSubmitting(false);
         }
@@ -408,14 +463,14 @@ export default function SalesPage() {
                 <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-gray-300 via-white to-gray-400">Satış Kayıtları</h1>
                 <button
                     onClick={handleShowAddForm}
-                    className="rounded-md bg-gradient-to-r from-gray-700 to-gray-900 px-4 py-2 text-silver transition-all hover:from-gray-600 hover:to-gray-800 hover:shadow-lg border border-gray-600 shadow-md"
+                    className="rounded-md px-3 py-2 sm:px-4 sm:py-2.5 bg-gradient-to-r from-gray-700 to-gray-800 text-white transition-all duration-300 hover:from-gray-600 hover:to-gray-700 hover:shadow-md border border-gray-600 shadow-sm flex items-center gap-1.5 group text-sm sm:text-base"
                 >
-                    <div className="flex items-center space-x-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <span className="flex items-center justify-center w-5 h-5 sm:w-6 sm:h-6 bg-gray-600 rounded-full group-hover:bg-gray-500 transition-all duration-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:h-4 sm:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                         </svg>
-                        <span>Yeni Satış Ekle</span>
-                    </div>
+                    </span>
+                    <span className="font-medium">Yeni Satış</span>
                 </button>
             </div>
 
@@ -528,8 +583,13 @@ export default function SalesPage() {
                                                 <div className="text-sm font-medium text-silver">{formatCurrency(sale.totalAmount)}</div>
                                             </td>
                                             <td className="whitespace-nowrap px-6 py-4">
-                                                <div className="rounded-full bg-zinc-800 bg-opacity-70 px-2 py-1 text-xs font-medium text-silver inline-block border border-gray-700">
-                                                    {sale.paymentMethod}
+                                                <div className={`rounded-full ${sale.paymentMethod === 'Nakit' ? 'bg-zinc-800' :
+                                                    sale.paymentMethod === 'Kredi Kartı' ? 'bg-blue-900' :
+                                                        sale.paymentMethod === 'Havale/EFT' ? 'bg-green-900' :
+                                                            sale.paymentMethod === 'Çek' ? 'bg-yellow-900' :
+                                                                sale.paymentMethod === 'Senet' ? 'bg-red-900' : 'bg-zinc-800'} 
+                                                           bg-opacity-70 px-2 py-1 text-xs font-medium text-silver inline-block border border-gray-700`}>
+                                                    {sale.paymentMethod || 'Nakit'}
                                                 </div>
                                             </td>
                                             <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
@@ -595,8 +655,9 @@ export default function SalesPage() {
                             <div>
                                 <h3 className="text-sm font-medium text-gray-400">Satış Bilgileri</h3>
                                 <p className="text-silver">Tarih: {formatDate(selectedSale.saleDate)}</p>
-                                <p className="text-silver">Ödeme: {selectedSale.paymentMethod}</p>
+                                <p className="text-silver">Ödeme: {selectedSale.paymentMethod || 'Nakit'}</p>
                                 <p className="text-silver">Toplam: {formatCurrency(selectedSale.totalAmount)}</p>
+                                {selectedSale.paymentStatus && <p className="text-silver">Durum: {selectedSale.paymentStatus}</p>}
                             </div>
                         </div>
 
@@ -662,16 +723,76 @@ export default function SalesPage() {
                 </div>
             )}
 
-            {/* Satış Form Modalı */}
+            {/* Satış Form Modalı - Basitleştirilmiş yapı */}
             {showForm && (
-                <SalesForm
-                    products={products}
-                    onSubmit={handleSubmitForm}
-                    onCancel={handleCloseForm}
-                    editingSale={editingSale}
-                    formSubmitting={formSubmitting}
-                    formError={formError}
-                />
+                <>
+                    {/* Arka plan overlay */}
+                    <div
+                        className="fixed inset-0 bg-black bg-opacity-80 z-40"
+                        onClick={handleCloseForm}
+                    ></div>
+
+                    {/* Modal içeriği */}
+                    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto py-4 px-2 sm:px-4">
+                        <div className="bg-gradient-to-b from-gray-800 to-gray-900 w-full max-w-5xl rounded-lg shadow-xl relative mx-auto my-4">
+                            {/* Modal header */}
+                            <div className="flex justify-between items-center border-b border-gray-700 p-3 sm:p-4">
+                                <div>
+                                    <h3 className="text-lg sm:text-xl font-semibold text-white">
+                                        {editingSale ? 'Satış Düzenle' : 'Yeni Satış Ekle'}
+                                    </h3>
+                                    <p className="text-xs sm:text-sm text-gray-400 mt-1">
+                                        Müşteri bilgilerini ve satış detaylarını eksiksiz doldurun.
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    className="text-gray-400 hover:text-white bg-gray-700 hover:bg-gray-600 rounded-full p-2 transition-colors"
+                                    onClick={handleCloseForm}
+                                >
+                                    <svg className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+
+                            {/* Hata mesajı */}
+                            {formError && (
+                                <div className="mx-3 sm:mx-4 mt-3 sm:mt-4 p-2 sm:p-3 bg-red-900 bg-opacity-20 border border-red-800 rounded-md text-xs sm:text-sm text-red-200">
+                                    <div className="flex items-center">
+                                        <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-red-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                        </svg>
+                                        {formError}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Form içeriği - max-height ve overflow-y-auto ekleyerek küçük ekranlarda form içeriğinin kaydırılabilir olmasını sağlıyoruz */}
+                            <div className="p-3 sm:p-4 max-h-[calc(100vh-180px)] overflow-y-auto">
+                                <SalesForm
+                                    products={products}
+                                    onSubmit={handleSubmitForm}
+                                    onCancel={handleCloseForm}
+                                    editingSale={editingSale}
+                                    formSubmitting={formSubmitting}
+                                    formError={formError}
+                                    initialData={editingSale || undefined}
+                                />
+                            </div>
+
+                            {/* Yükleniyor göstergesi */}
+                            {formSubmitting && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-60 rounded-lg">
+                                    <div className="px-4 py-3 sm:px-6 sm:py-4 bg-gray-800 rounded-lg shadow-xl flex items-center space-x-3">
+                                        <div className="w-6 h-6 sm:w-8 sm:h-8 border-t-2 border-b-2 border-white rounded-full animate-spin"></div>
+                                        <p className="text-sm sm:text-base text-white font-medium">İşleminiz gerçekleştiriliyor...</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </>
             )}
         </div>
     );
