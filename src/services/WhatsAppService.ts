@@ -213,6 +213,49 @@ export class WhatsAppTemplates {
     }
 }
 
+// Click-to-chat URL'leri için yardımcı fonksiyonlar
+export class WhatsAppUtils {
+    // Telefon numarasını WhatsApp formatına çevir (90XXXXXXXXXX)
+    static formatPhoneNumber(phone: string): string {
+        // Baştaki 0'ı kaldır ve 90 ekle (Türkiye)
+        let formatted = phone.trim();
+
+        // Eğer başında 0 varsa kaldır
+        if (formatted.startsWith('0')) {
+            formatted = formatted.substring(1);
+        }
+
+        // Eğer başında + varsa kaldır
+        if (formatted.startsWith('+')) {
+            formatted = formatted.substring(1);
+        }
+
+        // Eğer başında 90 yoksa ekle
+        if (!formatted.startsWith('90')) {
+            formatted = '90' + formatted;
+        }
+
+        return formatted;
+    }
+
+    // Click-to-chat URL'i oluştur
+    static createClickToChat(phone: string, message: string): string {
+        const formattedPhone = this.formatPhoneNumber(phone);
+        const encodedMessage = encodeURIComponent(message);
+        return `https://wa.me/${formattedPhone}?text=${encodedMessage}`;
+    }
+
+    // Şablon mesajını kişiselleştir
+    static personalizeMessage(template: string, data: Record<string, string>): string {
+        let personalized = template;
+        Object.keys(data).forEach(key => {
+            const regex = new RegExp(`\\{${key}\\}`, 'g');
+            personalized = personalized.replace(regex, data[key] || '');
+        });
+        return personalized;
+    }
+}
+
 // WhatsApp servis konfigürasyonu için varsayılan değerler
 export const defaultWhatsAppConfig: WhatsAppConfig = {
     apiKey: process.env.WHATSAPP_API_KEY || "",

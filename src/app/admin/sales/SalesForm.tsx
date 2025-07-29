@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { ISale, ISaleItem } from '@/models/Sale';
 import { IProduct } from '@/models/Product';
 import React from 'react';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 // Müşteri arayüzü
 interface ICustomer {
@@ -38,7 +40,24 @@ const SalesForm: React.FC<SalesFormProps> = ({
     formError,
 }) => {
     const [activeTab, setActiveTab] = useState('info');
-    const [formData, setFormData] = useState<Partial<ISale>>({
+    const [formData, setFormData] = useState<Partial<ISale> & {
+        // Ek form alanları
+        invoiceDate?: Date;
+        invoiceAddressLine1?: string;
+        invoiceAddressLine2?: string;
+        invoiceCity?: string;
+        invoicePostalCode?: string;
+        taxOffice?: string;
+        sameAsInvoice?: boolean;
+        deliveryAddressLine1?: string;
+        deliveryAddressLine2?: string;
+        deliveryCity?: string;
+        deliveryPostalCode?: string;
+        deliveryNotes?: string;
+        paymentDate?: Date;
+        amountPaid?: string;
+        paymentNotes?: string;
+    }>({
         customerName: '',
         customerPhone: '',
         customerEmail: '',
@@ -58,6 +77,22 @@ const SalesForm: React.FC<SalesFormProps> = ({
         discountAmount: 0,
         taxRate: 18,
         orderStatus: 'Tamamlandı',
+        // Ek form alanları
+        invoiceDate: undefined,
+        invoiceAddressLine1: '',
+        invoiceAddressLine2: '',
+        invoiceCity: '',
+        invoicePostalCode: '',
+        taxOffice: '',
+        sameAsInvoice: false,
+        deliveryAddressLine1: '',
+        deliveryAddressLine2: '',
+        deliveryCity: '',
+        deliveryPostalCode: '',
+        deliveryNotes: '',
+        paymentDate: undefined,
+        amountPaid: '',
+        paymentNotes: '',
     });
     const [productId, setProductId] = useState<string>('');
     const [quantity, setQuantity] = useState<number>(1);
@@ -86,6 +121,23 @@ const SalesForm: React.FC<SalesFormProps> = ({
         }
     }, [initialData]);
 
+    const createChangeEvent = (name: string, value: any): React.ChangeEvent<HTMLInputElement> => {
+        return {
+            target: { name, value } as any,
+            currentTarget: { name, value } as any,
+            preventDefault: () => { },
+            stopPropagation: () => { },
+            isPropagationStopped: () => false,
+            isDefaultPrevented: () => false,
+            persist: () => { },
+            nativeEvent: new Event('change'),
+            bubbles: true,
+            cancelable: true,
+            timeStamp: Date.now(),
+            type: 'change',
+        } as unknown as React.ChangeEvent<HTMLInputElement>;
+    };
+
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         setFormData({
@@ -98,6 +150,14 @@ const SalesForm: React.FC<SalesFormProps> = ({
         setFormData({
             ...formData,
             [field]: e.target.value ? new Date(e.target.value) : undefined,
+        });
+    };
+
+    // DatePicker için ayrı bir tarih değiştirme fonksiyonu
+    const handleDatePickerChange = (date: Date | null, field: string) => {
+        setFormData({
+            ...formData,
+            [field]: date,
         });
     };
 
@@ -157,14 +217,32 @@ const SalesForm: React.FC<SalesFormProps> = ({
             fullAddress = customer.address || '';
         }
 
+        // Adres bilgilerini ayrıştır (basit bir yaklaşım)
+        let addressLine1 = fullAddress;
+        let addressLine2 = '';
+
+        // Adres virgülle ayrılmışsa ilk satır olarak al
+        if (fullAddress.includes(',')) {
+            const parts = fullAddress.split(',');
+            addressLine1 = parts[0].trim();
+            addressLine2 = parts.slice(1).join(',').trim();
+        }
+
         setFormData({
             ...formData,
             customerName: customer.name,
             customerPhone: customer.phone || '',
             customerEmail: customer.email || '',
             invoiceAddress: fullAddress || '',
+            // Yeni eklenen adres alanları
+            invoiceAddressLine1: addressLine1,
+            invoiceAddressLine2: addressLine2,
+            invoiceCity: customer.addressCity || '',  
             taxNumber: customer.taxNumber || '',
             deliveryAddress: fullAddress || '', // Aynı adresi teslimat adresi olarak da kullan
+            deliveryAddressLine1: addressLine1,
+            deliveryAddressLine2: addressLine2,
+            deliveryCity: customer.addressCity || ''
         });
 
         // Liste kapanmadan önce küçük bir gecikme ekleyerek UI'nin düzgün çalışmasını sağla
@@ -441,7 +519,8 @@ const SalesForm: React.FC<SalesFormProps> = ({
         onSubmit(formData);
     };
 
-    // Ara toplam hesapla
+    // Toplam tutarı hesapla
+    const calculateTotal = () => {
     const subTotal = formData.items?.reduce((sum, item) => {
         if (isNaN(item.totalPrice)) {
             // Eğer totalPrice NaN ise, unitPrice ve quantity'i kullan
@@ -457,11 +536,26 @@ const SalesForm: React.FC<SalesFormProps> = ({
     const taxRate = formData.taxRate || 18;
     const taxAmount = (subTotal - discountAmount) * (taxRate / 100);
 
+        return subTotal - discountAmount + taxAmount;
+    };
+
+    // Ara toplam hesapla
+    const subTotal = formData.items?.reduce((sum, item) => {
+        if (isNaN(item.totalPrice)) {
+            // Eğer totalPrice NaN ise, unitPrice ve quantity'i kullan
+            if (!isNaN(item.unitPrice) && !isNaN(item.quantity)) {
+                return sum + (item.unitPrice * item.quantity);
+            }
+            return sum;
+        }
+        return sum + item.totalPrice;
+    }, 0) || 0;
+
     return (
-        <div className="bg-gray-800 rounded-lg shadow-xl border border-gray-700">
+        <div className="bg-white rounded-lg shadow-md border border-gray-300">
             <form onSubmit={handleSubmit}>
                 {/* Sekme Butonları - Responsive iyileştirmeler */}
-                <div className="flex flex-nowrap gap-0.5 mb-4 border-b border-gray-700 pb-1 overflow-x-auto scrollbar-hide bg-gray-900 p-1 rounded-t-lg">
+                <div className="flex flex-nowrap gap-0.5 mb-4 border-b border-gray-200 pb-1 overflow-x-auto scrollbar-hide bg-gray-50 p-1 rounded-t-lg">
                     {[
                         { id: 'info', name: 'Temel Bilgiler', shortName: 'Temel', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
                         { id: 'items', name: 'Ürünler', shortName: 'Ürünler', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
@@ -473,13 +567,13 @@ const SalesForm: React.FC<SalesFormProps> = ({
                             key={tab.id}
                             type="button"
                             className={`flex items-center whitespace-nowrap px-2 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition-all duration-200 ${activeTab === tab.id
-                                ? 'bg-blue-600 text-white shadow-md scale-105 ring-2 ring-blue-400'
-                                : 'bg-gray-700 text-gray-300 hover:text-white hover:bg-gray-600'
+                                ? 'bg-blue-500 text-white shadow-md scale-105 ring-2 ring-blue-300'
+                                : 'bg-gray-200 text-gray-700 hover:text-gray-900 hover:bg-gray-300'
                                 } ${tab.id === 'info' ? 'order-first' : ''}`}
                             onClick={() => setActiveTab(tab.id)}
                         >
                             <svg xmlns="http://www.w3.org/2000/svg"
-                                className={`h-4 w-4 mr-1 ${activeTab === tab.id ? 'text-white' : 'text-gray-400'}`}
+                                className={`h-4 w-4 mr-1 ${activeTab === tab.id ? 'text-white' : 'text-gray-600'}`}
                                 fill="none"
                                 viewBox="0 0 24 24"
                                 stroke="currentColor">
@@ -494,453 +588,676 @@ const SalesForm: React.FC<SalesFormProps> = ({
                 {/* Form içeriği */}
                 <div className="space-y-3 mb-6 px-4 py-3">
                     {activeTab === 'info' && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-6">
-                            <div className="sm:col-span-2 relative">
-                                <label htmlFor="customerName" className="block text-xs sm:text-sm font-medium text-gray-400 mb-1 sm:mb-2">
-                                    Müşteri Adı*
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Müşteri bilgileri - Sol sütun */}
+                            <div className="space-y-4">
+                                <div className="relative">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Müşteri Adı <span className="text-red-500">*</span>
                                 </label>
+                                    <div className="relative">
                                 <input
-                                    type="text"
-                                    id="customerName"
+                                            type="text"
                                     name="customerName"
-                                    value={formData.customerName || ''}
+                                            value={formData.customerName}
                                     onChange={handleCustomerNameChange}
-                                    autoComplete="off"
-                                    ref={customerInputRef}
-                                    className="w-full p-2 sm:p-3 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                                    onFocus={() => {
-                                        // Input odaklandığında ve içerisinde metin varsa listeyi göster
-                                        if (formData.customerName && formData.customerName.length > 0) {
-                                            setShowCustomerList(true);
-                                        }
-                                    }}
+                                            className="pr-8 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder-gray-400"
+                                            placeholder="Müşteri adını girin veya seçin"
                                     required
                                 />
-                                {/* Müşteri dropdown - Geliştirilmiş yapı */}
-                                {showCustomerList && (
-                                    <div
-                                        ref={customerListRef}
-                                        className="absolute z-50 mt-1 w-full bg-gray-800 border border-gray-700 rounded-md shadow-lg max-h-60 overflow-y-auto customer-list"
-                                    >
-                                        {isLoadingCustomers ? (
-                                            <div className="py-3 px-3 text-center text-xs sm:text-sm text-gray-400">
-                                                <div className="flex justify-center items-center space-x-2">
-                                                    <div className="animate-spin h-4 w-4 border-2 border-gray-500 rounded-full border-t-transparent"></div>
-                                                    <span>Kişiler yükleniyor...</span>
-                                                </div>
-                                            </div>
-                                        ) : filteredCustomers.length > 0 ? (
-                                                <ul className="py-1 text-xs sm:text-sm text-gray-300">
+                                        {formData.customerName && (
+                                            <button
+                                                type="button"
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                                onClick={() => {
+                                                    setFormData({ ...formData, customerName: '', customerEmail: '', customerPhone: '' });
+                                                    setSearchTerm('');
+                                                }}
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {/* Müşteri Listesi */}
+                                    {showCustomerList && filteredCustomers.length > 0 && (
+                                        <div
+                                            className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 shadow-lg border border-gray-300"
+                                            ref={customerListRef}
+                                        >
                                                     {filteredCustomers.map((customer) => (
-                                                        <li
+                                                        <div
                                                             key={customer._id}
-                                                            className="cursor-pointer px-3 py-2 hover:bg-gray-700"
+                                                            className="cursor-pointer px-3 py-2 hover:bg-blue-50 text-gray-800"
                                                             onClick={() => selectCustomer(customer)}
                                                         >
-                                                            <div className="flex items-center">
-                                                                <div className="flex-1">
                                                                     <div className="font-medium">{customer.name}</div>
-                                                                    {customer.phone && <div className="text-xs text-gray-400">{customer.phone}</div>}
-                                                                    {customer.email && <div className="text-xs text-gray-400">{customer.email}</div>}
-                                                                </div>
-                                                                {customer.isSubscriber && (
-                                                                    <span className="ml-2 bg-indigo-900 text-xs px-2 py-0.5 rounded-full text-indigo-200 border border-indigo-700">
-                                                                        Bülten
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        </li>
+                                                            {customer.email && <div className="text-xs text-gray-600">{customer.email}</div>}
+                                                            {customer.phone && <div className="text-xs text-gray-600">{customer.phone}</div>}
+                                                        </div>
                                                     ))}
-                                                </ul>
-                                        ) : (
-                                            <div className="py-3 px-3 text-center text-xs sm:text-sm text-gray-400">
-                                                        Sonuç bulunamadı. Yeni kişi ekleyebilirsiniz.
                                             </div>
                                         )}
                                     </div>
-                                )}
-                            </div>
+
                             <div>
-                                <label htmlFor="phone" className="block text-xs sm:text-sm font-medium text-gray-400 mb-1 sm:mb-2">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Telefon
                                 </label>
                                 <input
-                                    type="tel"
-                                    id="phone"
+                                        type="tel"
                                     name="customerPhone"
-                                    value={formData.customerPhone || ''}
+                                        value={formData.customerPhone}
                                     onChange={handleInputChange}
-                                    className="w-full p-2 sm:p-3 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                        className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder-gray-400"
+                                        placeholder="05XX XXX XX XX"
                                 />
                             </div>
+
                             <div>
-                                <label htmlFor="email" className="block text-xs sm:text-sm font-medium text-gray-400 mb-1 sm:mb-2">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
                                     E-posta
                                 </label>
                                 <input
-                                    type="email"
-                                    id="email"
+                                        type="email"
                                     name="customerEmail"
-                                    value={formData.customerEmail || ''}
+                                        value={formData.customerEmail}
                                     onChange={handleInputChange}
-                                    className="w-full p-2 sm:p-3 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                        className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder-gray-400"
+                                        placeholder="ornek@eposta.com"
                                 />
                             </div>
-                            <div className="sm:col-span-2">
-                                <label htmlFor="address" className="block text-xs sm:text-sm font-medium text-gray-400 mb-1 sm:mb-2">
-                                    Adres
+                            </div>
+
+                            {/* Satış bilgileri - Sağ sütun */}
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Satış Tarihi <span className="text-red-500">*</span>
                                 </label>
-                                <textarea
-                                    id="address"
-                                    name="invoiceAddress"
-                                    value={formData.invoiceAddress || ''}
-                                    onChange={handleInputChange}
-                                    rows={2}
-                                    className="w-full p-2 sm:p-3 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                                />
+                                    <div className="relative">
+                                        <DatePicker
+                                            selected={formData.saleDate ? new Date(formData.saleDate) : null}
+                                            onChange={(date: Date | null) => handleDatePickerChange(date, 'saleDate')}
+                                            dateFormat="dd/MM/yyyy"
+                                            className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                            placeholderText="Satış tarihi seçin"
+                                            required
+                                        />
+                                        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-500">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                                            </svg>
                             </div>
-                            <div className="sm:col-span-2">
-                                <label htmlFor="notes" className="block text-xs sm:text-sm font-medium text-gray-400 mb-1 sm:mb-2">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Ödeme Yöntemi
+                                    </label>
+                                    <select
+                                        name="paymentMethod"
+                                        value={formData.paymentMethod}
+                                        onChange={handleInputChange}
+                                        className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    >
+                                        <option value="">Seçiniz...</option>
+                                        <option value="Nakit">Nakit</option>
+                                        <option value="Kredi Kartı">Kredi Kartı</option>
+                                        <option value="Banka Transferi">Banka Transferi</option>
+                                        <option value="Çek">Çek</option>
+                                        <option value="Diğer">Diğer</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Notlar
                                 </label>
-                                <textarea
-                                    id="notes"
+                                    <textarea
                                     name="notes"
-                                    value={formData.notes || ''}
+                                        value={formData.notes}
                                     onChange={handleInputChange}
-                                    rows={2}
-                                    className="w-full p-2 sm:p-3 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                                />
+                                        className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder-gray-400"
+                                        placeholder="Sipariş ile ilgili notlar..."
+                                        rows={3}
+                                    ></textarea>
+                                </div>
                             </div>
                         </div>
                     )}
 
-                    {activeTab === 'invoice' && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                            <div>
-                                <label htmlFor="invoiceNumber" className="block text-sm font-medium text-gray-400 mb-2">
-                                    Fatura Numarası
-                                </label>
-                                <input
-                                    type="text"
-                                    id="invoiceNumber"
-                                    name="invoiceNumber"
-                                    value={formData.invoiceNumber || ''}
-                                    onChange={handleInputChange}
-                                    className="w-full p-3 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
-                                />
-                            </div>
-                            <div>
-                                <label htmlFor="taxNumber" className="block text-sm font-medium text-gray-400 mb-2">
-                                    Vergi Numarası
-                                </label>
-                                <input
-                                    type="text"
-                                    id="taxNumber"
-                                    name="taxNumber"
-                                    value={formData.taxNumber || ''}
-                                    onChange={handleInputChange}
-                                    className="w-full p-3 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
-                                />
-                            </div>
-                            <div className="sm:col-span-2">
-                                <label htmlFor="invoiceAddress" className="block text-sm font-medium text-gray-400 mb-2">
-                                    Fatura Adresi
-                                </label>
-                                <textarea
-                                    id="invoiceAddress"
-                                    name="invoiceAddress"
-                                    value={formData.invoiceAddress || ''}
-                                    onChange={handleInputChange}
-                                    rows={3}
-                                    className="w-full p-3 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
-                                />
-                            </div>
-                        </div>
-                    )}
-
-                    {activeTab === 'delivery' && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                            <div className="sm:col-span-2">
-                                <label htmlFor="deliveryAddress" className="block text-sm font-medium text-gray-400 mb-2">
-                                    Teslimat Adresi
-                                </label>
-                                <textarea
-                                    id="deliveryAddress"
-                                    name="deliveryAddress"
-                                    value={formData.deliveryAddress || ''}
-                                    onChange={handleInputChange}
-                                    rows={3}
-                                    className="w-full p-3 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
-                                />
-                            </div>
-                            <div>
-                                <label htmlFor="deliveryDate" className="block text-sm font-medium text-gray-400 mb-2">
-                                    Teslimat Tarihi
-                                </label>
-                                <input
-                                    type="date"
-                                    id="deliveryDate"
-                                    name="deliveryDate"
-                                    value={formData.deliveryDate ? new Date(formData.deliveryDate).toISOString().split('T')[0] : ''}
-                                    onChange={(e) => handleDateChange(e, 'deliveryDate')}
-                                    className="w-full p-3 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
-                                />
-                            </div>
-                            <div>
-                                <label htmlFor="orderStatus" className="block text-sm font-medium text-gray-400 mb-2">
-                                    Sipariş Durumu
-                                </label>
-                                <select
-                                    id="orderStatus"
-                                    name="orderStatus"
-                                    value={formData.orderStatus || 'Tamamlandı'}
-                                    onChange={handleInputChange}
-                                    className="w-full p-3 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
-                                >
-                                    <option value="Tamamlandı">Tamamlandı</option>
-                                    <option value="İşlemde">İşlemde</option>
-                                    <option value="Kargoda">Kargoda</option>
-                                    <option value="İptal Edildi">İptal Edildi</option>
-                                </select>
-                            </div>
-                        </div>
-                    )}
-
-                    {activeTab === 'payment' && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-6">
-                            <div>
-                                <label htmlFor="paymentMethod" className="block text-xs sm:text-sm font-medium text-gray-400 mb-1 sm:mb-2">
-                                    Ödeme Yöntemi
-                                </label>
-                                <select
-                                    id="paymentMethod"
-                                    name="paymentMethod"
-                                    value={formData.paymentMethod || 'Nakit'}
-                                    onChange={handleInputChange}
-                                    className="w-full p-2 sm:p-3 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                                >
-                                    <option value="Nakit">Nakit</option>
-                                    <option value="Kredi Kartı">Kredi Kartı</option>
-                                    <option value="Havale/EFT">Havale/EFT</option>
-                                    <option value="Çek">Çek</option>
-                                    <option value="Senet">Senet</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label htmlFor="paymentStatus" className="block text-xs sm:text-sm font-medium text-gray-400 mb-1 sm:mb-2">
-                                    Ödeme Durumu
-                                </label>
-                                <select
-                                    id="paymentStatus"
-                                    name="paymentStatus"
-                                    value={formData.paymentStatus || 'Ödendi'}
-                                    onChange={handleInputChange}
-                                    className="w-full p-2 sm:p-3 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                                >
-                                    <option value="Ödendi">Ödendi</option>
-                                    <option value="Beklemede">Beklemede</option>
-                                    <option value="Kısmi Ödeme">Kısmi Ödeme</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label htmlFor="dueDate" className="block text-xs sm:text-sm font-medium text-gray-400 mb-1 sm:mb-2">
-                                    Son Ödeme Tarihi
-                                </label>
-                                <input
-                                    type="date"
-                                    id="dueDate"
-                                    name="dueDate"
-                                    value={formData.dueDate ? new Date(formData.dueDate).toISOString().split('T')[0] : ''}
-                                    onChange={(e) => handleDateChange(e, 'dueDate')}
-                                    className="w-full p-2 sm:p-3 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                                />
-                            </div>
-                            <div>
-                                <label htmlFor="discountAmount" className="block text-xs sm:text-sm font-medium text-gray-400 mb-1 sm:mb-2">
-                                    İndirim Tutarı (₺)
-                                </label>
-                                <input
-                                    type="number"
-                                    id="discountAmount"
-                                    name="discountAmount"
-                                    value={formData.discountAmount || 0}
-                                    min={0}
-                                    onChange={(e) => handleNumberChange(e, 'discountAmount')}
-                                    className="w-full p-2 sm:p-3 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                                />
-                            </div>
-                            <div>
-                                <label htmlFor="taxRate" className="block text-xs sm:text-sm font-medium text-gray-400 mb-1 sm:mb-2">
-                                    Vergi Oranı (%)
-                                </label>
-                                <input
-                                    type="number"
-                                    id="taxRate"
-                                    name="taxRate"
-                                    value={formData.taxRate || 18}
-                                    min={0}
-                                    max={100}
-                                    onChange={(e) => handleNumberChange(e, 'taxRate')}
-                                    className="w-full p-2 sm:p-3 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                                />
-                            </div>
-                        </div>
-                    )}
-
+                    {/* Ürünler Sekmesi */}
                     {activeTab === 'items' && (
-                        <div>
-                            <div className="bg-gray-900 p-3 sm:p-4 rounded-lg mb-4 border border-gray-700 shadow-inner">
-                                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-4">
-                                    <div className="sm:col-span-5">
-                                        <label htmlFor="productId" className="block text-xs sm:text-sm font-medium text-gray-400 mb-1 sm:mb-2">
-                                            Ürün
+                        <div className="space-y-4">
+                            {/* Ürün Tablosu */}
+                            <div className="overflow-x-auto rounded-lg border border-gray-300">
+                                <table className="min-w-full divide-y divide-gray-300">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                                                Ürün
+                                            </th>
+                                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                                                Birim
+                                            </th>
+                                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                                                Fiyat
+                                            </th>
+                                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                                                Miktar
+                                            </th>
+                                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                                                Toplam
+                                            </th>
+                                            <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">
+                                                İşlem
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-300">
+                                        {formData.items?.length ? (
+                                            formData.items.map((item, index) => (
+                                                <tr key={index} className="hover:bg-gray-50 transition-colors">
+                                                    <td className="px-4 py-3 text-sm text-gray-900">{item.productName}</td>
+                                                    <td className="px-4 py-3 text-sm text-gray-900">Adet</td>
+                                                    <td className="px-4 py-3 text-sm text-gray-900">{formatCurrency(item.unitPrice)}</td>
+                                                    <td className="px-4 py-3 text-sm text-gray-900">{item.quantity}</td>
+                                                    <td className="px-4 py-3 text-sm text-gray-900">{formatCurrency(item.totalPrice)}</td>
+                                                    <td className="px-4 py-3 text-right">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeItem(index)}
+                                                            className="text-red-500 hover:text-red-700"
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                                <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                                                            </svg>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan={6} className="px-4 py-3 text-sm text-center text-gray-500">
+                                                    Henüz ürün eklenmemiş
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Ürün Ekle */}
+                            <div className="p-4 bg-white rounded-lg border border-gray-300 shadow-sm">
+                                <h3 className="text-base font-medium text-gray-800 mb-3">Ürün Ekle</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Ürün <span className="text-red-500">*</span>
                                         </label>
                                         <select
-                                            id="productId"
                                             value={productId}
                                             onChange={(e) => setProductId(e.target.value)}
-                                            className="w-full p-2 sm:p-3 bg-gray-800 border border-gray-700 rounded-md text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                            className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                         >
-                                            <option value="">Ürün Seçin</option>
+                                            <option value="">Ürün seçin...</option>
                                             {products.map((product) => (
                                                 <option key={product._id} value={product._id}>
-                                                    {product.name} - {formatCurrency(product.salePrice)}
+                                                    {product.name} - {formatCurrency(product.salePrice || 0)}
                                                 </option>
                                             ))}
                                         </select>
                                     </div>
-                                    <div className="sm:col-span-3">
-                                        <label htmlFor="quantity" className="block text-xs sm:text-sm font-medium text-gray-400 mb-1 sm:mb-2">
-                                            Miktar
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Miktar <span className="text-red-500">*</span>
                                         </label>
-                                        <div className="flex">
-                                            <button
-                                                type="button"
-                                                onClick={() => setQuantity(Math.max(1, Number(quantity) - 1))}
-                                                className="px-2 sm:px-3 py-1 sm:py-2 bg-gray-700 text-white rounded-l-md hover:bg-gray-600"
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                    <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
-                                                </svg>
-                                            </button>
-                                            <input
-                                                type="number"
-                                                id="quantity"
-                                                value={quantity}
-                                                onChange={(e) => setQuantity(Number(e.target.value))}
-                                                min={1}
-                                                className="w-full p-1 sm:p-3 bg-gray-800 border-y border-gray-700 text-white text-center focus:outline-none"
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => setQuantity(Number(quantity) + 1)}
-                                                className="px-2 sm:px-3 py-1 sm:py-2 bg-gray-700 text-white rounded-r-md hover:bg-gray-600"
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                    <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                                                </svg>
-                                            </button>
-                                        </div>
+                                        <input
+                                            type="number"
+                                            value={quantity === 0 ? '' : quantity}
+                                            onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)}
+                                            className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                            placeholder="0"
+                                            min="0"
+                                            step="1"
+                                        />
                                     </div>
-                                    <div className="sm:col-span-4 flex items-center sm:items-end mt-2 sm:mt-0">
+                                    <div className="flex items-end">
                                         <button
                                             type="button"
-                                            className={`w-full py-2 sm:py-3 px-3 sm:px-4 flex items-center justify-center rounded-md transition-all duration-150 ${!productId || quantity <= 0
-                                                ? 'bg-gray-700 text-gray-300 cursor-not-allowed'
-                                                : 'bg-blue-600 text-white hover:bg-blue-500 shadow-md'
-                                                }`}
                                             onClick={addItem}
-                                            disabled={!productId || quantity <= 0}
+                                            className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
                                         >
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                            </svg>
-                                            <span>Ekle</span>
+                                            Ekle
                                         </button>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Ürün Listesi */}
-                            <div className="mt-4">
-                                <h3 className="text-sm sm:text-base font-medium text-gray-300 mb-2 flex items-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                                    </svg>
-                                    Satış Kalemleri
-                                </h3>
-
-                                <div className="overflow-x-auto -mx-3 sm:mx-0">
-                                    <div className="inline-block min-w-full align-middle">
-                                        <div className="overflow-hidden rounded-lg shadow-md border border-gray-800">
-                                            <table className="min-w-full divide-y divide-gray-700">
-                                                <thead className="bg-gradient-to-r from-gray-800 to-gray-900">
-                                                    <tr>
-                                                        <th scope="col" className="py-2 sm:py-3 px-2 sm:px-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Ürün</th>
-                                                        <th scope="col" className="py-2 sm:py-3 px-2 sm:px-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Birim Fiyat</th>
-                                                        <th scope="col" className="py-2 sm:py-3 px-2 sm:px-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Miktar</th>
-                                                        <th scope="col" className="py-2 sm:py-3 px-2 sm:px-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Toplam</th>
-                                                        <th scope="col" className="py-2 sm:py-3 px-2 sm:px-3 text-center text-xs font-medium text-gray-400 uppercase tracking-wider w-16"></th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="bg-gray-800 bg-opacity-50 divide-y divide-gray-700">
-                                                    {formData.items && formData.items.length > 0 ? (
-                                                        formData.items.map((item, index) => (
-                                                            <tr key={index} className="hover:bg-gray-700 hover:bg-opacity-50 transition-colors">
-                                                                <td className="py-2 px-2 sm:px-3 whitespace-nowrap text-xs sm:text-sm text-gray-300">{item.productName}</td>
-                                                                <td className="py-2 px-2 sm:px-3 whitespace-nowrap text-xs sm:text-sm text-gray-300">{formatCurrency(item.unitPrice)}</td>
-                                                                <td className="py-2 px-2 sm:px-3 whitespace-nowrap text-xs sm:text-sm text-gray-300">{item.quantity}</td>
-                                                                <td className="py-2 px-2 sm:px-3 whitespace-nowrap text-xs sm:text-sm text-gray-300 font-medium">{formatCurrency(item.totalPrice)}</td>
-                                                                <td className="py-2 px-2 sm:px-3 whitespace-nowrap text-center">
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => removeItem(index)}
-                                                                        className="p-1.5 rounded-full text-gray-400 hover:bg-red-800 hover:bg-opacity-30 hover:text-red-300 transition-colors"
-                                                                        aria-label="Sil"
-                                                                    >
-                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                                        </svg>
-                                                                    </button>
-                                                                </td>
-                                                            </tr>
-                                                        ))
-                                                    ) : (
-                                                        <tr>
-                                                            <td colSpan={5} className="py-4 px-2 sm:px-3 text-center text-xs sm:text-sm text-gray-400">
-                                                                <div className="flex flex-col items-center justify-center py-3 sm:py-4">
-                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 sm:h-12 sm:w-12 text-gray-600 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                                                                    </svg>
-                                                                    <p>Henüz ürün eklenmedi</p>
-                                                                    <p className="text-xs text-gray-500 mt-1">Yukarıdaki formdan ürün ekleyebilirsiniz</p>
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    )}
-                                                </tbody>
-                                                <tfoot className="bg-gradient-to-b from-gray-900 to-gray-800">
-                                                    <tr className="border-t border-gray-700">
-                                                        <td colSpan={3} className="py-2 px-2 sm:px-3 text-right text-xs sm:text-sm font-medium text-gray-300">Ara Toplam:</td>
-                                                        <td colSpan={2} className="py-2 px-2 sm:px-3 text-xs sm:text-sm text-gray-300">{formatCurrency(subTotal)}</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td colSpan={3} className="py-2 px-2 sm:px-3 text-right text-xs sm:text-sm font-medium text-gray-300">İndirim:</td>
-                                                        <td colSpan={2} className="py-2 px-2 sm:px-3 text-xs sm:text-sm text-gray-300">-{formatCurrency(discountAmount)}</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td colSpan={3} className="py-2 px-2 sm:px-3 text-right text-xs sm:text-sm font-medium text-gray-300">KDV (%{taxRate}):</td>
-                                                        <td colSpan={2} className="py-2 px-2 sm:px-3 text-xs sm:text-sm text-gray-300">{formatCurrency(taxAmount)}</td>
-                                                    </tr>
-                                                    <tr className="border-t border-gray-700 font-bold bg-gray-800">
-                                                        <td colSpan={3} className="py-2 sm:py-3 px-2 sm:px-3 text-right text-xs sm:text-sm font-semibold text-white">Genel Toplam:</td>
-                                                        <td colSpan={2} className="py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-sm font-semibold text-white">{formatCurrency(formData.totalAmount || 0)}</td>
-                                                    </tr>
-                                                </tfoot>
-                                            </table>
+                            {/* Toplam Bilgileri */}
+                            <div className="flex justify-end">
+                                <div className="w-full md:w-96 border border-gray-300 rounded-lg overflow-hidden bg-white">
+                                    <div className="space-y-1 p-4">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-gray-700">Ara Toplam:</span>
+                                            <span className="text-gray-900 font-medium">{formatCurrency(subTotal)}</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-gray-700">İndirim:</span>
+                                            <span className="text-gray-900 font-medium">-{formatCurrency(formData.discountAmount || 0)}</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-gray-700">KDV ({formData.taxRate || 18}%):</span>
+                                            <span className="text-gray-900 font-medium">{formatCurrency((subTotal - (formData.discountAmount || 0)) * ((formData.taxRate || 18) / 100))}</span>
+                                        </div>
+                                        <div className="border-t border-gray-300 mt-2 pt-2 flex justify-between">
+                                            <span className="text-gray-800 font-bold">Genel Toplam:</span>
+                                            <span className="text-blue-700 font-bold">{formatCurrency(formData.totalAmount || 0)}</span>
                                         </div>
                                     </div>
+                                    <div className="bg-gray-50 p-4 border-t border-gray-300">
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    İndirim (₺)
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    name="discountAmount"
+                                                    value={formData.discountAmount || 0}
+                                                    onChange={handleInputChange}
+                                                    className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                    min="0"
+                                                    step="0.01"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    KDV (%)
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    name="taxRate"
+                                                    value={formData.taxRate || 18}
+                                                    onChange={handleInputChange}
+                                                    className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                    min="0"
+                                                    max="100"
+                                                    step="1"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Fatura Bilgileri */}
+                    {activeTab === 'invoice' && (
+                        <div className="space-y-4">
+                            <div className="p-4 bg-white rounded-lg border border-gray-300 shadow-sm">
+                                <h3 className="text-base font-medium text-gray-800 mb-3">Fatura Bilgileri</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Fatura Numarası
+                                </label>
+                                <input
+                                            type="text"
+                                    name="invoiceNumber"
+                                            value={formData.invoiceNumber}
+                                            onChange={handleInputChange}
+                                            className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                            placeholder="Fatura numarası"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Fatura Tarihi
+                                        </label>
+                                        <div className="relative">
+                                            <DatePicker
+                                                selected={formData.invoiceDate ? new Date(formData.invoiceDate) : null}
+                                                onChange={(date: Date | null) => handleDatePickerChange(date, 'invoiceDate')}
+                                                dateFormat="dd/MM/yyyy"
+                                                className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                placeholderText="Fatura tarihi seçin"
+                                            />
+                                            <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-500">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="border-t border-gray-200 mt-4 pt-4">
+                                    <h4 className="text-sm font-medium text-gray-700 mb-2">Fatura Adresi</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Adres Satırı 1
+                                            </label>
+                                            <input
+                                                type="text"
+                                                name="invoiceAddressLine1"
+                                                value={formData.invoiceAddressLine1}
+                                                onChange={handleInputChange}
+                                                className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                placeholder="Adres satırı 1"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Adres Satırı 2
+                                            </label>
+                                            <input
+                                                type="text"
+                                                name="invoiceAddressLine2"
+                                                value={formData.invoiceAddressLine2}
+                                                onChange={handleInputChange}
+                                                className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                placeholder="Adres satırı 2 (opsiyonel)"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Şehir
+                                            </label>
+                                            <input
+                                                type="text"
+                                                name="invoiceCity"
+                                                value={formData.invoiceCity}
+                                                onChange={handleInputChange}
+                                                className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                placeholder="Şehir"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Posta Kodu
+                                            </label>
+                                            <input
+                                                type="text"
+                                                name="invoicePostalCode"
+                                                value={formData.invoicePostalCode}
+                                                onChange={handleInputChange}
+                                                className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                placeholder="Posta kodu"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="border-t border-gray-200 mt-4 pt-4">
+                                    <h4 className="text-sm font-medium text-gray-700 mb-2">Vergi Bilgileri</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Vergi Dairesi
+                                            </label>
+                                            <input
+                                                type="text"
+                                                name="taxOffice"
+                                                value={formData.taxOffice}
+                                                onChange={handleInputChange}
+                                                className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                placeholder="Vergi dairesi"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Vergi / TC Kimlik No
+                                            </label>
+                                            <input
+                                                type="text"
+                                                name="taxNumber"
+                                                value={formData.taxNumber}
+                                                onChange={handleInputChange}
+                                                className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                placeholder="Vergi numarası veya TC kimlik no"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Teslimat Bilgileri */}
+                    {activeTab === 'delivery' && (
+                        <div className="space-y-4">
+                            <div className="p-4 bg-white rounded-lg border border-gray-300 shadow-sm">
+                                <div className="flex items-center justify-between mb-3">
+                                    <h3 className="text-base font-medium text-gray-800">Teslimat Bilgileri</h3>
+                                    <div className="flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            id="sameAsInvoice"
+                                            name="sameAsInvoice"
+                                            checked={formData.sameAsInvoice}
+                                            onChange={(e) => {
+                                                const checked = e.target.checked;
+                                                handleInputChange(createChangeEvent('sameAsInvoice', checked));
+
+                                                if (checked) {
+                                                    // Fatura bilgilerini teslimat bilgilerine kopyala
+                                                    handleInputChange(createChangeEvent('deliveryAddressLine1', formData.invoiceAddressLine1));
+                                                    handleInputChange(createChangeEvent('deliveryAddressLine2', formData.invoiceAddressLine2));
+                                                    handleInputChange(createChangeEvent('deliveryCity', formData.invoiceCity));
+                                                    handleInputChange(createChangeEvent('deliveryPostalCode', formData.invoicePostalCode));
+                                                }
+                                            }}
+                                            className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                        />
+                                        <label htmlFor="sameAsInvoice" className="ml-2 text-sm text-gray-700">
+                                            Fatura adresi ile aynı
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Adres Satırı 1
+                                        </label>
+                                        <input
+                                            type="text"
+                                            name="deliveryAddressLine1"
+                                            value={formData.deliveryAddressLine1}
+                                            onChange={handleInputChange}
+                                            className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                            placeholder="Teslimat adresi satırı 1"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Adres Satırı 2
+                                </label>
+                                        <input
+                                            type="text"
+                                            name="deliveryAddressLine2"
+                                            value={formData.deliveryAddressLine2}
+                                            onChange={handleInputChange}
+                                            className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                            placeholder="Teslimat adresi satırı 2 (opsiyonel)"
+                                />
+                            </div>
+                            <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Şehir
+                                </label>
+                                        <input
+                                            type="text"
+                                            name="deliveryCity"
+                                            value={formData.deliveryCity}
+                                            onChange={handleInputChange}
+                                            className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                            placeholder="Şehir"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Posta Kodu
+                                        </label>
+                                        <input
+                                            type="text"
+                                            name="deliveryPostalCode"
+                                            value={formData.deliveryPostalCode}
+                                            onChange={handleInputChange}
+                                            className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                            placeholder="Posta kodu"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="border-t border-gray-200 mt-4 pt-4">
+                                    <h4 className="text-sm font-medium text-gray-700 mb-2">Teslimat Notları</h4>
+                                    <textarea
+                                        name="deliveryNotes"
+                                        value={formData.deliveryNotes}
+                                        onChange={handleInputChange}
+                                        rows={3}
+                                        className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                        placeholder="Teslimat talimatları veya notları..."
+                                    />
+                                </div>
+
+                                <div className="border-t border-gray-200 mt-4 pt-4">
+                                    <h4 className="text-sm font-medium text-gray-700 mb-2">Teslimat Tarihi</h4>
+                                    <div className="relative">
+                                        <DatePicker
+                                            selected={formData.deliveryDate ? new Date(formData.deliveryDate) : null}
+                                            onChange={(date: Date | null) => handleDatePickerChange(date, 'deliveryDate')}
+                                            dateFormat="dd/MM/yyyy"
+                                            className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                            placeholderText="Teslimat tarihi seçin"
+                                        />
+                                        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-500">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Ödeme Bilgileri */}
+                    {activeTab === 'payment' && (
+                        <div className="space-y-4">
+                            <div className="p-4 bg-white rounded-lg border border-gray-300 shadow-sm">
+                                <h3 className="text-base font-medium text-gray-800 mb-3">Ödeme Bilgileri</h3>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Ödeme Yöntemi
+                                </label>
+                                        <select
+                                    name="paymentMethod"
+                                            value={formData.paymentMethod}
+                                    onChange={handleInputChange}
+                                            className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                >
+                                            <option value="">Seçiniz...</option>
+                                    <option value="Nakit">Nakit</option>
+                                    <option value="Kredi Kartı">Kredi Kartı</option>
+                                            <option value="Banka Transferi">Banka Transferi</option>
+                                    <option value="Çek">Çek</option>
+                                            <option value="Diğer">Diğer</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Ödeme Durumu
+                                </label>
+                                        <select
+                                    name="paymentStatus"
+                                            value={formData.paymentStatus}
+                                    onChange={handleInputChange}
+                                            className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                >
+                                            <option value="">Seçiniz...</option>
+                                    <option value="Ödendi">Ödendi</option>
+                                    <option value="Beklemede">Beklemede</option>
+                                    <option value="Kısmi Ödeme">Kısmi Ödeme</option>
+                                            <option value="İptal Edildi">İptal Edildi</option>
+                                </select>
+                                    </div>
+                            </div>
+
+                                <div className="mt-4">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Ödeme Tarihi
+                                </label>
+                                    <div className="relative">
+                                        <DatePicker
+                                            selected={formData.paymentDate ? new Date(formData.paymentDate) : null}
+                                            onChange={(date: Date | null) => handleDatePickerChange(date, 'paymentDate')}
+                                            dateFormat="dd/MM/yyyy"
+                                            className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                            placeholderText="Ödeme tarihi seçin"
+                                        />
+                                        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-500">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                                            </svg>
+                                        </div>
+                            </div>
+                                </div>
+
+                                <div className="border-t border-gray-200 mt-4 pt-4">
+                                    <div className="flex justify-between">
+                                        <label className="block text-sm font-medium text-gray-700">
+                                            Ödenen Tutar
+                                        </label>
+                                        <div className="text-sm text-gray-500">
+                                            Toplam: {formatCurrency(formData.totalAmount || 0)}
+                                        </div>
+                                    </div>
+                                    <div className="mt-2 relative">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <span className="text-gray-500 sm:text-sm">₺</span>
+                                        </div>
+                                            <input
+                                                type="number"
+                                            name="amountPaid"
+                                            value={formData.amountPaid}
+                                            onChange={handleInputChange}
+                                            className="block w-full rounded-md border border-gray-300 bg-white pl-7 pr-12 py-2 text-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                            placeholder="0.00"
+                                            step="0.01"
+                                            min="0"
+                                        />
+                                        <div className="absolute inset-y-0 right-0 flex items-center">
+                                            <span className="text-gray-500 mr-3 text-sm">
+                                                Kalan: {formatCurrency(formData.totalAmount || 0 - (parseFloat(formData.amountPaid || '0') || 0))}
+                                            </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                                <div className="border-t border-gray-200 mt-4 pt-4">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Ödeme Notları
+                                    </label>
+                                    <textarea
+                                        name="paymentNotes"
+                                        value={formData.paymentNotes}
+                                        onChange={handleInputChange}
+                                        rows={3}
+                                        className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                        placeholder="Ödeme ile ilgili notlar..."
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -981,4 +1298,4 @@ const SalesForm: React.FC<SalesFormProps> = ({
     );
 };
 
-export default SalesForm; 
+export { SalesForm }; 

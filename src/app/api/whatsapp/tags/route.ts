@@ -8,26 +8,46 @@ import { Newsletter } from '@/models/Newsletter';
  * Döndürdüğü veriler:
  * - Sistemde kayıtlı tüm benzersiz etiketler
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
     try {
         await connectToDatabase();
 
-        // Tüm benzersiz etiketleri getir
-        const distinctTags = await Newsletter.distinct('tags');
+        // Önbelleği devre dışı bırak
+        const headers = new Headers();
+        headers.append('Cache-Control', 'no-cache, no-store, must-revalidate');
+        headers.append('Pragma', 'no-cache');
+        headers.append('Expires', '0');
 
-        // Etiketlerin boş olup olmadığını kontrol et
-        const validTags = distinctTags
-            .filter(tag => tag && tag.trim() !== '')
-            .sort();
+        // Tüm abone etiketlerini tekrarsız olarak getir
+        const result = await Newsletter.aggregate([
+            // Sadece aktif ve WhatsApp mesajlarına açık aboneler
+            { $match: { active: true, whatsappEnabled: true } },
+            // Etiketleri düzleştir
+            { $unwind: { path: "$tags", preserveNullAndEmptyArrays: false } },
+            // Tekrarlı etiketleri kaldır
+            { $group: { _id: "$tags" } },
+            // Sonucu formatlı hale getir
+            { $project: { _id: 0, tag: "$_id" } },
+            // İsme göre sırala
+            { $sort: { tag: 1 } }
+        ]);
+
+        const tags = result.map(item => item.tag);
+        console.log(`${tags.length} etiket bulundu ve gönderiliyor`);
 
         return NextResponse.json({
             success: true,
-            tags: validTags || [],
-        });
-    } catch (error) {
-        console.error('Etiketler alınırken hata:', error);
+            tags,
+            timestamp: new Date().toISOString()
+        }, { headers });
+    } catch (error: any) {
+        console.error("Etiketler yüklenirken hata:", error);
         return NextResponse.json(
-            { success: false, error: (error as Error).message },
+            {
+                success: false,
+                error: error.message,
+                timestamp: new Date().toISOString()
+            },
             { status: 500 }
         );
     }

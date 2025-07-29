@@ -11,6 +11,8 @@ export interface IProduct {
     category: string;
     image?: string; // Base64 formatında resim verisi
     supplier?: string; // Tedarikçi bilgisi
+    barcode?: string; // Barkod bilgisi
+    sku?: string; // Stok Kodu (Stock Keeping Unit)
     createdAt: Date;
     updatedAt: Date;
 }
@@ -58,6 +60,16 @@ const productSchema = new Schema<IProduct>(
             default: '',
         },
         supplier: {
+            type: String,
+            default: '',
+            trim: true,
+        },
+        barcode: {
+            type: String,
+            default: '',
+            trim: true,
+        },
+        sku: {
             type: String,
             default: '',
             trim: true,

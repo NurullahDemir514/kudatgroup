@@ -3,7 +3,6 @@ import { connectToDatabase } from '@/lib/mongodb';
 import { Customer } from '@/models/Customer';
 import { Product } from '@/models/Product';
 import { Newsletter } from '@/models/Newsletter';
-import { Campaign } from '@/models/Campaign';
 import { Sale } from '@/models/Sale';
 
 /**
@@ -103,8 +102,6 @@ export async function GET(request: NextRequest) {
             ? Math.round(((newSubscribers - previousPeriodSubscribers) / previousPeriodSubscribers) * 100)
             : 100;
 
-        // Kampanya istatistikleri
-        const activeCampaigns = await Campaign.countDocuments({ status: 'active' });
 
         // Satış istatistikleri
         const periodSales = await Sale.aggregate([
@@ -158,11 +155,6 @@ export async function GET(request: NextRequest) {
             .sort({ createdAt: -1 })
             .limit(5);
 
-        // Kampanya istatistikleri
-        const campaignStats = await Campaign.find()
-            .sort({ startDate: -1 })
-            .limit(5);
-
         // Tüm verileri döndür
         return NextResponse.json({
             success: true,
@@ -185,8 +177,7 @@ export async function GET(request: NextRequest) {
                     trend: { value: Math.abs(salesTrend), positive: salesTrend >= 0 }
                 }
             },
-            recentCustomers,
-            campaignStats
+            recentCustomers
         });
     } catch (error) {
         console.error('Dashboard verileri yüklenirken hata:', error);

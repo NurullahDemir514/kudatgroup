@@ -3,57 +3,61 @@ import { connectToDatabase } from '@/lib/mongodb';
 import { Newsletter } from '@/models/Newsletter';
 
 // WhatsApp mesajları için abone listesini getir
-export async function GET(request: NextRequest) {
+export async function GET(req: NextRequest) {
     try {
         await connectToDatabase();
 
-        const { searchParams } = new URL(request.url);
-        const active = searchParams.get('active');
-        const search = searchParams.get('search');
-        const tag = searchParams.get('tag');
-        const sortBy = searchParams.get('sortBy') || 'subscriptionDate';
-        const sortOrder = searchParams.get('sortOrder') || 'desc';
+        // URL parametrelerini al
+        const { searchParams } = new URL(req.url);
+        const showAll = searchParams.get('showAll') === 'true';
+
+        // Önbelleği devre dışı bırak
+        const headers = new Headers();
+        headers.append('Cache-Control', 'no-cache, no-store, must-revalidate');
+        headers.append('Pragma', 'no-cache');
+        headers.append('Expires', '0');
 
         // Filtre oluştur
         const filter: any = {};
 
-        // Aktif/pasif filtresi
-        if (active === 'true') {
+        // Hepsini göster seçeneği aktif değilse, aktif ve WhatsApp'a açık olanları getir
+        if (!showAll) {
             filter.active = true;
-        } else if (active === 'false') {
-            filter.active = false;
+            filter.whatsappEnabled = true;
         }
-
-        // Etiket filtresi
-        if (tag) {
-            filter.tags = tag;
-        }
-
-        // Arama filtresi
-        if (search) {
-            filter.$or = [
-                { name: { $regex: search, $options: 'i' } },
-                { email: { $regex: search, $options: 'i' } },
-                { phone: { $regex: search, $options: 'i' } },
-                { notes: { $regex: search, $options: 'i' } }
-            ];
-        }
-
-        // Sıralama ayarları
-        const sortOptions: any = {};
-        sortOptions[sortBy] = sortOrder === 'asc' ? 1 : -1;
 
         // Aboneleri getir
-        const subscribers = await Newsletter.find(filter).sort(sortOptions);
+        const subscribers = await Newsletter.find(filter)
+            .sort({ name: 1 })
+            .select('_id name phone email companyName tags active whatsappEnabled');
+
+        // İstatistik için sayım yap
+        const totalCount = await Newsletter.countDocuments({});
+        const activeCount = await Newsletter.countDocuments({ active: true });
+        const whatsappEnabledCount = await Newsletter.countDocuments({ whatsappEnabled: true });
+        const activePlusWhatsappCount = await Newsletter.countDocuments({ active: true, whatsappEnabled: true });
+
+        console.log(`${subscribers.length} abone bulundu ve gönderiliyor (Toplam: ${totalCount}, Aktif: ${activeCount}, WhatsApp'a açık: ${whatsappEnabledCount}, Her ikisine uyan: ${activePlusWhatsappCount})`);
 
         return NextResponse.json({
             success: true,
-            data: subscribers
-        });
-    } catch (error) {
-        console.error('Abone listeleme hatası:', error);
+            subscribers,
+            stats: {
+                total: totalCount,
+                active: activeCount,
+                whatsappEnabled: whatsappEnabledCount,
+                activePlusWhatsapp: activePlusWhatsappCount
+            },
+            timestamp: new Date().toISOString()
+        }, { headers });
+    } catch (error: any) {
+        console.error("Aboneler yüklenirken hata:", error);
         return NextResponse.json(
-            { success: false, error: (error as Error).message },
+            {
+                success: false,
+                error: error.message,
+                timestamp: new Date().toISOString()
+            },
             { status: 500 }
         );
     }
