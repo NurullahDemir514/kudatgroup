@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
-import { Customer } from '@/models/Customer';
-import { Sale } from '@/models/Sale';
-import { Newsletter } from '@/models/Newsletter';
-import { Product } from '@/models/Product';
+import Customer from '@/models/Customer';
+import Sale from '@/models/Sale';
+import Newsletter from '@/models/Newsletter';
+import Product from '@/models/Product';
 
 // Veritabanından dashboard verilerini getirir
 export async function GET(request: Request) {

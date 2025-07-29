@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
-import { Customer } from '@/models/Customer';
-import { Product } from '@/models/Product';
-import { Newsletter } from '@/models/Newsletter';
-import { Sale } from '@/models/Sale';
+import Customer from '@/models/Customer';
+import Product from '@/models/Product';
+import Newsletter from '@/models/Newsletter';
+import Sale from '@/models/Sale';
 
 /**
  * Dashboard verilerini getiren API endpoint'i

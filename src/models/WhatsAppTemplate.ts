@@ -1,80 +1,31 @@
-import mongoose, { Schema, models } from 'mongoose';
+import mongoose from 'mongoose';
 
-// WhatsApp şablonu için tip tanımlaması
-export interface IWhatsAppTemplate {
-    _id?: string;
-    name: string;
-    description: string;
-    templateId: string;
-    parameters: string[];
-    content: string;
-    category: string;
-    active: boolean;
-    createdAt: Date;
-    updatedAt: Date;
-}
-
-// WhatsApp şablon şeması
-const whatsAppTemplateSchema = new Schema<IWhatsAppTemplate>(
-    {
-        name: {
-            type: String,
-            required: [true, 'Şablon adı zorunludur'],
-            trim: true,
-        },
-        description: {
-            type: String,
-            trim: true,
-        },
-        templateId: {
-            type: String,
-            required: [true, 'WhatsApp şablon ID zorunludur'],
-            trim: true,
-            unique: true,
-        },
-        parameters: {
-            type: [String],
-            default: [],
-        },
-        content: {
-            type: String,
-            required: [true, 'Şablon içeriği zorunludur'],
-            trim: true,
-        },
-        category: {
-            type: String,
-            enum: ['marketing', 'transactional', 'service', 'authentication', 'other'],
-            default: 'other',
-        },
-        active: {
-            type: Boolean,
-            default: true,
-        },
-    },
-    { timestamps: true }
-);
-
-// Şablondan parametre çıkarma yardımcı metodu
-whatsAppTemplateSchema.pre('save', function (next) {
-    // Eğer parameters dizisi boşsa ve content varsa
-    if (this.parameters.length === 0 && this.content) {
-        // İçerikten {{parametre}} formatındaki değişkenleri çıkar
-        const regex = /{{([^}]+)}}/g;
-        let match;
-        const params: string[] = [];
-
-        while ((match = regex.exec(this.content)) !== null) {
-            const param = match[1].trim();
-            if (!params.includes(param)) {
-                params.push(param);
-            }
-        }
-
-        this.parameters = params;
-    }
-    next();
+const whatsAppTemplateSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true,
+  },
+  content: {
+    type: String,
+    required: true,
+  },
+  category: {
+    type: String,
+    required: true,
+  },
+  isActive: {
+    type: Boolean,
+    default: true,
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now,
+  },
 });
 
-// Model oluştur
-export const WhatsAppTemplate = models.WhatsAppTemplate ||
-    mongoose.model<IWhatsAppTemplate>('WhatsAppTemplate', whatsAppTemplateSchema); 
+const WhatsAppTemplate = mongoose.models.WhatsAppTemplate || mongoose.model('WhatsAppTemplate', whatsAppTemplateSchema);
+export default WhatsAppTemplate; 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
-import { Customer } from '@/models/Customer';
+import Customer from '@/models/Customer';
 
 // Tüm müşterileri getir
 export async function GET(request: NextRequest) {

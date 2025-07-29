@@ -1,47 +1,34 @@
-import mongoose, { Schema, models } from 'mongoose';
+import mongoose from 'mongoose';
 
-export interface IEvent {
-    _id?: string;
-    title: string;
-    date: Date;
-    type: string;
-    color: string;
-    description?: string;
-    attendees?: string[];
-    createdAt: Date;
-    updatedAt: Date;
-}
+const eventSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: true,
+  },
+  description: {
+    type: String,
+    required: true,
+  },
+  date: {
+    type: Date,
+    required: true,
+  },
+  location: {
+    type: String,
+  },
+  isActive: {
+    type: Boolean,
+    default: true,
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now,
+  },
+});
 
-const eventSchema = new Schema<IEvent>(
-    {
-        title: {
-            type: String,
-            required: [true, 'Etkinlik başlığı zorunlu'],
-            trim: true,
-        },
-        date: {
-            type: Date,
-            required: [true, 'Etkinlik tarihi zorunlu'],
-        },
-        type: {
-            type: String,
-            required: [true, 'Etkinlik türü zorunlu'],
-            trim: true,
-        },
-        color: {
-            type: String,
-            default: 'from-gray-300 to-gray-400',
-        },
-        description: {
-            type: String,
-            trim: true,
-        },
-        attendees: {
-            type: [String],
-            default: [],
-        },
-    },
-    { timestamps: true }
-);
-
-export const Event = models.Event || mongoose.model<IEvent>('Event', eventSchema); 
+const Event = mongoose.models.Event || mongoose.model('Event', eventSchema);
+export default Event; 

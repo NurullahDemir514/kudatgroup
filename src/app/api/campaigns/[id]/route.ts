@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
-import { Campaign } from '@/models/Campaign';
+import Campaign from '@/models/Campaign';
 
 // Belirli bir kampanyayı getir
 export async function GET(
