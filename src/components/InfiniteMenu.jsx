@@ -642,12 +642,19 @@ class InfiniteGridMenu {
 
   destroy() {
     this.stop();
-    // WebGL context'i temizle
-    if (this.gl) {
-      const loseContext = this.gl.getExtension('WEBGL_lose_context');
-      if (loseContext) {
-        loseContext.loseContext();
+    
+    // WebGL kaynaklarını temizle
+    if (this.gl && this.discProgram) {
+      const gl = this.gl;
+      // Program'ı sil
+      try {
+        if (gl.getProgramParameter(this.discProgram, gl.LINK_STATUS)) {
+          gl.deleteProgram(this.discProgram);
+        }
+      } catch (e) {
+        console.warn('Program silinirken hata:', e);
       }
+      this.discProgram = null;
     }
   }
 
@@ -667,6 +674,21 @@ class InfiniteGridMenu {
       aModelUvs: 2,
       aInstanceMatrix: 3
     });
+
+    // Program'ın geçerli olduğunu kontrol et
+    if (!this.discProgram) {
+      const error = gl.getProgramInfoLog ? gl.getProgramInfoLog(null) : 'Unknown error';
+      console.error('WebGL program oluşturulamadı:', error);
+      throw new Error('WebGL program oluşturulamadı');
+    }
+    
+    if (!gl.getProgramParameter(this.discProgram, gl.LINK_STATUS)) {
+      const error = gl.getProgramInfoLog(this.discProgram);
+      console.error('WebGL program link hatası:', error);
+      gl.deleteProgram(this.discProgram);
+      this.discProgram = null;
+      throw new Error('WebGL program link edilemedi: ' + error);
+    }
 
     this.discLocations = {
       aModelPosition: gl.getAttribLocation(this.discProgram, 'aModelPosition'),
@@ -804,6 +826,21 @@ class InfiniteGridMenu {
 
   #render() {
     const gl = this.gl;
+    
+    // Program'ın geçerli olduğunu kontrol et
+    if (!this.discProgram) {
+      return; // Program yoksa render etme
+    }
+    
+    try {
+      if (!gl.getProgramParameter(this.discProgram, gl.LINK_STATUS)) {
+        return; // Program link edilmemişse render etme
+      }
+    } catch (e) {
+      console.warn('WebGL program kontrolü hatası:', e);
+      return;
+    }
+    
     gl.useProgram(this.discProgram);
 
     gl.enable(gl.CULL_FACE);
@@ -943,43 +980,73 @@ export default function InfiniteMenu({ items = [] }) {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Eski sketch'i temizle
+    // Eski sketch'i temizle - önce durdur
     if (sketchRef.current) {
-      sketchRef.current.destroy?.();
-      sketchRef.current = null;
-    }
-
-    const handleActiveItem = index => {
-      const currentItems = items.length ? items : defaultItems;
-      const itemIndex = index % currentItems.length;
-      setActiveItem(currentItems[itemIndex]);
-    };
-
-    const currentItems = items.length ? items : defaultItems;
-    const sketch = new InfiniteGridMenu(canvas, currentItems, handleActiveItem, setIsMoving, sk => {
-      sk.run();
-      sketchRef.current = sk;
-    });
-
-    const handleResize = () => {
-      if (sketchRef.current && sketchRef.current.resize) {
-        sketchRef.current.resize();
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-    // İlk render'da resize çağır
-    setTimeout(() => handleResize(), 100);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      // Cleanup: Eski sketch'i durdur
-      if (sketchRef.current) {
+      try {
         if (sketchRef.current.stop) {
           sketchRef.current.stop();
         }
         if (sketchRef.current.destroy) {
           sketchRef.current.destroy();
+        }
+      } catch (e) {
+        console.warn('Sketch temizlenirken hata:', e);
+      }
+      sketchRef.current = null;
+    }
+
+    // Items boşsa veya yükleniyorsa bekle
+    if (!items || items.length === 0) {
+      return;
+    }
+
+    const handleActiveItem = index => {
+      const itemIndex = index % items.length;
+      if (items[itemIndex]) {
+        setActiveItem(items[itemIndex]);
+      }
+    };
+
+    let sketch;
+    try {
+      sketch = new InfiniteGridMenu(canvas, items, handleActiveItem, setIsMoving, sk => {
+        sk.run();
+        sketchRef.current = sk;
+      });
+    } catch (error) {
+      console.error('InfiniteGridMenu oluşturulurken hata:', error);
+      return;
+    }
+
+    const handleResize = () => {
+      if (sketchRef.current && sketchRef.current.resize) {
+        try {
+          sketchRef.current.resize();
+        } catch (e) {
+          console.warn('Resize hatası:', e);
+        }
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    // İlk render'da resize çağır
+    setTimeout(() => {
+      handleResize();
+    }, 100);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      // Cleanup: Eski sketch'i durdur
+      if (sketchRef.current) {
+        try {
+          if (sketchRef.current.stop) {
+            sketchRef.current.stop();
+          }
+          if (sketchRef.current.destroy) {
+            sketchRef.current.destroy();
+          }
+        } catch (e) {
+          console.warn('Cleanup hatası:', e);
         }
         sketchRef.current = null;
       }
