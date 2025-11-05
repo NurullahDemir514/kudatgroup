@@ -912,27 +912,35 @@ const defaultItems = [
 
 export default function InfiniteMenu({ items = [] }) {
   const canvasRef = useRef(null);
+  const sketchRef = useRef(null);
   const [activeItem, setActiveItem] = useState(null);
   const [isMoving, setIsMoving] = useState(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    let sketch;
+    if (!canvas) return;
 
-    const handleActiveItem = index => {
-      const itemIndex = index % items.length;
-      setActiveItem(items[itemIndex]);
-    };
-
-    if (canvas) {
-      sketch = new InfiniteGridMenu(canvas, items.length ? items : defaultItems, handleActiveItem, setIsMoving, sk =>
-        sk.run()
-      );
+    // Eski sketch'i temizle
+    if (sketchRef.current) {
+      sketchRef.current.destroy?.();
+      sketchRef.current = null;
     }
 
+    const handleActiveItem = index => {
+      const currentItems = items.length ? items : defaultItems;
+      const itemIndex = index % currentItems.length;
+      setActiveItem(currentItems[itemIndex]);
+    };
+
+    const currentItems = items.length ? items : defaultItems;
+    const sketch = new InfiniteGridMenu(canvas, currentItems, handleActiveItem, setIsMoving, sk => {
+      sk.run();
+      sketchRef.current = sk;
+    });
+
     const handleResize = () => {
-      if (sketch) {
-        sketch.resize();
+      if (sketchRef.current) {
+        sketchRef.current.resize();
       }
     };
 
@@ -941,6 +949,10 @@ export default function InfiniteMenu({ items = [] }) {
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      if (sketchRef.current && sketchRef.current.destroy) {
+        sketchRef.current.destroy();
+        sketchRef.current = null;
+      }
     };
   }, [items]);
 

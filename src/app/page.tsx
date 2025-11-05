@@ -673,7 +673,7 @@ export default function Home() {
                 });
               }
 
-              return <InfiniteMenu items={infiniteMenuItems as any} />;
+              return <InfiniteMenu key={collectionImages.length > 0 ? collectionImages.join(',') : 'fallback'} items={infiniteMenuItems as any} />;
             })()}
           </div>
         </div>
