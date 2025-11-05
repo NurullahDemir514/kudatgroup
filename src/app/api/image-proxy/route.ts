@@ -47,9 +47,8 @@ export async function GET(request: NextRequest) {
                 console.log('Firebase Storage URL alındı:', storagePath);
             } catch (firebaseError: any) {
                 console.error('Firebase Storage URL hatası:', firebaseError.message, firebaseError.code);
-                // Eğer Firebase'den alamazsak, orijinal URL'i redirect olarak döndür
-                // Bu şekilde browser direkt Firebase Storage'dan yükleyebilir
-                return NextResponse.redirect(decodedUrl, 302);
+                // Eğer Firebase'den alamazsak, orijinal URL'i kullan
+                downloadURL = decodedUrl;
             }
         } else {
             downloadURL = decodedUrl;
