@@ -1,0 +1,23 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Hero görselleri - herkese okuma, yazma için authentication
+    match /hero/{fileName} {
+      allow read: if true;
+      allow write: if true; // Geçici olarak herkese yazma izni
+    }
+    
+    // Ürün görselleri - herkese okuma, yazma için authentication
+    match /products/{fileName} {
+      allow read: if true;
+      allow write: if true; // Geçici olarak herkese yazma izni
+    }
+    
+    // Diğer dosyalar
+    match /{allPaths=**} {
+      allow read: if true;
+      allow write: if true; // Geçici olarak herkese yazma izni
+    }
+  }
+}
+
