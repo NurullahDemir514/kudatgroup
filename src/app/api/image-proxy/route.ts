@@ -34,17 +34,19 @@ export async function GET(request: NextRequest) {
         // Direkt olarak orijinal URL'i kullan (Firebase Storage URL'leri zaten geçerli)
         const downloadURL = decodedUrl;
 
-        // Görseli fetch et
+        // Görseli fetch et - redirect'leri takip et
         let response;
         try {
             response = await fetch(downloadURL, {
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                     'Accept': 'image/*',
+                    'Referer': 'https://kudatgroup.com',
                 },
+                redirect: 'follow',
             });
         } catch (fetchError: any) {
-            console.error('Fetch hatası:', fetchError.message);
+            console.error('Fetch hatası:', fetchError.message, downloadURL.substring(0, 100));
             return NextResponse.json(
                 { success: false, error: `Fetch hatası: ${fetchError.message}` },
                 { status: 500 }
@@ -52,11 +54,9 @@ export async function GET(request: NextRequest) {
         }
 
         if (!response.ok) {
-            console.error('Görsel yüklenemedi:', response.status, response.statusText);
-            return NextResponse.json(
-                { success: false, error: `Görsel yüklenemedi: ${response.status} ${response.statusText}` },
-                { status: response.status }
-            );
+            console.error('Görsel yüklenemedi:', response.status, response.statusText, downloadURL.substring(0, 100));
+            // Hata durumunda orijinal URL'i redirect header ile döndür
+            return NextResponse.redirect(downloadURL, 302);
         }
 
         // Görsel verisini al
