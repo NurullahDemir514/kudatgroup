@@ -939,18 +939,25 @@ export default function InfiniteMenu({ items = [] }) {
     });
 
     const handleResize = () => {
-      if (sketchRef.current) {
+      if (sketchRef.current && sketchRef.current.resize) {
         sketchRef.current.resize();
       }
     };
 
     window.addEventListener('resize', handleResize);
-    handleResize();
+    // İlk render'da resize çağır
+    setTimeout(() => handleResize(), 100);
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      if (sketchRef.current && sketchRef.current.destroy) {
-        sketchRef.current.destroy();
+      // Cleanup: Eski sketch'i durdur
+      if (sketchRef.current) {
+        if (sketchRef.current.stop) {
+          sketchRef.current.stop();
+        }
+        if (sketchRef.current.destroy) {
+          sketchRef.current.destroy();
+        }
         sketchRef.current = null;
       }
     };
