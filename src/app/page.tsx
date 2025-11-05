@@ -664,8 +664,14 @@ export default function Home() {
                     const code = img.code || `KT-${String(index + 1).padStart(3, '0')}`;
                     const description = img.description || productDescriptions[index % productDescriptions.length];
                     
+                    // Firebase Storage URL'sini proxy üzerinden yükle
+                    const imageUrl = img.url || img;
+                    const proxyUrl = imageUrl.includes('firebasestorage.googleapis.com')
+                      ? `/api/image-proxy?url=${encodeURIComponent(imageUrl)}`
+                      : imageUrl;
+                    
                     return {
-                      image: img.url || img,
+                      image: proxyUrl,
                       link: `/products/${index + 1}`,
                       title: `${title} ${code}`,
                       description: description,
