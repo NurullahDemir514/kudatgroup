@@ -70,6 +70,7 @@ export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [statsVisible, setStatsVisible] = useState(false);
   const [heroImages, setHeroImages] = useState<string[]>([]);
+  const [collectionImages, setCollectionImages] = useState<string[]>([]);
   const [heroImagesVisible, setHeroImagesVisible] = useState({
     img1: false,
     img2: false,
@@ -216,6 +217,23 @@ export default function Home() {
     };
 
     fetchHeroImages();
+  }, []);
+
+  // Koleksiyon görsellerini Firebase Storage'dan çek
+  useEffect(() => {
+    const fetchCollectionImages = async () => {
+      try {
+        const response = await fetch('/api/collection-images');
+        const result = await response.json();
+        if (result.success && Array.isArray(result.images)) {
+          setCollectionImages(result.images);
+        }
+      } catch (err) {
+        console.error('Koleksiyon görselleri yüklenirken hata:', err);
+      }
+    };
+
+    fetchCollectionImages();
   }, []);
 
   return (
@@ -651,27 +669,37 @@ export default function Home() {
                         description: product.description || productDescriptions[index % productDescriptions.length],
                       };
                     })
-                : [
-                    // Statik görseller
-                    { id: '1', img: '/products/1.jpg', url: '/products/1' },
-                    { id: '2', img: '/products/2.jpg', url: '/products/2' },
-                    { id: '3', img: '/products/3.jpg', url: '/products/3' },
-                    { id: '4', img: '/products/4.jpg', url: '/products/4' },
-                    { id: '5', img: '/products/5.jpg', url: '/products/5' },
-                    { id: '6', img: '/products/6.jpg', url: '/products/6' },
-                    { id: '7', img: '/products/WhatsApp Image 2025-11-05 at 14.17.07.jpeg', url: '/products/7' },
-                    { id: '8', img: '/products/WhatsApp Image 2025-11-05 at 14.17.08 (1).jpeg', url: '/products/8' },
-                    { id: '9', img: '/products/WhatsApp Image 2025-11-05 at 14.17.08 (2).jpeg', url: '/products/9' },
-                    { id: '10', img: '/products/WhatsApp Image 2025-11-05 at 14.17.08 (3).jpeg', url: '/products/10' },
-                  ].map((item, index) => {
-                    const productCode = `KT-${String(index + 1).padStart(3, '0')}`;
-                    return {
-                      image: item.img,
-                      link: item.url,
-                      title: `${shuffledNames[index % shuffledNames.length]} ${productCode}`,
-                      description: productDescriptions[index % productDescriptions.length],
-                    };
-                  });
+                : collectionImages.length > 0
+                  ? collectionImages.map((imageUrl, index) => {
+                      const productCode = `KT-${String(index + 1).padStart(3, '0')}`;
+                      return {
+                        image: imageUrl,
+                        link: `/products/${index + 1}`,
+                        title: `${shuffledNames[index % shuffledNames.length]} ${productCode}`,
+                        description: productDescriptions[index % productDescriptions.length],
+                      };
+                    })
+                  : [
+                      // Fallback: Statik görseller
+                      { id: '1', img: '/products/1.jpg', url: '/products/1' },
+                      { id: '2', img: '/products/2.jpg', url: '/products/2' },
+                      { id: '3', img: '/products/3.jpg', url: '/products/3' },
+                      { id: '4', img: '/products/4.jpg', url: '/products/4' },
+                      { id: '5', img: '/products/5.jpg', url: '/products/5' },
+                      { id: '6', img: '/products/6.jpg', url: '/products/6' },
+                      { id: '7', img: '/products/WhatsApp Image 2025-11-05 at 14.17.07.jpeg', url: '/products/7' },
+                      { id: '8', img: '/products/WhatsApp Image 2025-11-05 at 14.17.08 (1).jpeg', url: '/products/8' },
+                      { id: '9', img: '/products/WhatsApp Image 2025-11-05 at 14.17.08 (2).jpeg', url: '/products/9' },
+                      { id: '10', img: '/products/WhatsApp Image 2025-11-05 at 14.17.08 (3).jpeg', url: '/products/10' },
+                    ].map((item, index) => {
+                      const productCode = `KT-${String(index + 1).padStart(3, '0')}`;
+                      return {
+                        image: item.img,
+                        link: item.url,
+                        title: `${shuffledNames[index % shuffledNames.length]} ${productCode}`,
+                        description: productDescriptions[index % productDescriptions.length],
+                      };
+                    });
 
               return <InfiniteMenu items={infiniteMenuItems as any} />;
             })()}
