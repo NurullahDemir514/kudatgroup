@@ -153,56 +153,48 @@ export default function ProductsPage() {
             return;
         }
 
-        // Maksimum dosya boyutu kontrolü (5MB)
-        if (file.size > 5 * 1024 * 1024) {
-            setFormError('Maksimum dosya boyutu 5MB olmalıdır');
+        // Maksimum dosya boyutu kontrolü (10MB)
+        if (file.size > 10 * 1024 * 1024) {
+            setFormError('Maksimum dosya boyutu 10MB olmalıdır');
             return;
         }
 
         setImageUploading(true);
         try {
-            // Dosyayı Base64'e dönüştür
+            // Önizleme için görüntüyü ayarla
             const reader = new FileReader();
             reader.readAsDataURL(file);
-            reader.onloadend = async () => {
-                const base64data = reader.result as string;
-
-                // Önizleme için görüntüyü ayarla
-                setImagePreview(base64data);
-
-                try {
-                    // Base64 görselini doğrudan kullan
-                    const response = await fetch('/api/upload', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ image: base64data }),
-                    });
-
-                    const data = await response.json();
-
-                    if (data.success) {
-                        setFormData(prev => ({
-                            ...prev,
-                            image: data.url // Bu artık base64 veri
-                        }));
-                        setFormError(null);
-                    } else {
-                        setFormError('Resim yüklenirken bir hata oluştu: ' + data.error);
-                        setImagePreview(null);
-                    }
-                } catch (err) {
-                    console.error('Resim yükleme hatası:', err);
-                    setFormError('Resim yüklenirken bir hata oluştu');
-                    setImagePreview(null);
-                }
-                setImageUploading(false);
+            reader.onloadend = () => {
+                setImagePreview(reader.result as string);
             };
+
+            // Firebase Storage'a yükle
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('folder', 'products');
+
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData,
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                setFormData(prev => ({
+                    ...prev,
+                    image: data.url // Firebase Storage URL'i
+                }));
+                setFormError(null);
+            } else {
+                setFormError('Resim yüklenirken bir hata oluştu: ' + (data.error || 'Bilinmeyen hata'));
+                setImagePreview(null);
+            }
         } catch (err) {
             console.error('Resim yükleme hatası:', err);
             setFormError('Resim yüklenirken bir hata oluştu');
             setImagePreview(null);
+        } finally {
             setImageUploading(false);
         }
     };

@@ -69,6 +69,7 @@ export default function Home() {
   const [products, setProducts] = useState<IProduct[]>([]);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [statsVisible, setStatsVisible] = useState(false);
+  const [heroImages, setHeroImages] = useState<string[]>([]);
   const [heroImagesVisible, setHeroImagesVisible] = useState({
     img1: false,
     img2: false,
@@ -169,34 +170,52 @@ export default function Home() {
     };
   }, []);
 
-  // Preload hero background images
+  // Hero görsellerini Firebase Storage'dan çek
   useEffect(() => {
-    const imagesToPreload = [
-      '/products/1.jpg',
-      '/products/2.jpg',
-      '/products/3.jpg',
-      '/products/4.jpg',
-      '/products/5.jpg',
-      '/products/6.jpg',
-    ];
-
-    imagesToPreload.forEach((src) => {
-      const link = document.createElement('link');
-      link.rel = 'preload';
-      link.as = 'image';
-      link.href = src;
-      link.fetchPriority = 'high';
-      document.head.appendChild(link);
-    });
-
-    return () => {
-      imagesToPreload.forEach((src) => {
-        const link = document.querySelector(`link[href="${src}"]`);
-        if (link) {
-          document.head.removeChild(link);
+    const fetchHeroImages = async () => {
+      try {
+        const response = await fetch('/api/hero-images');
+        const result = await response.json();
+        if (result.success && Array.isArray(result.images)) {
+          // En fazla 6 görsel al
+          const images = result.images.slice(0, 6);
+          setHeroImages(images);
+          
+          // Preload için link tag'leri oluştur
+          images.forEach((url: string) => {
+            const link = document.createElement('link');
+            link.rel = 'preload';
+            link.as = 'image';
+            link.href = url;
+            link.fetchPriority = 'high';
+            document.head.appendChild(link);
+          });
+        } else {
+          // Fallback: Eğer Firebase'den gelmezse statik görselleri kullan
+          setHeroImages([
+            '/products/1.jpg',
+            '/products/2.jpg',
+            '/products/3.jpg',
+            '/products/4.jpg',
+            '/products/5.jpg',
+            '/products/6.jpg',
+          ]);
         }
-      });
+      } catch (err) {
+        console.error('Hero görselleri yüklenirken hata:', err);
+        // Fallback: Statik görselleri kullan
+        setHeroImages([
+          '/products/1.jpg',
+          '/products/2.jpg',
+          '/products/3.jpg',
+          '/products/4.jpg',
+          '/products/5.jpg',
+          '/products/6.jpg',
+        ]);
+      }
     };
+
+    fetchHeroImages();
   }, []);
 
   return (
@@ -367,82 +386,48 @@ export default function Home() {
         >
           {/* Top Row - 3 images */}
           <div className="absolute top-0 left-0 w-full h-[50vh] flex">
-            <div className="w-1/3 h-full" style={{ opacity: 0.3 }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/products/1.jpg"
-                alt="Çelik Takı"
-                className="w-full h-full object-cover"
-                style={{ width: '100%', height: '100%', borderRadius: '0' }}
-                loading="eager"
-                fetchPriority="high"
-                decoding="async"
-              />
-            </div>
-            <div className="w-1/3 h-full" style={{ opacity: 0.3 }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/products/2.jpg"
-                alt="Çelik Takı"
-                className="w-full h-full object-cover"
-                style={{ width: '100%', height: '100%', borderRadius: '0' }}
-                loading="eager"
-                fetchPriority="high"
-                decoding="async"
-              />
-            </div>
-            <div className="w-1/3 h-full" style={{ opacity: 0.3 }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/products/3.jpg"
-                alt="Çelik Takı"
-                className="w-full h-full object-cover"
-                style={{ width: '100%', height: '100%', borderRadius: '0' }}
-                loading="eager"
-                fetchPriority="high"
-                decoding="async"
-              />
-            </div>
+            {heroImages.slice(0, 3).map((imageUrl, index) => (
+              <div key={index} className="w-1/3 h-full" style={{ opacity: 0.3 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={imageUrl}
+                  alt={`Hero Background ${index + 1}`}
+                  className="w-full h-full object-cover"
+                  style={{ width: '100%', height: '100%', borderRadius: '0' }}
+                  loading="eager"
+                  fetchPriority="high"
+                  decoding="async"
+                  onError={(e) => {
+                    // Fallback to static image
+                    const target = e.target as HTMLImageElement;
+                    target.src = `/products/${index + 1}.jpg`;
+                  }}
+                />
+              </div>
+            ))}
           </div>
           
           {/* Bottom Row - 3 images */}
           <div className="absolute bottom-0 left-0 w-full h-[50vh] flex">
-            <div className="w-1/3 h-full" style={{ opacity: 0.3 }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/products/4.jpg"
-                alt="Çelik Takı"
-                className="w-full h-full object-cover"
-                style={{ width: '100%', height: '100%', borderRadius: '0' }}
-                loading="eager"
-                fetchPriority="high"
-                decoding="async"
-              />
-            </div>
-            <div className="w-1/3 h-full" style={{ opacity: 0.3 }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/products/5.jpg"
-                alt="Çelik Takı"
-                className="w-full h-full object-cover"
-                style={{ width: '100%', height: '100%', borderRadius: '0' }}
-                loading="eager"
-                fetchPriority="high"
-                decoding="async"
-              />
-            </div>
-            <div className="w-1/3 h-full" style={{ opacity: 0.3 }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/products/6.jpg"
-                alt="Çelik Takı"
-                className="w-full h-full object-cover"
-                style={{ width: '100%', height: '100%', borderRadius: '0' }}
-                loading="eager"
-                fetchPriority="high"
-                decoding="async"
-              />
-            </div>
+            {heroImages.slice(3, 6).map((imageUrl, index) => (
+              <div key={index + 3} className="w-1/3 h-full" style={{ opacity: 0.3 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={imageUrl}
+                  alt={`Hero Background ${index + 4}`}
+                  className="w-full h-full object-cover"
+                  style={{ width: '100%', height: '100%', borderRadius: '0' }}
+                  loading="eager"
+                  fetchPriority="high"
+                  decoding="async"
+                  onError={(e) => {
+                    // Fallback to static image
+                    const target = e.target as HTMLImageElement;
+                    target.src = `/products/${index + 4}.jpg`;
+                  }}
+                />
+              </div>
+            ))}
           </div>
         </div>
         {/* Full width container - no max-width constraint */}
