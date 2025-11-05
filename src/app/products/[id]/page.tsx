@@ -114,7 +114,9 @@ export default function ProductDetailPage() {
         "@type": "Product",
         "name": product.name,
         "description": product.description || `${product.name} - Zarif çelik takı`,
-        "image": product.image ? `https://kudatgroup.com${product.image}` : "https://kudatgroup.com/icon.png",
+        "image": product.image 
+            ? (product.image.startsWith('http') ? product.image : `https://kudatgroup.com${product.image}`)
+            : "https://kudatgroup.com/icon.png",
         "brand": {
             "@type": "Brand",
             "name": "Kudat Steel Jewelry"
