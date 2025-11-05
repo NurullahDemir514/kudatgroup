@@ -13,6 +13,12 @@ service firebase.storage {
       allow write: if true; // Geçici olarak herkese yazma izni
     }
     
+    // Koleksiyon görselleri - herkese okuma, yazma için authentication
+    match /collection/{fileName} {
+      allow read: if true;
+      allow write: if true; // Geçici olarak herkese yazma izni
+    }
+    
     // Diğer dosyalar
     match /{allPaths=**} {
       allow read: if true;

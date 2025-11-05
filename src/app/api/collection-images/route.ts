@@ -17,10 +17,10 @@ export async function GET(request: NextRequest) {
             });
         }
 
-        // Firebase Storage'dan koleksiyon görsellerini çek
-        const collectionImagesRef = ref(storage, 'products');
+        // Firebase Storage'dan collection görsellerini çek
+        const collectionImagesRef = ref(storage, 'collection');
         
-        // List all files in products folder
+        // List all files in collection folder
         const result = await listAll(collectionImagesRef);
         
         // Get download URLs for all images
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
             cached: false,
         });
     } catch (error: any) {
-        console.error('Koleksiyon görselleri çekilirken hata:', error);
+        console.error('Collection görselleri çekilirken hata:', error);
         
         // Hata durumunda cache'den döndür
         if (cachedImages) {

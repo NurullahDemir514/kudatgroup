@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { IProduct } from "@/models/Product";
+import { ChromaGrid } from "@/components/ChromaGrid";
 import InfiniteMenu from "@/components/InfiniteMenu";
 import LightRays from "@/components/LightRays";
 import { motion, useMotionValue, useSpring } from "motion/react";
@@ -64,6 +66,8 @@ function TiltedCardWrapper({ href, children }: { href: string; children: React.R
 }
 
 export default function Home() {
+  const [products, setProducts] = useState<IProduct[]>([]);
+  const [currentSlide, setCurrentSlide] = useState(0);
   const [statsVisible, setStatsVisible] = useState(false);
   const [heroImages, setHeroImages] = useState<string[]>([]);
   const [collectionImages, setCollectionImages] = useState<string[]>([]);
@@ -75,6 +79,42 @@ export default function Home() {
     img5: false,
     img6: false,
   });
+  // Ürünleri getir
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const response = await fetch('/api/products');
+        const result = await response.json();
+        if (result.success && Array.isArray(result.data)) {
+          // Görseli olan ürünleri filtrele ve ilk 8-10 tanesini al
+          const productsWithImages = result.data
+            .filter((product: IProduct) => product.image)
+            .slice(0, 10);
+          setProducts(productsWithImages);
+        }
+      } catch (err) {
+        console.error('Ürünler yüklenirken hata:', err);
+      }
+    };
+
+    fetchProducts();
+  }, []);
+
+  // Auto-play carousel
+  useEffect(() => {
+    const productImages = products.length > 0 && products.filter((product) => product.image).length > 0
+      ? products.filter((product) => product.image).slice(0, 10)
+      : Array(4).fill(null);
+    
+    const totalSlides = Math.ceil(productImages.length / 4);
+    if (totalSlides <= 1) return;
+
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev < totalSlides - 1 ? prev + 1 : 0));
+    }, 5000); // 5 saniyede bir otomatik geçiş
+
+    return () => clearInterval(interval);
+  }, [products]);
 
   // Hero images scroll animation
   useEffect(() => {
@@ -179,7 +219,7 @@ export default function Home() {
     fetchHeroImages();
   }, []);
 
-  // Koleksiyon görsellerini Firebase Storage'dan çek
+  // Collection görsellerini Firebase Storage'dan çek
   useEffect(() => {
     const fetchCollectionImages = async () => {
       try {
@@ -189,7 +229,7 @@ export default function Home() {
           setCollectionImages(result.images);
         }
       } catch (err) {
-        console.error('Koleksiyon görselleri yüklenirken hata:', err);
+        console.error('Collection görselleri yüklenirken hata:', err);
       }
     };
 
@@ -611,69 +651,58 @@ export default function Home() {
 
               const shuffledNames = shuffleArray(productNames);
 
-              // Firebase Storage'dan görselleri kullan ve çoğalt
-              const minItemsNeeded = 20; // Minimum gösterilecek görsel sayısı
-              
-              let infiniteMenuItems: Array<{
+              // Önce collection görsellerini kullan, yoksa ürün görsellerini kullan
+              const infiniteMenuItems: Array<{
                 image: string;
                 link: string;
                 title: string;
                 description: string;
-              }> = [];
+              }> = collectionImages.length > 0
+                ? collectionImages.map((imageUrl, index) => {
+                    const productCode = `KT-${String(index + 1).padStart(3, '0')}`;
+                    return {
+                      image: imageUrl,
+                      link: `/products/${index + 1}`,
+                      title: `${shuffledNames[index % shuffledNames.length]} ${productCode}`,
+                      description: productDescriptions[index % productDescriptions.length],
+                    };
+                  })
+                : products.length > 0 && products.filter((product) => product.image).length > 0
+                  ? products
+                      .filter((product) => product.image)
+                      .slice(0, 20)
+                      .map((product, index) => {
+                        const productCode = `KT-${String(index + 1).padStart(3, '0')}`;
+                        return {
+                          image: product.image!,
+                          link: `/products/${product._id || ''}`,
+                          title: `${shuffledNames[index % shuffledNames.length]} ${productCode}`,
+                          description: product.description || productDescriptions[index % productDescriptions.length],
+                        };
+                      })
+                  : [
+                      // Statik görseller (fallback)
+                      { id: '1', img: '/products/1.jpg', url: '/products/1' },
+                      { id: '2', img: '/products/2.jpg', url: '/products/2' },
+                      { id: '3', img: '/products/3.jpg', url: '/products/3' },
+                      { id: '4', img: '/products/4.jpg', url: '/products/4' },
+                      { id: '5', img: '/products/5.jpg', url: '/products/5' },
+                      { id: '6', img: '/products/6.jpg', url: '/products/6' },
+                      { id: '7', img: '/products/WhatsApp Image 2025-11-05 at 14.17.07.jpeg', url: '/products/7' },
+                      { id: '8', img: '/products/WhatsApp Image 2025-11-05 at 14.17.08 (1).jpeg', url: '/products/8' },
+                      { id: '9', img: '/products/WhatsApp Image 2025-11-05 at 14.17.08 (2).jpeg', url: '/products/9' },
+                      { id: '10', img: '/products/WhatsApp Image 2025-11-05 at 14.17.08 (3).jpeg', url: '/products/10' },
+                    ].map((item, index) => {
+                      const productCode = `KT-${String(index + 1).padStart(3, '0')}`;
+                      return {
+                        image: item.img,
+                        link: item.url,
+                        title: `${shuffledNames[index % shuffledNames.length]} ${productCode}`,
+                        description: productDescriptions[index % productDescriptions.length],
+                      };
+                    });
 
-              if (collectionImages.length > 0) {
-                // Görselleri çoğaltarak doldur
-                const repeatedImages: string[] = [];
-                while (repeatedImages.length < minItemsNeeded) {
-                  repeatedImages.push(...collectionImages);
-                }
-                // Fazlasını kes
-                const finalImages = repeatedImages.slice(0, minItemsNeeded);
-
-                infiniteMenuItems = finalImages.map((imageUrl, index) => {
-                  const originalIndex = index % collectionImages.length;
-                  const productCode = `KT-${String(index + 1).padStart(3, '0')}`;
-                  return {
-                    image: imageUrl,
-                    link: `/products/${originalIndex + 1}`,
-                    title: `${shuffledNames[index % shuffledNames.length]} ${productCode}`,
-                    description: productDescriptions[index % productDescriptions.length],
-                  };
-                });
-              } else {
-                // Fallback: Statik görseller (çoğaltılmış)
-                const fallbackImages = [
-                  '/products/1.jpg',
-                  '/products/2.jpg',
-                  '/products/3.jpg',
-                  '/products/4.jpg',
-                  '/products/5.jpg',
-                  '/products/6.jpg',
-                  '/products/WhatsApp Image 2025-11-05 at 14.17.07.jpeg',
-                  '/products/WhatsApp Image 2025-11-05 at 14.17.08 (1).jpeg',
-                  '/products/WhatsApp Image 2025-11-05 at 14.17.08 (2).jpeg',
-                  '/products/WhatsApp Image 2025-11-05 at 14.17.08 (3).jpeg',
-                ];
-                
-                const repeatedFallback: string[] = [];
-                while (repeatedFallback.length < minItemsNeeded) {
-                  repeatedFallback.push(...fallbackImages);
-                }
-                const finalFallback = repeatedFallback.slice(0, minItemsNeeded);
-
-                infiniteMenuItems = finalFallback.map((img, index) => {
-                  const originalIndex = index % fallbackImages.length;
-                  const productCode = `KT-${String(index + 1).padStart(3, '0')}`;
-                  return {
-                    image: img,
-                    link: `/products/${originalIndex + 1}`,
-                    title: `${shuffledNames[index % shuffledNames.length]} ${productCode}`,
-                    description: productDescriptions[index % productDescriptions.length],
-                  };
-                });
-              }
-
-              return <InfiniteMenu key={collectionImages.length > 0 ? collectionImages.join(',') : 'fallback'} items={infiniteMenuItems as any} />;
+              return <InfiniteMenu items={infiniteMenuItems as any} />;
             })()}
           </div>
         </div>
