@@ -189,6 +189,10 @@ export default function Home() {
             link.as = 'image';
             link.href = url;
             link.fetchPriority = 'high';
+            // Firebase Storage URL'leri için crossorigin ekle
+            if (url.includes('firebasestorage.googleapis.com')) {
+              link.crossOrigin = 'anonymous';
+            }
             document.head.appendChild(link);
           });
         } else {
@@ -663,11 +667,20 @@ export default function Home() {
                     const code = img.code || `KT-${String(index + 1).padStart(3, '0')}`;
                     const description = img.description || productDescriptions[index % productDescriptions.length];
                     
-                    // Firebase Storage URL'sini direkt kullan (CORS sorunu varsa proxy kullanılabilir)
+                    // Firebase Storage URL'sini proxy üzerinden yükle (WebGL tainted canvas hatası için)
                     const imageUrl = img.url || img;
+                    // Tüm Firebase Storage URL'lerini proxy üzerinden yükle
+                    const proxyUrl = typeof imageUrl === 'string' && imageUrl.includes('firebasestorage.googleapis.com')
+                      ? `/api/image-proxy?url=${encodeURIComponent(imageUrl)}`
+                      : imageUrl;
+                    
+                    // Debug: Production'da proxy URL'lerinin kullanıldığından emin ol
+                    if (process.env.NODE_ENV === 'development') {
+                      console.log('Image URL:', imageUrl, 'Proxy URL:', proxyUrl);
+                    }
                     
                     return {
-                      image: imageUrl,
+                      image: proxyUrl,
                       link: `/products/${index + 1}`,
                       title: `${title} ${code}`,
                       description: description,

@@ -575,8 +575,6 @@ class InfiniteGridMenu {
   #deltaTime = 0;
   #deltaFrames = 0;
   #frames = 0;
-  #stopped = false;
-  #animationFrameId = null;
 
   camera = {
     matrix: mat4.create(),
@@ -619,8 +617,6 @@ class InfiniteGridMenu {
   }
 
   run(time = 0) {
-    if (this.#stopped) return;
-    
     this.#deltaTime = Math.min(32, time - this.#time);
     this.#time = time;
     this.#deltaFrames = this.#deltaTime / this.TARGET_FRAME_DURATION;
@@ -629,33 +625,7 @@ class InfiniteGridMenu {
     this.#animate(this.#deltaTime);
     this.#render();
 
-    this.#animationFrameId = requestAnimationFrame(t => this.run(t));
-  }
-
-  stop() {
-    this.#stopped = true;
-    if (this.#animationFrameId) {
-      cancelAnimationFrame(this.#animationFrameId);
-      this.#animationFrameId = null;
-    }
-  }
-
-  destroy() {
-    this.stop();
-    
-    // WebGL kaynaklarını temizle
-    if (this.gl && this.discProgram) {
-      const gl = this.gl;
-      // Program'ı sil
-      try {
-        if (gl.getProgramParameter(this.discProgram, gl.LINK_STATUS)) {
-          gl.deleteProgram(this.discProgram);
-        }
-      } catch (e) {
-        console.warn('Program silinirken hata:', e);
-      }
-      this.discProgram = null;
-    }
+    requestAnimationFrame(t => this.run(t));
   }
 
   #init(onInit) {
@@ -674,21 +644,6 @@ class InfiniteGridMenu {
       aModelUvs: 2,
       aInstanceMatrix: 3
     });
-
-    // Program'ın geçerli olduğunu kontrol et
-    if (!this.discProgram) {
-      const error = gl.getProgramInfoLog ? gl.getProgramInfoLog(null) : 'Unknown error';
-      console.error('WebGL program oluşturulamadı:', error);
-      throw new Error('WebGL program oluşturulamadı');
-    }
-    
-    if (!gl.getProgramParameter(this.discProgram, gl.LINK_STATUS)) {
-      const error = gl.getProgramInfoLog(this.discProgram);
-      console.error('WebGL program link hatası:', error);
-      gl.deleteProgram(this.discProgram);
-      this.discProgram = null;
-      throw new Error('WebGL program link edilemedi: ' + error);
-    }
 
     this.discLocations = {
       aModelPosition: gl.getAttribLocation(this.discProgram, 'aModelPosition'),
@@ -751,10 +706,25 @@ class InfiniteGridMenu {
     Promise.all(
       this.items.map(
         item =>
-          new Promise(resolve => {
+          new Promise((resolve, reject) => {
             const img = new Image();
-            img.crossOrigin = 'anonymous';
+            // Tüm görseller için crossOrigin kullan (WebGL tainted canvas hatası için)
+            // Proxy URL'leri veya local/server URL'leri için
+            if (item.image.startsWith('/api/image-proxy') || 
+                item.image.startsWith('/') || 
+                item.image.startsWith('http://localhost') || 
+                item.image.startsWith('http://161.35.221.149') ||
+                item.image.startsWith('https://161.35.221.149')) {
+              img.crossOrigin = 'anonymous';
+            }
             img.onload = () => resolve(img);
+            img.onerror = (error) => {
+              console.error('Görsel yüklenemedi:', item.image, error);
+              // Fallback: boş bir görsel oluştur
+              const fallbackImg = new Image();
+              fallbackImg.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="512" height="512"%3E%3Crect fill="%23f0f0f0" width="512" height="512"/%3E%3C/svg%3E';
+              fallbackImg.onload = () => resolve(fallbackImg);
+            };
             img.src = item.image;
           })
       )
@@ -826,21 +796,6 @@ class InfiniteGridMenu {
 
   #render() {
     const gl = this.gl;
-    
-    // Program'ın geçerli olduğunu kontrol et
-    if (!this.discProgram) {
-      return; // Program yoksa render etme
-    }
-    
-    try {
-      if (!gl.getProgramParameter(this.discProgram, gl.LINK_STATUS)) {
-        return; // Program link edilmemişse render etme
-      }
-    } catch (e) {
-      console.warn('WebGL program kontrolü hatası:', e);
-      return;
-    }
-    
     gl.useProgram(this.discProgram);
 
     gl.enable(gl.CULL_FACE);
@@ -972,84 +927,35 @@ const defaultItems = [
 
 export default function InfiniteMenu({ items = [] }) {
   const canvasRef = useRef(null);
-  const sketchRef = useRef(null);
   const [activeItem, setActiveItem] = useState(null);
   const [isMoving, setIsMoving] = useState(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    // Eski sketch'i temizle - önce durdur
-    if (sketchRef.current) {
-      try {
-        if (sketchRef.current.stop) {
-          sketchRef.current.stop();
-        }
-        if (sketchRef.current.destroy) {
-          sketchRef.current.destroy();
-        }
-      } catch (e) {
-        console.warn('Sketch temizlenirken hata:', e);
-      }
-      sketchRef.current = null;
-    }
-
-    // Items boşsa veya yükleniyorsa bekle
-    if (!items || items.length === 0) {
-      return;
-    }
+    let sketch;
 
     const handleActiveItem = index => {
       const itemIndex = index % items.length;
-      if (items[itemIndex]) {
-        setActiveItem(items[itemIndex]);
-      }
+      setActiveItem(items[itemIndex]);
     };
 
-    let sketch;
-    try {
-      sketch = new InfiniteGridMenu(canvas, items, handleActiveItem, setIsMoving, sk => {
-        sk.run();
-        sketchRef.current = sk;
-      });
-    } catch (error) {
-      console.error('InfiniteGridMenu oluşturulurken hata:', error);
-      return;
+    if (canvas) {
+      sketch = new InfiniteGridMenu(canvas, items.length ? items : defaultItems, handleActiveItem, setIsMoving, sk =>
+        sk.run()
+      );
     }
 
     const handleResize = () => {
-      if (sketchRef.current && sketchRef.current.resize) {
-        try {
-          sketchRef.current.resize();
-        } catch (e) {
-          console.warn('Resize hatası:', e);
-        }
+      if (sketch) {
+        sketch.resize();
       }
     };
 
     window.addEventListener('resize', handleResize);
-    // İlk render'da resize çağır
-    setTimeout(() => {
-      handleResize();
-    }, 100);
+    handleResize();
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      // Cleanup: Eski sketch'i durdur
-      if (sketchRef.current) {
-        try {
-          if (sketchRef.current.stop) {
-            sketchRef.current.stop();
-          }
-          if (sketchRef.current.destroy) {
-            sketchRef.current.destroy();
-          }
-        } catch (e) {
-          console.warn('Cleanup hatası:', e);
-        }
-        sketchRef.current = null;
-      }
     };
   }, [items]);
 
@@ -1067,15 +973,15 @@ export default function InfiniteMenu({ items = [] }) {
       <canvas id="infinite-grid-menu-canvas" ref={canvasRef} style={{ backgroundColor: '#ffffff' }} />
 
       {activeItem && (
-        <>
-          <h2 className={`face-title ${isMoving ? 'inactive' : 'active'}`}>{activeItem.title}</h2>
-
-          <p className={`face-description ${isMoving ? 'inactive' : 'active'}`}> {activeItem.description}</p>
-
-          <div onClick={handleButtonClick} className={`action-button ${isMoving ? 'inactive' : 'active'}`}>
-            <p className="action-button-icon">&#x2197;</p>
+        <div className={`product-info-container ${isMoving ? 'inactive' : 'active'}`}>
+          <h2 className="product-title">{activeItem.title.split(' ').slice(0, -1).join(' ')}</h2>
+          <div className="product-meta">
+            <span className="product-code">{activeItem.title.split(' ').pop()}</span>
+            {activeItem.description && (
+              <p className="product-description">{activeItem.description}</p>
+            )}
           </div>
-        </>
+        </div>
       )}
     </div>
   );
