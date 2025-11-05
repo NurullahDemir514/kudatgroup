@@ -651,14 +651,16 @@ export default function Home() {
 
               const shuffledNames = shuffleArray(productNames);
 
+              // Products'tan görseli olanları filtrele
+              const productsWithImages = products.filter((product) => product.image && product.image.trim() !== '');
+
               const infiniteMenuItems: Array<{
                 image: string;
                 link: string;
                 title: string;
                 description: string;
-              }> = products.length > 0 && products.filter((product) => product.image).length > 0
-                ? products
-                    .filter((product) => product.image)
+              }> = productsWithImages.length > 0
+                ? productsWithImages
                     .slice(0, 20)
                     .map((product, index) => {
                       const productCode = `KT-${String(index + 1).padStart(3, '0')}`;
@@ -700,6 +702,18 @@ export default function Home() {
                         description: productDescriptions[index % productDescriptions.length],
                       };
                     });
+
+              // collectionImages henüz yüklenmediyse ve products yoksa, loading göster
+              if (infiniteMenuItems.length === 0) {
+                return (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mb-4"></div>
+                      <p className="text-gray-600">Görseller yükleniyor...</p>
+                    </div>
+                  </div>
+                );
+              }
 
               return <InfiniteMenu items={infiniteMenuItems as any} />;
             })()}
