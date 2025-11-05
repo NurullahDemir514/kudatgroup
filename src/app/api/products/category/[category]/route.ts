@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
-import { Product } from '@/models/Product';
+import { productService } from '@/services/firebaseServices';
 
 // Kategoriye göre ürünleri getir
 export async function GET(
@@ -8,15 +7,12 @@ export async function GET(
     { params }: { params: { category: string } }
 ) {
     try {
-        await connectToDatabase();
-
         // URL'den alınan kategori adını decode et
         const decodedCategory = decodeURIComponent(params.category);
 
-        // Kategoriye ait ürünleri getir
-        const products = await Product.find({
-            category: decodedCategory
-        }).sort({ createdAt: -1 });
+        // Tüm ürünleri getir ve kategoriye göre filtrele
+        const allProducts = await productService.getAll();
+        const products = allProducts.filter((p: any) => p.category === decodedCategory);
 
         return NextResponse.json({
             success: true,

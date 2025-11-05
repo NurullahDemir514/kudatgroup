@@ -1,15 +1,15 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { connectToDatabase } from '@/lib/mongodb';
-import { User } from '@/models/User';
-import { Customer } from '@/models/Customer';
-import { Product } from '@/models/Product';
-import { Newsletter } from '@/models/Newsletter';
-import { Campaign } from '@/models/Campaign';
-import { Event } from '@/models/Events';
-import { Sale } from '@/models/Sale';
-import { WhatsAppTemplate } from '@/models/WhatsAppTemplate';
-import { WhatsAppMessage } from '@/models/WhatsAppMessage';
+import User from '@/models/User';
+import Customer from '@/models/Customer';
+import Product from '@/models/Product';
+import Newsletter from '@/models/Newsletter';
+import Campaign from '@/models/Campaign';
+import Event from '@/models/Events';
+import Sale from '@/models/Sale';
+import WhatsAppTemplate from '@/models/WhatsAppTemplate';
+import WhatsAppMessage from '@/models/WhatsAppMessage';
 
 export async function GET() {
     try {
@@ -29,11 +29,10 @@ export async function GET() {
         // Admin kullanıcısı oluştur
         const hashedPassword = await bcrypt.hash('password123', 10);
         await User.create({
-            name: 'admin',
+            username: 'admin',
             email: 'admin@example.com',
             password: hashedPassword,
             role: 'admin',
-            status: 'active',
         });
 
         // Örnek müşteriler

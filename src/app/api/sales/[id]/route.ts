@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
-import { Sale } from '@/models/Sale';
-import { Product } from '@/models/Product';
+import { saleService, productService } from '@/services/firebaseServices';
 
 interface RouteParams {
     params: {
@@ -15,10 +13,8 @@ export async function GET(
     { params }: RouteParams
 ) {
     try {
-        await connectToDatabase();
-
         const { id } = params;
-        const sale = await Sale.findById(id).populate('items.product');
+        const sale = await saleService.getById(id);
 
         if (!sale) {
             return NextResponse.json(
@@ -43,13 +39,11 @@ export async function PUT(
     { params }: RouteParams
 ) {
     try {
-        await connectToDatabase();
-
         const { id } = params;
         const data = await request.json();
 
         // Satışı bul
-        const existingSale = await Sale.findById(id);
+        const existingSale = await saleService.getById(id);
         if (!existingSale) {
             return NextResponse.json(
                 { success: false, error: 'Satış kaydı bulunamadı' },
@@ -76,8 +70,8 @@ export async function PUT(
                 );
             }
 
-            // Ürünü veritabanından al
-            const product = await Product.findById(item.product);
+            // Ürünü Firebase'den al
+            const product = await productService.getById(item.product);
             if (!product) {
                 return NextResponse.json(
                     { success: false, error: `Ürün bulunamadı: ${item.product}` },
@@ -116,12 +110,8 @@ export async function PUT(
         // Toplam tutarı güncelle
         data.totalAmount = totalAmount;
 
-        // Satışı güncelle
-        const updatedSale = await Sale.findByIdAndUpdate(
-            id,
-            data,
-            { new: true, runValidators: true }
-        );
+        // Satışı Firebase'de güncelle
+        const updatedSale = await saleService.update(id, data);
 
         return NextResponse.json({ success: true, data: updatedSale });
     } catch (error) {
@@ -139,19 +129,10 @@ export async function DELETE(
     { params }: RouteParams
 ) {
     try {
-        await connectToDatabase();
-
         const { id } = params;
 
-        // Satışı bul ve sil
-        const deletedSale = await Sale.findByIdAndDelete(id);
-
-        if (!deletedSale) {
-            return NextResponse.json(
-                { success: false, error: 'Satış kaydı bulunamadı' },
-                { status: 404 }
-            );
-        }
+        // Satışı Firebase'den sil
+        await saleService.delete(id);
 
         return NextResponse.json({
             success: true,

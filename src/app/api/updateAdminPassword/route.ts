@@ -13,7 +13,7 @@ export async function GET() {
 
         // Admin kullanıcısını bul ve şifreyi güncelle
         const updatedUser = await User.findOneAndUpdate(
-            { name: 'admin' },
+            { username: 'admin' },
             { $set: { password: hashedPassword } },
             { new: true }
         );
@@ -22,11 +22,10 @@ export async function GET() {
             // Admin kullanıcısı bulunamadıysa, yeni bir admin kullanıcısı oluştur
             // Email alanını boş bir string olarak ayarla (veya tamamen çıkarmak için şemayı da güncellemek gerekir)
             await User.create({
-                name: 'admin',
-                email: '', // Email alanını boş string yap
+                username: 'admin',
+                email: 'admin@example.com',
                 password: hashedPassword,
                 role: 'admin',
-                status: 'active',
             });
 
             return NextResponse.json({
@@ -42,10 +41,10 @@ export async function GET() {
         return NextResponse.json({
             success: true,
             message: 'Admin şifresi başarıyla güncellendi',
-            details: {
-                username: updatedUser.name,
-                password: newPassword // Sadece onay için gösteriliyor
-            }
+                details: {
+                    username: updatedUser.username,
+                    password: newPassword // Sadece onay için gösteriliyor
+                }
         });
     } catch (error) {
         console.error('Şifre güncelleme hatası:', error);

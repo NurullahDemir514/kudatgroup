@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
-import { Product } from '@/models/Product';
+import { productService } from '@/services/firebaseServices';
 
 // Ürün stok güncelleme
 export async function PATCH(
@@ -8,8 +7,6 @@ export async function PATCH(
     { params }: { params: { id: string } }
 ) {
     try {
-        await connectToDatabase();
-
         const data = await request.json();
         const { action, quantity } = data;
 
@@ -29,7 +26,7 @@ export async function PATCH(
         }
 
         // Ürünü bul
-        const product = await Product.findById(params.id);
+        const product = await productService.getById(params.id);
 
         if (!product) {
             return NextResponse.json(
@@ -39,35 +36,31 @@ export async function PATCH(
         }
 
         const numQuantity = Number(quantity);
+        let newStock = product.stock || 0;
 
         // Stok güncellemesi
-        let update = {};
         if (action === 'increase') {
-            update = { $inc: { stock: numQuantity } };
+            newStock += numQuantity;
         } else {
             // Stokta yeterli ürün var mı kontrol et
-            if (product.stock === 0) {
+            if (newStock === 0) {
                 return NextResponse.json(
                     { success: false, error: 'Stokta hiç ürün bulunmamaktadır' },
                     { status: 400 }
                 );
             }
 
-            if (product.stock < numQuantity) {
+            if (newStock < numQuantity) {
                 return NextResponse.json(
-                    { success: false, error: `Yeterli stok yok. Mevcut stok: ${product.stock}` },
+                    { success: false, error: `Yeterli stok yok. Mevcut stok: ${newStock}` },
                     { status: 400 }
                 );
             }
-            update = { $inc: { stock: -numQuantity } };
+            newStock -= numQuantity;
         }
 
         // Stok güncelle
-        const updatedProduct = await Product.findByIdAndUpdate(
-            params.id,
-            update,
-            { new: true }
-        );
+        const updatedProduct = await productService.update(params.id, { stock: newStock });
 
         return NextResponse.json({
             success: true,

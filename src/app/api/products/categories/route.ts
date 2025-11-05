@@ -1,14 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
-import { Product } from '@/models/Product';
+import { NextRequest, NextResponse } from "next/server";
+import { productService } from "@/services/firebaseServices";
 
 // Tüm ürün kategorilerini getir
 export async function GET() {
     try {
-        await connectToDatabase();
-
-        // Benzersiz kategorileri al
-        const categories = await Product.distinct('category');
+        const categories = await productService.getCategories();
 
         return NextResponse.json({ success: true, data: categories });
     } catch (error) {

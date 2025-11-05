@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
-import { Sale, ISale } from '@/models/Sale';
-import { Product } from '@/models/Product';
+import { saleService, productService } from '@/services/firebaseServices';
 
 // Tüm satışları al (filtreleme ve sıralama ile)
 export async function GET(request: NextRequest) {
     try {
-        await connectToDatabase();
 
         // URL parametrelerini al
         const searchParams = request.nextUrl.searchParams;
@@ -39,10 +36,8 @@ export async function GET(request: NextRequest) {
         }
 
         // Satışları al
-        const sales = await Sale.find(filter)
-            .sort({ [sortBy]: sortOrder === 'asc' ? 1 : -1 })
-            .populate('items.product')
-            .exec();
+        // Firebase'den tüm satışları al (basit versiyon)
+        const sales = await saleService.getAll();
 
         return NextResponse.json({ success: true, data: sales });
     } catch (error) {
@@ -57,7 +52,6 @@ export async function GET(request: NextRequest) {
 // Yeni satış kaydet
 export async function POST(request: NextRequest) {
     try {
-        await connectToDatabase();
         const data = await request.json();
 
         // Gelen veriyi doğrula
@@ -91,8 +85,8 @@ export async function POST(request: NextRequest) {
         const stockUpdates = [];
 
         for (const item of data.items) {
-            // Ürünü veritabanından al
-            const product = await Product.findById(item.product);
+            // Ürünü Firebase'den al
+            const product = await productService.getById(item.product);
             if (!product) {
                 return NextResponse.json(
                     { success: false, error: `Ürün bulunamadı: ${item.product}` },
@@ -101,11 +95,11 @@ export async function POST(request: NextRequest) {
             }
 
             // Stok kontrolü
-            if (product.stock < item.quantity) {
+            if ((product.stock || 0) < item.quantity) {
                 return NextResponse.json(
                     {
                         success: false,
-                        error: `Yetersiz stok: ${product.name}. Mevcut: ${product.stock}, İstenen: ${item.quantity}`
+                        error: `Yetersiz stok: ${product.name}. Mevcut: ${product.stock || 0}, İstenen: ${item.quantity}`
                     },
                     { status: 400 }
                 );
@@ -121,8 +115,8 @@ export async function POST(request: NextRequest) {
 
             // Stok güncellemelerini topla
             stockUpdates.push({
-                id: product._id,
-                newStock: product.stock - item.quantity
+                id: product.id,
+                newStock: (product.stock || 0) - item.quantity
             });
         }
 
@@ -157,12 +151,12 @@ export async function POST(request: NextRequest) {
             data.saleDate = new Date();
         }
 
-        // Satışı kaydet
-        const newSale = await Sale.create(data);
+        // Satışı Firebase'e kaydet
+        const newSale = await saleService.create(data);
 
-        // Ürün stoklarını güncelle
+        // Ürün stoklarını Firebase'de güncelle
         for (const update of stockUpdates) {
-            await Product.findByIdAndUpdate(update.id, { stock: update.newStock });
+            await productService.update(update.id, { stock: update.newStock });
         }
 
         return NextResponse.json({ success: true, data: newSale }, { status: 201 });

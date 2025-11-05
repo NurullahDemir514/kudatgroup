@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
-import { Newsletter } from '@/models/Newsletter';
+import { newsletterService } from '@/services/firebaseServices';
 
 // WhatsApp mesajları için abone listesini getir
 export async function GET(req: NextRequest) {
     try {
-        await connectToDatabase();
-
         // URL parametrelerini al
         const { searchParams } = new URL(req.url);
         const showAll = searchParams.get('showAll') === 'true';
@@ -26,16 +23,19 @@ export async function GET(req: NextRequest) {
             filter.whatsappEnabled = true;
         }
 
-        // Aboneleri getir
-        const subscribers = await Newsletter.find(filter)
-            .sort({ name: 1 })
-            .select('_id name phone email companyName tags active whatsappEnabled');
+        // Firebase'den tüm aboneleri getir
+        const allSubscribers = await newsletterService.getAll();
+        
+        // Filtreleme yap (client-side)
+        const subscribers = showAll 
+            ? allSubscribers
+            : allSubscribers.filter((s: any) => s.active && s.whatsappEnabled);
 
         // İstatistik için sayım yap
-        const totalCount = await Newsletter.countDocuments({});
-        const activeCount = await Newsletter.countDocuments({ active: true });
-        const whatsappEnabledCount = await Newsletter.countDocuments({ whatsappEnabled: true });
-        const activePlusWhatsappCount = await Newsletter.countDocuments({ active: true, whatsappEnabled: true });
+        const totalCount = allSubscribers.length;
+        const activeCount = allSubscribers.filter((s: any) => s.active).length;
+        const whatsappEnabledCount = allSubscribers.filter((s: any) => s.whatsappEnabled).length;
+        const activePlusWhatsappCount = allSubscribers.filter((s: any) => s.active && s.whatsappEnabled).length;
 
         console.log(`${subscribers.length} abone bulundu ve gönderiliyor (Toplam: ${totalCount}, Aktif: ${activeCount}, WhatsApp'a açık: ${whatsappEnabledCount}, Her ikisine uyan: ${activePlusWhatsappCount})`);
 

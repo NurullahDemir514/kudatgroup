@@ -457,7 +457,7 @@ export default function NewslettersPage() {
                                 {/* Mobil Kart Görünümü */}
                                 <div className="md:hidden space-y-3">
                                     {filteredNewsletters.map((newsletter) => (
-                                        <div key={newsletter._id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                                        <div key={newsletter.id || newsletter._id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                                             <div className="p-3 flex justify-between items-center border-b border-gray-100">
                                                 <div className="flex items-center">
                                                     <div className={`h-8 w-8 rounded-full flex items-center justify-center text-white text-sm mr-3 ${newsletter.name?.charAt(0).toLowerCase() === 'f' ? 'bg-purple-500' :
@@ -568,7 +568,7 @@ export default function NewslettersPage() {
                                                 </thead>
                                                 <tbody className="divide-y divide-gray-200 bg-white">
                                                     {filteredNewsletters.map((newsletter, index) => (
-                                                        <tr key={newsletter._id} className={`${index % 2 === 0 ? 'bg-gray-50' : ''} hover:bg-gray-100 transition-colors group`}>
+                                                        <tr key={newsletter.id || newsletter._id} className={`${index % 2 === 0 ? 'bg-gray-50' : ''} hover:bg-gray-100 transition-colors group`}>
                                                             <td className="px-3 sm:px-6 py-3 sm:py-4">
                                                                 <div className="flex items-center">
                                                                     <div className={`h-8 w-8 flex-shrink-0 rounded-full flex items-center justify-center text-white text-xs mr-3 ${newsletter.name?.charAt(0).toLowerCase() === 'f' ? 'bg-purple-500' :

@@ -113,7 +113,7 @@ export default function ProductsPage() {
                             <span className="text-teal-600 font-medium">Kudat Steel Jewelry</span>
                         </div>
                         <div className="text-gray-600 text-sm">
-                            <p>info@kudatsteel.com | +90 (555) 123 4567</p>
+                            <p>info@kudatsteel.com | +90 (544) 357 62 14</p>
                             <p className="mt-2">© {new Date().getFullYear()} Tüm hakları saklıdır.</p>
                         </div>
                     </div>

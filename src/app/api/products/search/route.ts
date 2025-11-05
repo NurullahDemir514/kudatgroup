@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
-import { Product } from '@/models/Product';
+import { productService } from '@/services/firebaseServices';
 
 // Ürün arama
 export async function GET(request: NextRequest) {
     try {
-        await connectToDatabase();
-
         // URL parametrelerini al
         const { searchParams } = new URL(request.url);
         const query = searchParams.get('q') || '';
@@ -15,42 +12,33 @@ export async function GET(request: NextRequest) {
         const maxPrice = searchParams.get('maxPrice') ? Number(searchParams.get('maxPrice')) : undefined;
         const inStock = searchParams.get('inStock') === 'true';
 
-        // Arama filtresini oluştur
-        const filter: any = {};
+        // Tüm ürünleri getir
+        let products = await productService.getAll();
 
-        // Metin araması (isim veya açıklama içinde)
+        // Client-side filtreleme
         if (query) {
-            filter.$or = [
-                { name: { $regex: query, $options: 'i' } },
-                { description: { $regex: query, $options: 'i' } }
-            ];
+            const lowerQuery = query.toLowerCase();
+            products = products.filter((p: any) => 
+                p.name?.toLowerCase().includes(lowerQuery) || 
+                p.description?.toLowerCase().includes(lowerQuery)
+            );
         }
 
-        // Kategori filtresi
         if (category) {
-            filter.category = category;
+            products = products.filter((p: any) => p.category === category);
         }
 
-        // Fiyat filtresi
-        if (minPrice !== undefined || maxPrice !== undefined) {
-            filter.salePrice = {};
-
-            if (minPrice !== undefined) {
-                filter.salePrice.$gte = minPrice;
-            }
-
-            if (maxPrice !== undefined) {
-                filter.salePrice.$lte = maxPrice;
-            }
+        if (minPrice !== undefined) {
+            products = products.filter((p: any) => p.salePrice >= minPrice);
         }
 
-        // Stok durumu filtresi
+        if (maxPrice !== undefined) {
+            products = products.filter((p: any) => p.salePrice <= maxPrice);
+        }
+
         if (inStock) {
-            filter.stock = { $gt: 0 };
+            products = products.filter((p: any) => p.stock > 0);
         }
-
-        // Ürünleri getir
-        const products = await Product.find(filter).sort({ createdAt: -1 });
 
         return NextResponse.json({
             success: true,

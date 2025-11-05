@@ -1,36 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectToDatabase } from "@/lib/mongodb";
-import { Newsletter } from "@/models/Newsletter";
+import { newsletterService } from "@/services/firebaseServices";
 
 // Filtrelere göre abone sayısını getir
 export async function POST(req: NextRequest) {
     try {
-        await connectToDatabase();
-
         const { filters } = await req.json();
 
-        // Temel filtre: aktif aboneler
-        const filter: any = { active: true };
+        // Tüm aboneleri getir
+        const allNewsletters = await newsletterService.getAll();
+        
+        // Aktif aboneleri filtrele
+        let filtered = allNewsletters.filter((n: any) => n.active === true);
 
-        // Ek filtreler (opsiyonel)
+        // Ek filtreler
         if (filters) {
             // Etiket filtresi
             if (filters.tags && Array.isArray(filters.tags) && filters.tags.length > 0) {
-                filter.tags = { $in: filters.tags };
+                filtered = filtered.filter((n: any) => 
+                    n.tags && n.tags.some((tag: string) => filters.tags.includes(tag))
+                );
             }
 
             // Şirket adı filtresi
             if (filters.companyName) {
-                filter.companyName = { $regex: new RegExp(filters.companyName, 'i') };
+                const searchTerm = filters.companyName.toLowerCase();
+                filtered = filtered.filter((n: any) => 
+                    n.companyName && n.companyName.toLowerCase().includes(searchTerm)
+                );
             }
         }
 
-        // Filtrelere uyan abone sayısını getir
-        const count = await Newsletter.countDocuments(filter);
-
         return NextResponse.json({
             success: true,
-            count
+            count: filtered.length
         });
     } catch (error: any) {
         console.error("Abone sayısı hesaplanırken hata:", error);
@@ -39,4 +41,4 @@ export async function POST(req: NextRequest) {
             { status: 500 }
         );
     }
-} 
+}

@@ -1,5 +1,20 @@
 import mongoose from 'mongoose';
 
+export interface IProduct {
+  id?: string; // Firebase ID
+  _id?: string; // MongoDB ID
+  name: string;
+  description?: string;
+  wholesalePrice?: number;
+  salePrice: number;
+  stock?: number;
+  category: string;
+  image?: string;
+  supplier?: string;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+}
+
 const productSchema = new mongoose.Schema({
   name: {
     type: String,

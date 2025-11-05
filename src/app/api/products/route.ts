@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
-import Product from '@/models/Product';
+import { productService } from '@/services/firebaseServices';
 
 // Tüm ürünleri getir
 export async function GET(request: NextRequest) {
     try {
-        await connectToDatabase();
-
-        const products = await Product.find({}).sort({ createdAt: -1 });
+        const products = await productService.getAll();
 
         return NextResponse.json({ success: true, data: products });
     } catch (error) {
@@ -22,7 +19,6 @@ export async function GET(request: NextRequest) {
 // Yeni ürün ekle
 export async function POST(request: NextRequest) {
     try {
-        await connectToDatabase();
 
         const data = await request.json();
 
@@ -67,8 +63,8 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Yeni ürün oluştur
-        const newProduct = await Product.create({
+        // Yeni ürün oluştur (Firebase)
+        const newProduct = await productService.create({
             ...data,
             wholesalePrice: data.wholesalePrice ? wholesalePrice : undefined,
             salePrice,

@@ -1,0 +1,28 @@
+.list {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+}
+
+.item-wrapper {
+  position: absolute;
+  cursor: pointer;
+  overflow: hidden;
+  border-radius: 8px;
+  will-change: transform;
+}
+
+.item-img {
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-radius: 8px;
+  transition: transform 0.3s ease;
+}
+
+.item-wrapper:hover .item-img {
+  transform: scale(1.05);
+}
+

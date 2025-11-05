@@ -444,7 +444,7 @@ export default function ProductDetailPage() {
                                 <h3 className="text-[var(--accent-silver)] font-medium mb-3">İletişim</h3>
                                 <ul className="space-y-2 text-sm">
                                     <li>info@kudatsteel.com</li>
-                                    <li>+90 (555) 123 4567</li>
+                                    <li>+90 (544) 357 62 14</li>
                                 </ul>
                             </div>
                         </div>

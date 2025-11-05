@@ -1,50 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
-import Campaign from '@/models/Campaign';
+import { campaignService } from '@/services/firebaseServices';
 
-export async function PATCH(request: NextRequest) {
+// Kampanya durumunu güncelle
+export async function PUT(request: NextRequest) {
     try {
-        await connectToDatabase();
+        const { id, status } = await request.json();
 
-        const data = await request.json();
-        const { campaignId, status } = data;
-
-        // Zorunlu alanları kontrol et
-        if (!campaignId) {
+        if (!id || !status) {
             return NextResponse.json(
-                { success: false, error: 'Kampanya ID zorunludur' },
+                { success: false, error: 'Kampanya ID ve durum gereklidir' },
                 { status: 400 }
             );
         }
 
-        if (!status || !['active', 'completed', 'planned'].includes(status)) {
+        if (!['active', 'planned', 'completed'].includes(status)) {
             return NextResponse.json(
-                { success: false, error: 'Geçerli bir durum belirtilmelidir (active, completed, planned)' },
+                { success: false, error: 'Geçersiz kampanya durumu' },
                 { status: 400 }
             );
         }
 
-        // Kampanyayı getir
-        const campaign = await Campaign.findById(campaignId);
-
-        if (!campaign) {
-            return NextResponse.json(
-                { success: false, error: 'Kampanya bulunamadı' },
-                { status: 404 }
-            );
-        }
-
-        // Durumu güncelle
-        campaign.status = status;
-        await campaign.save();
+        await campaignService.update(id, { status });
 
         return NextResponse.json({
             success: true,
-            message: 'Kampanya durumu başarıyla güncellendi',
-            data: {
-                campaignId,
-                status
-            }
+            message: 'Kampanya durumu güncellendi',
         });
     } catch (error) {
         console.error('Kampanya durumu güncelleme hatası:', error);
@@ -53,4 +33,4 @@ export async function PATCH(request: NextRequest) {
             { status: 500 }
         );
     }
-} 
+}

@@ -1,8 +1,7 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-import { connectToDatabase } from "@/lib/mongodb";
-import { User } from "@/models/User";
+import { userService } from "@/services/firebaseServices";
 
 const handler = NextAuth({
     providers: [
@@ -18,12 +17,9 @@ const handler = NextAuth({
                 }
 
                 try {
-                    // MongoDB'ye bağlan
-                    await connectToDatabase();
-
-                    // Kullanıcıyı kullanıcı adı ile ara
+                    // Firebase'den kullanıcıyı ara
                     console.log("Aranan kullanıcı adı:", credentials.username);
-                    const user = await User.findOne({ name: credentials.username });
+                    const user = await userService.findByUsername(credentials.username);
                     console.log("Bulunan kullanıcı:", user);
 
                     if (!user) {
@@ -40,14 +36,9 @@ const handler = NextAuth({
                         throw new Error("InvalidPassword");
                     }
 
-                    // Hesap aktif mi kontrolü
-                    if (user.status === "inactive") {
-                        throw new Error("AccountDisabled");
-                    }
-
                     return {
-                        id: user._id.toString(),
-                        name: user.name,
+                        id: user.id,
+                        name: user.username,
                         email: user.email,
                         role: user.role
                     };

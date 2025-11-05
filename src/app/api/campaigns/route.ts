@@ -1,26 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
-import Campaign from '@/models/Campaign';
+import { campaignService } from '@/services/firebaseServices';
 
 // Tüm kampanyaları getir
 export async function GET(request: NextRequest) {
     try {
-        await connectToDatabase();
-
-        // URL parametrelerini al
         const { searchParams } = new URL(request.url);
         const status = searchParams.get('status');
 
-        // Filtre oluştur
-        const filter: any = {};
+        // Tüm kampanyaları getir
+        let campaigns = await campaignService.getAll();
 
-        // Durum filtresi ekle
+        // Durum filtresi
         if (status && ['active', 'planned', 'completed'].includes(status)) {
-            filter.status = status;
+            campaigns = campaigns.filter((c: any) => c.status === status);
         }
 
-        // Kampanyaları getir
-        const campaigns = await Campaign.find(filter).sort({ startDate: -1 });
+        // Başlangıç tarihine göre sırala
+        campaigns.sort((a: any, b: any) => {
+            const dateA = a.startDate ? new Date(a.startDate).getTime() : 0;
+            const dateB = b.startDate ? new Date(b.startDate).getTime() : 0;
+            return dateB - dateA;
+        });
 
         return NextResponse.json({ success: true, data: campaigns });
     } catch (error) {
@@ -35,8 +35,6 @@ export async function GET(request: NextRequest) {
 // Yeni kampanya ekle
 export async function POST(request: NextRequest) {
     try {
-        await connectToDatabase();
-
         const data = await request.json();
 
         // Zorunlu alanları kontrol et
@@ -51,18 +49,30 @@ export async function POST(request: NextRequest) {
         const startDate = new Date(data.startDate);
         const endDate = new Date(data.endDate);
 
-        if (endDate <= startDate) {
+        if (startDate >= endDate) {
             return NextResponse.json(
                 { success: false, error: 'Bitiş tarihi başlangıç tarihinden sonra olmalıdır' },
                 { status: 400 }
             );
         }
 
-        // Yeni kampanya oluştur
-        const newCampaign = await Campaign.create(data);
+        // Kampanya durumunu hesapla
+        const now = new Date();
+        let status = 'planned';
+        if (now >= startDate && now <= endDate) {
+            status = 'active';
+        } else if (now > endDate) {
+            status = 'completed';
+        }
+
+        // Kampanyayı kaydet
+        const campaign = await campaignService.create({
+            ...data,
+            status,
+        });
 
         return NextResponse.json(
-            { success: true, data: newCampaign },
+            { success: true, data: campaign },
             { status: 201 }
         );
     } catch (error) {
@@ -72,4 +82,4 @@ export async function POST(request: NextRequest) {
             { status: 500 }
         );
     }
-} 
+}

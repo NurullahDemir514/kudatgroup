@@ -1,21 +1,49 @@
 import mongoose from 'mongoose';
 
 const newsletterSchema = new mongoose.Schema({
-  email: {
+  name: {
+    type: String,
+    required: true,
+  },
+  phone: {
     type: String,
     required: true,
     unique: true,
   },
-  name: {
+  email: {
     type: String,
   },
-  isSubscribed: {
+  companyName: {
+    type: String,
+  },
+  addressCity: {
+    type: String,
+    required: true,
+  },
+  addressDistrict: {
+    type: String,
+  },
+  addressStreet: {
+    type: String,
+  },
+  addressBuildingNo: {
+    type: String,
+  },
+  taxNumber: {
+    type: String,
+  },
+  whatsappEnabled: {
     type: Boolean,
     default: true,
   },
-  tags: [{
-    type: String,
-  }],
+  active: {
+    type: Boolean,
+    default: true,
+  },
+  subscriptionDate: {
+    type: Date,
+    default: Date.now,
+  },
   createdAt: {
     type: Date,
     default: Date.now,

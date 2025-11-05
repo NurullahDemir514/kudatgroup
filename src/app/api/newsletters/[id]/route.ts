@@ -1,25 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
-import { connectToDatabase } from "@/lib/mongodb";
-import { Newsletter } from "@/models/Newsletter";
-import mongoose from "mongoose";
+import { NextResponse } from "next/server";
+import { newsletterService } from "@/services/firebaseServices";
 
 // Bülten abonelik detaylarını getir (admin için)
 export async function GET(
-    req: NextRequest,
+    req: Request,
     { params }: { params: { id: string } }
 ) {
     try {
-        await connectToDatabase();
-
-        const id = params.id;
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-            return NextResponse.json(
-                { success: false, error: "Geçersiz ID formatı" },
-                { status: 400 }
-            );
-        }
-
-        const newsletter = await Newsletter.findById(id);
+        const newsletter = await newsletterService.getById(params.id);
 
         if (!newsletter) {
             return NextResponse.json(
@@ -40,37 +28,17 @@ export async function GET(
 
 // Bülten aboneliğini güncelle (admin için)
 export async function PUT(
-    req: NextRequest,
+    req: Request,
     { params }: { params: { id: string } }
 ) {
     try {
-        await connectToDatabase();
-
-        const id = params.id;
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-            return NextResponse.json(
-                { success: false, error: "Geçersiz ID formatı" },
-                { status: 400 }
-            );
-        }
-
         const data = await req.json();
 
-        // Sadece active değeri gönderildiğinde, diğer alanları kontrol etme
+        // Sadece active değeri güncelleniyorsa
         if (Object.keys(data).length === 1 && data.active !== undefined) {
-            const existingNewsletter = await Newsletter.findById(id);
-            if (!existingNewsletter) {
-                return NextResponse.json(
-                    { success: false, error: "Bülten aboneliği bulunamadı" },
-                    { status: 404 }
-                );
-            }
-
-            const updatedNewsletter = await Newsletter.findByIdAndUpdate(
-                id,
-                { active: data.active, updatedAt: new Date() },
-                { new: true }
-            );
+            const updatedNewsletter = await newsletterService.update(params.id, {
+                active: data.active
+            });
 
             return NextResponse.json({
                 success: true,
@@ -107,35 +75,34 @@ export async function PUT(
             }
         }
 
-        // Telefon numarası başka bir kayıtta var mı kontrol et (mevcut kayıt hariç)
-        const existingNewsletter = await Newsletter.findOne({
-            phone: data.phone,
-            _id: { $ne: id },
-        });
-
-        if (existingNewsletter) {
+        // Telefon numarası başka bir kayıtta var mı kontrol et
+        const existing = await newsletterService.findByPhone(data.phone);
+        if (existing.length > 0 && existing[0].id !== params.id) {
             return NextResponse.json(
                 { success: false, error: "Bu telefon numarası başka bir abonelikte kullanılıyor" },
                 { status: 400 }
             );
         }
 
-        // Güncelleme için verileri hazırla
-        const updateData = {
+        // Firebase için undefined değerlerini kaldır
+        const updateData: any = {
             name: data.name.trim(),
             phone: data.phone.trim(),
-            email: data.email ? data.email.trim() : undefined,
-            companyName: data.companyName ? data.companyName.trim() : undefined,
-            taxNumber: data.taxNumber ? data.taxNumber.trim() : undefined,
             active: data.active !== undefined ? data.active : true,
-            updatedAt: new Date(),
         };
 
-        const updatedNewsletter = await Newsletter.findByIdAndUpdate(
-            id,
-            updateData,
-            { new: true }
-        );
+        // Opsiyonel alanları sadece değer varsa ekle
+        if (data.email && data.email.trim()) {
+            updateData.email = data.email.trim();
+        }
+        if (data.companyName && data.companyName.trim()) {
+            updateData.companyName = data.companyName.trim();
+        }
+        if (data.taxNumber && data.taxNumber.trim()) {
+            updateData.taxNumber = data.taxNumber.trim();
+        }
+
+        const updatedNewsletter = await newsletterService.update(params.id, updateData);
 
         if (!updatedNewsletter) {
             return NextResponse.json(
@@ -160,28 +127,11 @@ export async function PUT(
 
 // Bülten aboneliğini sil (admin için)
 export async function DELETE(
-    req: NextRequest,
+    req: Request,
     { params }: { params: { id: string } }
 ) {
     try {
-        await connectToDatabase();
-
-        const id = params.id;
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-            return NextResponse.json(
-                { success: false, error: "Geçersiz ID formatı" },
-                { status: 400 }
-            );
-        }
-
-        const deletedNewsletter = await Newsletter.findByIdAndDelete(id);
-
-        if (!deletedNewsletter) {
-            return NextResponse.json(
-                { success: false, error: "Bülten aboneliği bulunamadı" },
-                { status: 404 }
-            );
-        }
+        await newsletterService.delete(params.id);
 
         return NextResponse.json({
             success: true,
@@ -194,4 +144,4 @@ export async function DELETE(
             { status: 500 }
         );
     }
-} 
+}

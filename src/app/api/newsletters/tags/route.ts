@@ -1,19 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectToDatabase } from "@/lib/mongodb";
-import { Newsletter } from "@/models/Newsletter";
+import { newsletterService } from "@/services/firebaseServices";
 
 // Mevcut tüm benzersiz etiketleri getir
 export async function GET(req: NextRequest) {
     try {
-        await connectToDatabase();
+        // Tüm aboneleri getir
+        const newsletters = await newsletterService.getAll();
 
-        // Tüm abonelerden etiketleri topla
-        const newsletters = await Newsletter.find({ tags: { $exists: true, $ne: [] } });
-
-        // Benzersiz etiketleri bul
+        // Benzersiz etiketleri topla
         const allTags = new Set<string>();
 
-        newsletters.forEach(newsletter => {
+        newsletters.forEach((newsletter: any) => {
             if (newsletter.tags && Array.isArray(newsletter.tags)) {
                 newsletter.tags.forEach((tag: string) => {
                     if (tag && typeof tag === 'string') {
@@ -37,4 +34,4 @@ export async function GET(req: NextRequest) {
             { status: 500 }
         );
     }
-} 
+}

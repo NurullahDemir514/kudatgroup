@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
-import { Customer } from '@/models/Customer';
+import { customerService } from '@/services/firebaseServices';
 
 // Bir müşteriyi getir
 export async function GET(
@@ -8,9 +7,7 @@ export async function GET(
     { params }: { params: { id: string } }
 ) {
     try {
-        await connectToDatabase();
-
-        const customer = await Customer.findById(params.id);
+        const customer = await customerService.getById(params.id);
 
         if (!customer) {
             return NextResponse.json(
@@ -35,8 +32,6 @@ export async function PUT(
     { params }: { params: { id: string } }
 ) {
     try {
-        await connectToDatabase();
-
         const data = await request.json();
 
         // Zorunlu alanları kontrol et
@@ -47,12 +42,12 @@ export async function PUT(
             );
         }
 
-        // Email adresi değiştiyse benzersiz olup olmadığını kontrol et
+        // Email kontrolü (Firebase için basitleştirilmiş - tüm müşterileri kontrol ederiz)
         if (data.email) {
-            const existingCustomer = await Customer.findOne({
-                email: data.email,
-                _id: { $ne: params.id },
-            });
+            const allCustomers = await customerService.getAll();
+            const existingCustomer = allCustomers.find((c: any) => 
+                c.email === data.email && (c.id || c._id) !== params.id
+            );
 
             if (existingCustomer) {
                 return NextResponse.json(
@@ -63,11 +58,7 @@ export async function PUT(
         }
 
         // Müşteriyi güncelle
-        const updatedCustomer = await Customer.findByIdAndUpdate(
-            params.id,
-            { $set: data },
-            { new: true, runValidators: true }
-        );
+        const updatedCustomer = await customerService.update(params.id, data);
 
         if (!updatedCustomer) {
             return NextResponse.json(
@@ -92,16 +83,7 @@ export async function DELETE(
     { params }: { params: { id: string } }
 ) {
     try {
-        await connectToDatabase();
-
-        const deletedCustomer = await Customer.findByIdAndDelete(params.id);
-
-        if (!deletedCustomer) {
-            return NextResponse.json(
-                { success: false, error: 'Müşteri bulunamadı' },
-                { status: 404 }
-            );
-        }
+        await customerService.delete(params.id);
 
         return NextResponse.json({
             success: true,

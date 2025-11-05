@@ -318,7 +318,7 @@ export default function ProductsPage() {
 
             if (result.success) {
                 // Ürünü UI'dan kaldır
-                setProducts((prev) => prev.filter((product) => product._id !== id));
+                setProducts((prev) => prev.filter((product) => (product.id || product._id) !== id));
             } else {
                 alert(result.error || "Ürün silinirken bir hata oluştu");
             }
@@ -717,7 +717,7 @@ export default function ProductsPage() {
                                 </thead>
                                         <tbody className="divide-y divide-gray-200 bg-white">
                                     {filteredProducts.map((product) => (
-                                        <tr key={product._id} className="hover:bg-blue-50 transition-colors">
+                                        <tr key={product.id || product._id} className="hover:bg-blue-50 transition-colors">
                                             <td className="px-3 sm:px-6 py-3 sm:py-4">
                                                 <div className="flex items-center">
                                                     {product.image ? (
@@ -805,7 +805,7 @@ export default function ProductsPage() {
                                                     </svg>
                                                 </button>
                                                 <button
-                                                    onClick={() => handleDeleteProduct(product._id as string)}
+                                                    onClick={() => handleDeleteProduct((product.id || product._id) as string)}
                                                     className="text-gray-500 hover:text-red-600 transition-colors"
                                                 >
                                                     <span className="hidden sm:inline">Sil</span>

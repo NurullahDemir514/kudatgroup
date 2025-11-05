@@ -1,16 +1,9 @@
 import { NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
-import Customer from '@/models/Customer';
-import Sale from '@/models/Sale';
-import Newsletter from '@/models/Newsletter';
-import Product from '@/models/Product';
+import { customerService, productService, newsletterService, saleService } from '@/services/firebaseServices';
 
-// Veritabanından dashboard verilerini getirir
+// Dashboard verilerini getirir (Firebase)
 export async function GET(request: Request) {
     try {
-        // Veritabanına bağlan
-        await connectToDatabase();
-
         // URL'den sorgu parametrelerini al
         const { searchParams } = new URL(request.url);
         const period = searchParams.get('period') || 'month';
@@ -20,211 +13,184 @@ export async function GET(request: Request) {
         let startDate: Date;
 
         if (period === 'week') {
-            // Son 7 gün
             startDate = new Date(today);
             startDate.setDate(today.getDate() - 7);
         } else if (period === 'month') {
-            // Son 30 gün
             startDate = new Date(today);
             startDate.setDate(today.getDate() - 30);
         } else {
-            // Son 365 gün (yıl)
             startDate = new Date(today);
             startDate.setDate(today.getDate() - 365);
         }
 
-        // Veritabanı sorgularını paralel çalıştır
-        const [totalCustomers, totalProducts, totalSubscribers, recentCustomers, salesData] = await Promise.all([
-            // Toplam müşteri sayısı
-            Customer.countDocuments(),
+        // Önceki periyot için tarih hesapla
+        const previousStartDate = new Date(startDate);
+        if (period === 'week') {
+            previousStartDate.setDate(previousStartDate.getDate() - 7);
+        } else if (period === 'month') {
+            previousStartDate.setDate(previousStartDate.getDate() - 30);
+        } else {
+            previousStartDate.setDate(previousStartDate.getDate() - 365);
+        }
 
-            // Toplam ürün sayısı
-            Product.countDocuments(),
-
-            // Toplam abone sayısı
-            Newsletter.countDocuments({ active: true }),
-
-            // Son eklenen müşteriler
-            Customer.find()
-                .sort({ createdAt: -1 })
-                .limit(5)
-                .select('name email createdAt'),
-
-            // Satış verileri
-            Sale.find({
-                saleDate: { $gte: startDate }
-            })
-                .sort({ saleDate: -1 })
-                .select('saleDate totalAmount items orderStatus')
+        // Tüm verileri Firebase'den getir
+        const [allCustomers, allProducts, allNewsletters, allSales] = await Promise.all([
+            customerService.getAll(),
+            productService.getAll(),
+            newsletterService.getAll(),
+            saleService.getAll()
         ]);
 
-        // Dönem içi müşteri sayısı
-        const periodCustomers = await Customer.countDocuments({
-            createdAt: { $gte: startDate }
+        // Müşteri istatistikleri
+        const totalCustomers = allCustomers.length;
+        const newCustomers = allCustomers.filter((c: any) => {
+            const createdAt = c.createdAt ? new Date(c.createdAt) : new Date(0);
+            return createdAt >= startDate;
+        }).length;
+        const previousPeriodCustomers = allCustomers.filter((c: any) => {
+            const createdAt = c.createdAt ? new Date(c.createdAt) : new Date(0);
+            return createdAt >= previousStartDate && createdAt < startDate;
+        }).length;
+        const customerTrend = previousPeriodCustomers !== 0
+            ? Math.round(((newCustomers - previousPeriodCustomers) / previousPeriodCustomers) * 100)
+            : newCustomers > 0 ? 100 : 0;
+
+        // Ürün istatistikleri
+        const totalProducts = allProducts.length;
+        const newProducts = allProducts.filter((p: any) => {
+            const createdAt = p.createdAt ? new Date(p.createdAt) : new Date(0);
+            return createdAt >= startDate;
+        }).length;
+        const previousPeriodProducts = allProducts.filter((p: any) => {
+            const createdAt = p.createdAt ? new Date(p.createdAt) : new Date(0);
+            return createdAt >= previousStartDate && createdAt < startDate;
+        }).length;
+        const productTrend = previousPeriodProducts !== 0
+            ? Math.round(((newProducts - previousPeriodProducts) / previousPeriodProducts) * 100)
+            : newProducts > 0 ? 100 : 0;
+
+        // Newsletter istatistikleri
+        const activeNewsletters = allNewsletters.filter((n: any) => n.active).length;
+        const newNewsletters = allNewsletters.filter((n: any) => {
+            const subscriptionDate = n.subscriptionDate ? new Date(n.subscriptionDate) : new Date(0);
+            return n.active && subscriptionDate >= startDate;
+        }).length;
+        const previousPeriodNewsletters = allNewsletters.filter((n: any) => {
+            const subscriptionDate = n.subscriptionDate ? new Date(n.subscriptionDate) : new Date(0);
+            return n.active && subscriptionDate >= previousStartDate && subscriptionDate < startDate;
+        }).length;
+        const newsletterTrend = previousPeriodNewsletters !== 0
+            ? Math.round(((newNewsletters - previousPeriodNewsletters) / previousPeriodNewsletters) * 100)
+            : newNewsletters > 0 ? 100 : 0;
+
+        // Satış istatistikleri
+        const totalSales = allSales.length;
+        const recentSales = allSales.filter((s: any) => {
+            const saleDate = s.saleDate ? new Date(s.saleDate) : new Date(0);
+            return saleDate >= startDate;
+        });
+        const newSalesCount = recentSales.length;
+        const previousPeriodSales = allSales.filter((s: any) => {
+            const saleDate = s.saleDate ? new Date(s.saleDate) : new Date(0);
+            return saleDate >= previousStartDate && saleDate < startDate;
+        }).length;
+        const salesTrend = previousPeriodSales !== 0
+            ? Math.round(((newSalesCount - previousPeriodSales) / previousPeriodSales) * 100)
+            : newSalesCount > 0 ? 100 : 0;
+
+        // Toplam satış tutarı
+        const totalRevenue = recentSales.reduce((sum: number, sale: any) => {
+            return sum + (sale.totalAmount || 0);
+        }, 0);
+        const previousRevenue = allSales
+            .filter((s: any) => {
+                const saleDate = s.saleDate ? new Date(s.saleDate) : new Date(0);
+                return saleDate >= previousStartDate && saleDate < startDate;
+            })
+            .reduce((sum: number, sale: any) => sum + (sale.totalAmount || 0), 0);
+        const revenueTrend = previousRevenue !== 0
+            ? Math.round(((totalRevenue - previousRevenue) / previousRevenue) * 100)
+            : totalRevenue > 0 ? 100 : 0;
+
+        // Son müşteriler
+        const recentCustomers = allCustomers
+            .sort((a: any, b: any) => {
+                const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                return dateB - dateA;
+            })
+            .slice(0, 5)
+            .map((c: any) => ({
+                id: c.id || c._id,
+                name: c.name,
+                email: c.email,
+                phone: c.phone,
+                createdAt: c.createdAt
+            }));
+
+        // Satış grafiği verileri (günlük)
+        const salesByDate: { [key: string]: number } = {};
+        recentSales.forEach((sale: any) => {
+            const saleDate = sale.saleDate ? new Date(sale.saleDate) : new Date();
+            const dateKey = saleDate.toISOString().split('T')[0];
+            salesByDate[dateKey] = (salesByDate[dateKey] || 0) + (sale.totalAmount || 0);
         });
 
-        // Dönem içi abone sayısı
-        const periodSubscribers = await Newsletter.countDocuments({
-            createdAt: { $gte: startDate },
-            active: true
-        });
-
-        // Toplam satış tutarı hesapla
-        const totalSalesAmount = salesData.reduce((total, sale) => total + sale.totalAmount, 0);
-
-        // Önceki dönem satış tutarını hesapla (trend için)
-        let previousPeriodStartDate: Date;
-        if (period === 'week') {
-            previousPeriodStartDate = new Date(startDate);
-            previousPeriodStartDate.setDate(previousPeriodStartDate.getDate() - 7);
-        } else if (period === 'month') {
-            previousPeriodStartDate = new Date(startDate);
-            previousPeriodStartDate.setDate(previousPeriodStartDate.getDate() - 30);
-        } else {
-            previousPeriodStartDate = new Date(startDate);
-            previousPeriodStartDate.setDate(previousPeriodStartDate.getDate() - 365);
-        }
-
-        const previousSales = await Sale.find({
-            saleDate: { $gte: previousPeriodStartDate, $lt: startDate }
-        }).select('totalAmount');
-
-        const previousSalesAmount = previousSales.reduce((total, sale) => total + sale.totalAmount, 0);
-
-        // Trend hesapla (yüzde değişim)
-        const calculateTrend = (current: number, previous: number) => {
-            if (previous === 0) return { value: 100, positive: true };
-            const percentChange = Math.round(((current - previous) / previous) * 100);
-            return { value: Math.abs(percentChange), positive: percentChange >= 0 };
+        const sortedDates = Object.keys(salesByDate).sort();
+        const salesChartData = {
+            labels: sortedDates.map(date => {
+                const d = new Date(date);
+                return `${d.getDate()}/${d.getMonth() + 1}`;
+            }),
+            datasets: [
+                {
+                    label: 'Satışlar',
+                    data: sortedDates.map(date => salesByDate[date])
+                }
+            ]
         };
 
-        // Grafik verileri için satışları tarihe göre grupla
-        let labels: string[] = [];
-        let salesByPeriod: number[] = [];
-
-        if (period === 'week') {
-            // Son 7 günün verileri
-            labels = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
-            const salesByDay = new Array(7).fill(0);
-
-            salesData.forEach(sale => {
-                const day = new Date(sale.saleDate).getDay(); // 0-6 (Pazar-Cumartesi)
-                const adjustedIndex = day === 0 ? 6 : day - 1; // 0-6 (Pazartesi-Pazar)
-                salesByDay[adjustedIndex] += sale.totalAmount;
-            });
-
-            salesByPeriod = salesByDay;
-        } else if (period === 'month') {
-            // Son 4 haftanın verileri
-            labels = ['Hafta 1', 'Hafta 2', 'Hafta 3', 'Hafta 4'];
-            const salesByWeek = new Array(4).fill(0);
-
-            salesData.forEach(sale => {
-                const weeksSinceStart = Math.floor((new Date(sale.saleDate).getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
-                if (weeksSinceStart >= 0 && weeksSinceStart < 4) {
-                    salesByWeek[weeksSinceStart] += sale.totalAmount;
-                }
-            });
-
-            salesByPeriod = salesByWeek;
-        } else {
-            // Son 12 ayın verileri
-            labels = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
-            const salesByMonth = new Array(12).fill(0);
-
-            salesData.forEach(sale => {
-                const saleMonth = new Date(sale.saleDate).getMonth(); // 0-11
-                salesByMonth[saleMonth] += sale.totalAmount;
-            });
-
-            salesByPeriod = salesByMonth;
-        }
-
-        // Son aktiviteler (satışlar ve müşteri kayıtları)
-        const recentSales = await Sale.find()
-            .sort({ createdAt: -1 })
-            .limit(4)
-            .select('customerName totalAmount saleDate orderStatus createdAt');
-
-        // Aktiviteleri formatla
-        const recentActivities = recentSales.map((sale, index) => {
-            return {
-                id: sale._id,
-                title: 'Yeni sipariş alındı',
-                description: `${sale.customerName} ${sale.totalAmount.toLocaleString('tr-TR')} ₺ tutarında sipariş verdi`,
-                time: formatTimeAgo(sale.createdAt),
-                status: sale.orderStatus === 'Tamamlandı' ? 'success' :
-                    sale.orderStatus === 'İşlemde' ? 'info' :
-                        sale.orderStatus === 'Kargoda' ? 'warning' : 'error',
-                user: { name: 'Sipariş Sistemi' },
-                originalData: sale // Orijinal veriyi de koruyalım
-            };
-        });
-
-        // API yanıtını hazırla
+        // Dashboard yanıtı
         const response = {
             success: true,
             summary: {
                 customers: {
                     total: totalCustomers,
-                    trend: calculateTrend(periodCustomers, totalCustomers - periodCustomers)
+                    new: newCustomers,
+                    trend: customerTrend
                 },
                 products: {
                     total: totalProducts,
-                    trend: { value: 0, positive: true } // Ürün trendi mevcut değil, sabit değer
+                    new: newProducts,
+                    trend: productTrend
                 },
                 subscribers: {
-                    total: totalSubscribers,
-                    trend: calculateTrend(periodSubscribers, totalSubscribers - periodSubscribers)
+                    total: activeNewsletters,
+                    new: newNewsletters,
+                    trend: newsletterTrend
                 },
                 sales: {
-                    total: totalSalesAmount.toLocaleString('tr-TR'),
-                    trend: calculateTrend(totalSalesAmount, previousSalesAmount)
+                    total: newSalesCount,
+                    revenue: totalRevenue,
+                    trend: salesTrend,
+                    revenueTrend: revenueTrend
                 }
             },
-            recentCustomers: recentCustomers,
-            recentSales: recentSales, // Son siparişleri doğrudan ekle
-            salesChart: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: 'Satışlar',
-                        data: salesByPeriod,
-                    }
-                ]
-            },
-            recentActivities: recentActivities
+            recentCustomers,
+            salesChart: salesChartData,
+            recentActivities: [],
+            period
         };
 
         return NextResponse.json(response);
     } catch (error) {
-        console.error('Dashboard API hatası:', error);
+        console.error('Dashboard yükleme hatası:', error);
         return NextResponse.json(
-            { success: false, error: 'Sunucu hatası oluştu' },
+            {
+                success: false,
+                error: (error as Error).message || 'Dashboard verileri yüklenirken bir hata oluştu'
+            },
             { status: 500 }
         );
     }
 }
-
-// Tarih formatlayıcı yardımcı fonksiyon
-function formatTimeAgo(date: Date): string {
-    const now = new Date();
-    const diffInSeconds = Math.floor((now.getTime() - new Date(date).getTime()) / 1000);
-
-    if (diffInSeconds < 60) return `${diffInSeconds} saniye önce`;
-
-    const diffInMinutes = Math.floor(diffInSeconds / 60);
-    if (diffInMinutes < 60) return `${diffInMinutes} dakika önce`;
-
-    const diffInHours = Math.floor(diffInMinutes / 60);
-    if (diffInHours < 24) return `${diffInHours} saat önce`;
-
-    const diffInDays = Math.floor(diffInHours / 24);
-    if (diffInDays < 30) return `${diffInDays} gün önce`;
-
-    const diffInMonths = Math.floor(diffInDays / 30);
-    if (diffInMonths < 12) return `${diffInMonths} ay önce`;
-
-    const diffInYears = Math.floor(diffInMonths / 12);
-    return `${diffInYears} yıl önce`;
-} 

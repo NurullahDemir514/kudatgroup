@@ -280,7 +280,7 @@ const SalesForm: React.FC<SalesFormProps> = ({
                         console.log(`${subscribersResult.data.length} bülten abonesi yüklendi`);
                         // Aboneleri müşteri formatına dönüştür ve isSubscriber özelliğini ekle
                         const formattedSubscribers = subscribersResult.data.map((sub: any) => ({
-                            _id: sub._id,
+                            _id: sub.id || sub._id,
                             name: sub.name || sub.email,
                             email: sub.email,
                             phone: sub.phone || '',
@@ -366,7 +366,7 @@ const SalesForm: React.FC<SalesFormProps> = ({
             return;
         }
 
-        const product = products.find((p) => p._id === productId);
+        const product = products.find((p) => (p.id || p._id) === productId);
         if (!product) {
             alert("Seçilen ürün bulunamadı. Lütfen sayfayı yenileyip tekrar deneyin.");
             return;
@@ -629,7 +629,7 @@ const SalesForm: React.FC<SalesFormProps> = ({
                                         >
                                                     {filteredCustomers.map((customer) => (
                                                         <div
-                                                            key={customer._id}
+                                                            key={customer.id || customer._id}
                                                             className="cursor-pointer px-3 py-2 hover:bg-blue-50 text-gray-800"
                                                             onClick={() => selectCustomer(customer)}
                                                         >
@@ -806,7 +806,7 @@ const SalesForm: React.FC<SalesFormProps> = ({
                                         >
                                             <option value="">Ürün seçin...</option>
                                             {products.map((product) => (
-                                                <option key={product._id} value={product._id}>
+                                                <option key={product.id || product._id} value={product.id || product._id}>
                                                     {product.name} - {formatCurrency(product.salePrice || 0)}
                                                 </option>
                                             ))}

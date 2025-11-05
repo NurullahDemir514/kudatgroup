@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
-import Customer from '@/models/Customer';
+import { customerService } from '@/services/firebaseServices';
 
 // Tüm müşterileri getir
 export async function GET(request: NextRequest) {
     try {
-        await connectToDatabase();
-
-        const customers = await Customer.find({}).sort({ createdAt: -1 });
+        const customers = await customerService.getAll();
 
         return NextResponse.json({ success: true, data: customers });
     } catch (error) {
@@ -22,8 +19,6 @@ export async function GET(request: NextRequest) {
 // Yeni müşteri ekle
 export async function POST(request: NextRequest) {
     try {
-        await connectToDatabase();
-
         const data = await request.json();
 
         // Zorunlu alanları kontrol et
@@ -34,17 +29,8 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Email adresinin benzersiz olup olmadığını kontrol et
-        const existingCustomer = await Customer.findOne({ email: data.email });
-        if (existingCustomer) {
-            return NextResponse.json(
-                { success: false, error: 'Bu email adresi zaten kullanılıyor' },
-                { status: 400 }
-            );
-        }
-
-        // Yeni müşteri oluştur
-        const newCustomer = await Customer.create(data);
+        // Yeni müşteri oluştur (Firebase)
+        const newCustomer = await customerService.create(data);
 
         return NextResponse.json(
             { success: true, data: newCustomer },

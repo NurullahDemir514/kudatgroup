@@ -248,11 +248,11 @@ export default function AdminDashboard() {
 
                                 <StatisticsCard
                     title="Toplam Satış"
-                                    value={`${dashboardData.summary.sales.total} ₺`}
-                                    subtitle={`Son ${period === 'week' ? 'hafta' : period === 'month' ? 'ay' : 'yıl'}`}
+                                    value={`${dashboardData.summary.sales.revenue?.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0,00'} ₺`}
+                                    subtitle={`${dashboardData.summary.sales.total} satış - Son ${period === 'week' ? 'hafta' : period === 'month' ? 'ay' : 'yıl'}`}
                                     icon={ICONS.sales}
                                     color="blue"
-                                    trend={dashboardData.summary.sales.trend}
+                                    trend={dashboardData.summary.sales.revenueTrend}
                                     link="/admin/sales"
                                 />
                             </div>

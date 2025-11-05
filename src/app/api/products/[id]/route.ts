@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
-import { Product } from '@/models/Product';
+import { productService } from '@/services/firebaseServices';
 
 interface RouteParams {
     params: {
@@ -14,10 +13,8 @@ export async function GET(
     { params }: RouteParams
 ) {
     try {
-        await connectToDatabase();
-
         const { id } = params;
-        const product = await Product.findById(id);
+        const product = await productService.getById(id);
 
         if (!product) {
             return NextResponse.json(
@@ -42,8 +39,6 @@ export async function PUT(
     { params }: RouteParams
 ) {
     try {
-        await connectToDatabase();
-
         const { id } = params;
         const data = await request.json();
 
@@ -89,11 +84,7 @@ export async function PUT(
             );
         }
 
-        const updatedProduct = await Product.findByIdAndUpdate(
-            id,
-            data,
-            { new: true, runValidators: true }
-        );
+        const updatedProduct = await productService.update(id, data);
 
         if (!updatedProduct) {
             return NextResponse.json(
@@ -118,8 +109,6 @@ export async function PATCH(
     { params }: RouteParams
 ) {
     try {
-        await connectToDatabase();
-
         const { id } = params;
         const data = await request.json();
 
@@ -157,11 +146,7 @@ export async function PATCH(
             );
         }
 
-        const updatedProduct = await Product.findByIdAndUpdate(
-            id,
-            data,
-            { new: true, runValidators: true }
-        );
+        const updatedProduct = await productService.update(id, data);
 
         if (!updatedProduct) {
             return NextResponse.json(
@@ -186,17 +171,8 @@ export async function DELETE(
     { params }: RouteParams
 ) {
     try {
-        await connectToDatabase();
-
         const { id } = params;
-        const deletedProduct = await Product.findByIdAndDelete(id);
-
-        if (!deletedProduct) {
-            return NextResponse.json(
-                { success: false, error: 'Ürün bulunamadı' },
-                { status: 404 }
-            );
-        }
+        await productService.delete(id);
 
         return NextResponse.json({
             success: true,

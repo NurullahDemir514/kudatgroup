@@ -1,32 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectToDatabase } from "@/lib/mongodb";
-import { Newsletter, INewsletter } from "@/models/Newsletter";
+import { newsletterService } from "@/services/firebaseServices";
 
 // Bülten aboneliklerini getir (admin için)
 export async function GET(req: NextRequest) {
     try {
-        await connectToDatabase();
-
         const searchParams = req.nextUrl.searchParams;
         const page = parseInt(searchParams.get("page") || "1");
-        const limit = parseInt(searchParams.get("limit") || "50");
-        const skip = (page - 1) * limit;
+        const limitCount = parseInt(searchParams.get("limit") || "50");
 
-        const newsletters = await Newsletter.find({})
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(limit);
-
-        console.log("API'den getirilen ilk kayıt:", newsletters[0]); // İlk kaydı kontrol et
-
-        const total = await Newsletter.countDocuments({});
+        const newsletters = await newsletterService.getAll(limitCount);
+        
+        console.log("API'den getirilen ilk kayıt:", newsletters[0]);
 
         return NextResponse.json({
             success: true,
             data: newsletters,
-            total,
+            total: newsletters.length,
             page,
-            totalPages: Math.ceil(total / limit),
+            totalPages: Math.ceil(newsletters.length / limitCount),
         });
     } catch (error: any) {
         console.error("Bülten abonelikleri getirilirken hata:", error);
@@ -40,8 +31,6 @@ export async function GET(req: NextRequest) {
 // Yeni bülten aboneliği oluştur (public)
 export async function POST(req: NextRequest) {
     try {
-        await connectToDatabase();
-
         const data = await req.json();
         console.log("API'ye gelen veriler:", data);
 
@@ -63,42 +52,49 @@ export async function POST(req: NextRequest) {
         }
 
         // Telefon numarası daha önce kayıtlı mı kontrol et
-        const existingNewsletter = await Newsletter.findOne({ phone: data.phone });
-        if (existingNewsletter) {
+        const existingNewsletters = await newsletterService.findByPhone(data.phone);
+        if (existingNewsletters.length > 0) {
             return NextResponse.json(
                 { success: false, error: "Bu telefon numarası zaten kayıtlı" },
                 { status: 400 }
             );
         }
 
-        // Önemli adres bilgisi kontrol noktası
-        console.log("Kaydı oluşturmadan önce il bilgisi:", data.addressCity);
+        // Yeni bülten aboneliği oluştur
+            // Firebase için undefined değerlerini kaldır
+            const newNewsletterData: any = {
+                name: data.name.trim(),
+                phone: data.phone.trim(),
+                addressCity: data.addressCity.trim(),
+                whatsappEnabled: data.whatsappEnabled !== undefined ? data.whatsappEnabled : true,
+                active: true,
+                subscriptionDate: new Date(),
+            };
 
-        // Yeni bülten aboneliği oluştur - düzeltilmiş hali
-        const newNewsletterData = {
-            name: data.name.trim(),
-            phone: data.phone.trim(),
-            email: data.email ? data.email.trim() : undefined,
-            companyName: data.companyName ? data.companyName.trim() : undefined,
-            // Adres bilgilerini parçalı alıyoruz
-            addressCity: data.addressCity.trim(),
-            addressDistrict: data.addressDistrict ? data.addressDistrict.trim() : undefined,
-            addressStreet: data.addressStreet ? data.addressStreet.trim() : undefined,
-            addressBuildingNo: data.addressBuildingNo ? data.addressBuildingNo.trim() : undefined,
-            taxNumber: data.taxNumber ? data.taxNumber.trim() : undefined,
-            whatsappEnabled: data.whatsappEnabled !== undefined ? data.whatsappEnabled : true,
-            active: true,
-            subscriptionDate: new Date(),
-        };
+            // Opsiyonel alanları sadece değer varsa ekle
+            if (data.email && data.email.trim()) {
+                newNewsletterData.email = data.email.trim();
+            }
+            if (data.companyName && data.companyName.trim()) {
+                newNewsletterData.companyName = data.companyName.trim();
+            }
+            if (data.addressDistrict && data.addressDistrict.trim()) {
+                newNewsletterData.addressDistrict = data.addressDistrict.trim();
+            }
+            if (data.addressStreet && data.addressStreet.trim()) {
+                newNewsletterData.addressStreet = data.addressStreet.trim();
+            }
+            if (data.addressBuildingNo && data.addressBuildingNo.trim()) {
+                newNewsletterData.addressBuildingNo = data.addressBuildingNo.trim();
+            }
+            if (data.taxNumber && data.taxNumber.trim()) {
+                newNewsletterData.taxNumber = data.taxNumber.trim();
+            }
 
         console.log("Hazırlanan veri:", newNewsletterData);
 
-        // Mongoose modeli ile oluştur
-        const newNewsletter = new Newsletter(newNewsletterData);
-        console.log("Kaydedilecek Newsletter objesi:", JSON.stringify(newNewsletter.toObject()));
-
-        const savedNewsletter = await newNewsletter.save();
-        console.log("Kaydedilen Newsletter sonucu:", JSON.stringify(savedNewsletter.toObject()));
+        const savedNewsletter = await newsletterService.create(newNewsletterData);
+        console.log("Kaydedilen Newsletter sonucu:", savedNewsletter);
 
         return NextResponse.json({
             success: true,
