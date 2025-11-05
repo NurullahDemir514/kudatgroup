@@ -38,7 +38,7 @@
 /* Product Info Container - görselin altında */
 .product-info-container {
   position: absolute;
-  bottom: 0.5rem;
+  bottom: 2rem;
   left: 50%;
   transform: translateX(-50%);
   text-align: center;

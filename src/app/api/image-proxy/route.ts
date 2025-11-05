@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getStorage, ref, getDownloadURL } from 'firebase/storage';
+import { storage } from '@/lib/firebase';
 
 export async function GET(request: NextRequest) {
     try {
-        const searchParams = request.nextUrl.searchParams;
-        const imageUrl = searchParams.get('url');
+        // URL'yi query string'den al
+        const url = new URL(request.url);
+        const imageUrl = url.searchParams.get('url');
 
         if (!imageUrl) {
             return NextResponse.json(
@@ -13,7 +16,12 @@ export async function GET(request: NextRequest) {
         }
 
         // URL decode
-        const decodedUrl = decodeURIComponent(imageUrl);
+        let decodedUrl: string;
+        try {
+            decodedUrl = decodeURIComponent(imageUrl);
+        } catch {
+            decodedUrl = imageUrl;
+        }
 
         // Firebase Storage URL'sini kontrol et
         if (!decodedUrl.includes('firebasestorage.googleapis.com')) {
@@ -23,16 +31,30 @@ export async function GET(request: NextRequest) {
             );
         }
 
+        // Direkt olarak orijinal URL'i kullan (Firebase Storage URL'leri zaten geçerli)
+        const downloadURL = decodedUrl;
+
         // Görseli fetch et
-        const response = await fetch(decodedUrl, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0',
-            },
-        });
+        let response;
+        try {
+            response = await fetch(downloadURL, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    'Accept': 'image/*',
+                },
+            });
+        } catch (fetchError: any) {
+            console.error('Fetch hatası:', fetchError.message);
+            return NextResponse.json(
+                { success: false, error: `Fetch hatası: ${fetchError.message}` },
+                { status: 500 }
+            );
+        }
 
         if (!response.ok) {
+            console.error('Görsel yüklenemedi:', response.status, response.statusText);
             return NextResponse.json(
-                { success: false, error: 'Görsel yüklenemedi' },
+                { success: false, error: `Görsel yüklenemedi: ${response.status} ${response.statusText}` },
                 { status: response.status }
             );
         }
