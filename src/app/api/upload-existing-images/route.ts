@@ -29,6 +29,15 @@ const productImages = [
   'WhatsApp Image 2025-11-05 at 14.17.08 (3).jpeg',
 ];
 
+// Collection görselleri (tüm görseller collection'a da yüklenecek)
+const collectionImages = [
+  '1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg', '6.jpg',
+  'WhatsApp Image 2025-11-05 at 14.17.07.jpeg',
+  'WhatsApp Image 2025-11-05 at 14.17.08 (1).jpeg',
+  'WhatsApp Image 2025-11-05 at 14.17.08 (2).jpeg',
+  'WhatsApp Image 2025-11-05 at 14.17.08 (3).jpeg',
+];
+
 export async function GET() {
     try {
         const results: {
@@ -108,6 +117,43 @@ export async function GET() {
                     success: false,
                     fileName,
                     folder: 'products',
+                    error: error.message,
+                });
+            }
+        }
+
+        // Collection görsellerini yükle
+        for (const fileName of collectionImages) {
+            try {
+                const filePath = join(process.cwd(), 'public', 'products', fileName);
+                const fileBuffer = await readFile(filePath);
+                
+                // MIME type belirle
+                const mimeType = fileName.endsWith('.jpg') || fileName.endsWith('.jpeg') 
+                    ? 'image/jpeg' 
+                    : 'image/png';
+
+                const storageRef = ref(storage, `collection/${fileName}`);
+                await uploadBytes(storageRef, fileBuffer, {
+                    contentType: mimeType,
+                });
+
+                const downloadURL = await getDownloadURL(storageRef);
+
+                results.push({
+                    success: true,
+                    fileName,
+                    folder: 'collection',
+                    url: downloadURL,
+                });
+
+                console.log(`✅ Collection görseli yüklendi: ${fileName}`);
+            } catch (error: any) {
+                console.error(`❌ Collection görseli yüklenemedi: ${fileName}`, error);
+                results.push({
+                    success: false,
+                    fileName,
+                    folder: 'collection',
                     error: error.message,
                 });
             }
