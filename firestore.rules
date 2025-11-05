@@ -1,0 +1,61 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Newsletter koleksiyonu - API'den erişim için
+    match /newsletters/{document} {
+      allow read, write: if true; // API'den erişim için geçici olarak açık
+    }
+    
+    // Users koleksiyonu - sadece admin erişimi
+    match /users/{document} {
+      allow read, write: if true; // API'den erişim için geçici olarak açık
+    }
+    
+    // Products koleksiyonu - herkese okuma, admin'e yazma
+    match /products/{document} {
+      allow read: if true;
+      allow write: if true; // API'den erişim için geçici olarak açık
+    }
+    
+    // Customers koleksiyonu - API'den erişim
+    match /customers/{document} {
+      allow read, write: if true; // API'den erişim için geçici olarak açık
+    }
+    
+    // Sales koleksiyonu - sadece admin erişimi
+    match /sales/{document} {
+      allow read, write: if true; // API'den erişim için geçici olarak açık
+    }
+    
+    // Campaigns koleksiyonu - sadece admin erişimi
+    match /campaigns/{document} {
+      allow read, write: if true; // API'den erişim için geçici olarak açık
+    }
+    
+    // WhatsApp Templates - sadece admin erişimi
+    match /whatsappTemplates/{document} {
+      allow read, write: if true; // API'den erişim için geçici olarak açık
+    }
+    
+    // WhatsApp Messages - sadece admin erişimi
+    match /whatsappMessages/{document} {
+      allow read, write: if true; // API'den erişim için geçici olarak açık
+    }
+    
+    // Events koleksiyonu - herkese okuma, admin'e yazma
+    match /events/{document} {
+      allow read: if true;
+      allow write: if true; // API'den erişim için geçici olarak açık
+    }
+    
+    // Test koleksiyonu - development için
+    match /test/{document} {
+      allow read, write: if true;
+    }
+    
+    // Collection Images metadata - herkese okuma, yazma
+    match /collectionImages/{document} {
+      allow read, write: if true; // API'den erişim için geçici olarak açık
+    }
+  }
+}
