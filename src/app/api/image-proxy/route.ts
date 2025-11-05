@@ -44,10 +44,13 @@ export async function GET(request: NextRequest) {
                 // Firebase Storage'dan yeni download URL al
                 const storageRef = ref(storage, storagePath);
                 downloadURL = await getDownloadURL(storageRef);
+                console.log('Firebase Storage URL alındı:', storagePath);
             } catch (firebaseError: any) {
-                console.error('Firebase Storage URL hatası:', firebaseError);
-                // Eğer Firebase'den alamazsak, orijinal URL'i dene
-                downloadURL = decodedUrl;
+                console.error('Firebase Storage URL hatası:', firebaseError.message, firebaseError.code);
+                // Eğer Firebase'den alamazsak, orijinal URL'i dene ama token'ı kaldır
+                // Token'ı kaldırıp sadece path ile dene
+                const baseUrl = decodedUrl.split('?')[0];
+                downloadURL = baseUrl;
             }
         } else {
             downloadURL = decodedUrl;
