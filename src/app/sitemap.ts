@@ -1,5 +1,5 @@
 import { MetadataRoute } from 'next';
-import { connectMongoDB } from '@/lib/mongodb';
+import { connectToDatabase } from '@/lib/mongodb';
 import Product from '@/models/Product';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -61,7 +61,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let productPages: MetadataRoute.Sitemap = [];
   
   try {
-    await connectMongoDB();
+    await connectToDatabase();
     const products = await Product.find({}).select('_id updatedAt').lean();
     
     productPages = products.map((product) => ({
