@@ -73,7 +73,30 @@ export async function GET(request: NextRequest) {
         }
 
         if (!response.ok) {
-            console.error('Görsel yüklenemedi:', response.status, response.statusText);
+            console.error('Görsel yüklenemedi (Firebase URL):', response.status, response.statusText);
+            // Firebase SDK'dan alınan URL başarısız oldu, orijinal URL'i dene
+            try {
+                const fallbackResponse = await fetch(decodedUrl, {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0',
+                        'Accept': 'image/*',
+                    },
+                });
+                if (fallbackResponse.ok) {
+                    const fallbackBuffer = await fallbackResponse.arrayBuffer();
+                    const fallbackContentType = fallbackResponse.headers.get('content-type') || 'image/jpeg';
+                    return new NextResponse(fallbackBuffer, {
+                        headers: {
+                            'Content-Type': fallbackContentType,
+                            'Cache-Control': 'public, max-age=31536000, immutable',
+                            'Access-Control-Allow-Origin': '*',
+                            'Access-Control-Allow-Methods': 'GET',
+                        },
+                    });
+                }
+            } catch (e) {
+                console.error('Fallback da başarısız:', e);
+            }
             return NextResponse.json(
                 { success: false, error: `Görsel yüklenemedi: ${response.status} ${response.statusText}` },
                 { status: response.status }
