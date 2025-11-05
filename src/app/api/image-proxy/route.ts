@@ -47,10 +47,9 @@ export async function GET(request: NextRequest) {
                 console.log('Firebase Storage URL alındı:', storagePath);
             } catch (firebaseError: any) {
                 console.error('Firebase Storage URL hatası:', firebaseError.message, firebaseError.code);
-                // Eğer Firebase'den alamazsak, orijinal URL'i dene ama token'ı kaldır
-                // Token'ı kaldırıp sadece path ile dene
-                const baseUrl = decodedUrl.split('?')[0];
-                downloadURL = baseUrl;
+                // Eğer Firebase'den alamazsak, orijinal URL'i redirect olarak döndür
+                // Bu şekilde browser direkt Firebase Storage'dan yükleyebilir
+                return NextResponse.redirect(decodedUrl, 302);
             }
         } else {
             downloadURL = decodedUrl;
