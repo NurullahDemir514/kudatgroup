@@ -453,11 +453,10 @@ export default function Home() {
           {/* Center Column - Hero Content */}
           <div className="text-center w-full relative z-10 px-6 lg:px-8 max-w-6xl mx-auto">
             <h1 className="text-5xl md:text-7xl font-light tracking-wider mb-8 leading-[1.1] drop-shadow-lg" style={{ fontFamily: 'var(--font-cinzel), serif', letterSpacing: '0.15em' }}>
-              <span className="bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 bg-clip-text text-transparent drop-shadow-md">Zamansız</span>
-              <span className="block bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 bg-clip-text text-transparent mt-2 drop-shadow-md" style={{ letterSpacing: '0.2em' }}>İhtişam</span>
+              <span className="bg-gradient-to-r from-black via-gray-900 to-black bg-clip-text text-transparent drop-shadow-md">Zarif, Modern, Şık</span>
             </h1>
             <p className="text-lg md:text-xl max-w-2xl mx-auto mb-12 leading-relaxed font-semibold drop-shadow-lg">
-              <span className="bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-black via-gray-900 to-black bg-clip-text text-transparent">
                 Çelik takı koleksiyonumuzla tarzınızı yansıtın. Dayanıklılık ve estetiğin buluştuğu özel tasarımlar.
               </span>
             </p>
