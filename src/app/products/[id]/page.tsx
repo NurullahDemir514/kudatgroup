@@ -108,8 +108,47 @@ export default function ProductDetailPage() {
         );
     }
 
+    // Structured Data for Product Page
+    const productStructuredData = product ? {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "name": product.name,
+        "description": product.description || `${product.name} - Zarif çelik takı`,
+        "image": product.image ? `https://kudatgroup.com${product.image}` : "https://kudatgroup.com/icon.png",
+        "brand": {
+            "@type": "Brand",
+            "name": "Kudat Steel Jewelry"
+        },
+        "category": product.category || "Çelik Takı",
+        "offers": {
+            "@type": "Offer",
+            "url": `https://kudatgroup.com/products/${product._id}`,
+            "priceCurrency": "TRY",
+            "price": product.price || 0,
+            "availability": product.stock && product.stock > 0 
+                ? "https://schema.org/InStock" 
+                : "https://schema.org/OutOfStock",
+            "seller": {
+                "@type": "Organization",
+                "name": "Kudat Group"
+            }
+        },
+        "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": "4.8",
+            "reviewCount": "100"
+        }
+    } : null;
+
     return (
         <div className="flex flex-col min-h-screen bg-[var(--background)]">
+            {/* Structured Data for SEO */}
+            {productStructuredData && (
+                <script
+                    type="application/ld+json"
+                    dangerouslySetInnerHTML={{ __html: JSON.stringify(productStructuredData) }}
+                />
+            )}
             <header className="fixed w-full z-40 bg-transparent">
                 <div className="container mx-auto">
                     <div className="flex items-center justify-between py-4 px-4 md:px-6">

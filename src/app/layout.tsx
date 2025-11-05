@@ -26,9 +26,34 @@ const cinzel = Cinzel({
 });
 
 export const metadata: Metadata = {
-  title: "Kudat Steel Jewelry | Zarif Çelik Takı Tasarımları",
-  description: "Kudat Steel Jewelry'nin zarif çelik takı koleksiyonundan seçkin parçalar. Özel tasarım çelik takılar ve mücevherler.",
-  keywords: "Kudat Steel Jewelry, çelik takı, çelik bileklik, çelik kolye, çelik yüzük, çelik küpe, özel tasarım",
+  metadataBase: new URL('https://kudatgroup.com'),
+  title: {
+    default: "Kudat Steel Jewelry | Zarif Çelik Takı Tasarımları",
+    template: "%s | Kudat Steel Jewelry",
+  },
+  description: "Kudat Steel Jewelry'nin zarif çelik takı koleksiyonundan seçkin parçalar. Özel tasarım çelik takılar ve mücevherler. Premium kalitede çelik bileklik, kolye, yüzük ve küpe modelleri.",
+  keywords: [
+    "Kudat Steel Jewelry",
+    "çelik takı",
+    "çelik bileklik",
+    "çelik kolye",
+    "çelik yüzük",
+    "çelik küpe",
+    "özel tasarım takı",
+    "premium çelik takı",
+    "Türkiye çelik takı",
+    "zarif takı",
+    "modern takı",
+    "şık takı",
+  ],
+  authors: [{ name: "Kudat Group" }],
+  creator: "Kudat Group",
+  publisher: "Kudat Group",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
   icons: {
     icon: [
       { url: "/favicon.png", type: "image/png" },
@@ -37,6 +62,46 @@ export const metadata: Metadata = {
     apple: [
       { url: "/icon.png", type: "image/png", sizes: "512x512" },
     ],
+  },
+  openGraph: {
+    type: "website",
+    locale: "tr_TR",
+    url: "https://kudatgroup.com",
+    siteName: "Kudat Steel Jewelry",
+    title: "Kudat Steel Jewelry | Zarif Çelik Takı Tasarımları",
+    description: "Kudat Steel Jewelry'nin zarif çelik takı koleksiyonundan seçkin parçalar. Özel tasarım çelik takılar ve mücevherler.",
+    images: [
+      {
+        url: "/icon.png",
+        width: 512,
+        height: 512,
+        alt: "Kudat Steel Jewelry Logo",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Kudat Steel Jewelry | Zarif Çelik Takı Tasarımları",
+    description: "Kudat Steel Jewelry'nin zarif çelik takı koleksiyonundan seçkin parçalar. Özel tasarım çelik takılar ve mücevherler.",
+    images: ["/icon.png"],
+  },
+  alternates: {
+    canonical: "https://kudatgroup.com",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  verification: {
+    // Google Search Console verification code buraya eklenebilir
+    // google: "your-google-verification-code",
   },
   other: {
     "preload-1": "/products/1.jpg",

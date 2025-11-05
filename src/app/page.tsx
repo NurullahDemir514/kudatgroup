@@ -240,8 +240,62 @@ export default function Home() {
     fetchCollectionImages();
   }, []);
 
+  // Structured Data (JSON-LD) for SEO
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "JewelryStore",
+    "name": "Kudat Steel Jewelry",
+    "description": "Zarif çelik takı koleksiyonumuzla tarzınızı yansıtın. Dayanıklılık ve estetiğin buluştuğu özel tasarımlar.",
+    "url": "https://kudatgroup.com",
+    "logo": "https://kudatgroup.com/icon.png",
+    "image": "https://kudatgroup.com/icon.png",
+    "telephone": "+905443576214",
+    "email": "kurumsal@kudatgroup.com",
+    "address": {
+      "@type": "PostalAddress",
+      "addressCountry": "TR",
+      "addressLocality": "Türkiye"
+    },
+    "sameAs": [
+      // Sosyal medya linkleriniz varsa buraya ekleyebilirsiniz
+    ],
+    "priceRange": "$$",
+    "openingHoursSpecification": {
+      "@type": "OpeningHoursSpecification",
+      "dayOfWeek": [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday"
+      ],
+      "opens": "09:00",
+      "closes": "18:00"
+    },
+    "hasOfferCatalog": {
+      "@type": "OfferCatalog",
+      "name": "Çelik Takı Koleksiyonu",
+      "itemListElement": products.slice(0, 10).map((product, index) => ({
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Product",
+          "name": product.name || "Çelik Takı",
+          "description": product.description || "Zarif çelik takı",
+          "image": product.image || "https://kudatgroup.com/icon.png",
+          "url": `https://kudatgroup.com/products/${product._id}`
+        },
+        "position": index + 1
+      }))
+    }
+  };
+
   return (
     <>
+      {/* Structured Data for SEO */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
       {/* Override body background for this page */}
       <style dangerouslySetInnerHTML={{
         __html: `
