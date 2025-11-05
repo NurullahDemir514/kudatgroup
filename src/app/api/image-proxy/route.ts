@@ -31,22 +31,40 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // Direkt olarak orijinal URL'i kullan (Firebase Storage URL'leri zaten geçerli)
-        const downloadURL = decodedUrl;
+        // Firebase Storage URL'den path'i çıkar ve yeni download URL al
+        // Örnek: https://firebasestorage.googleapis.com/v0/b/kudat-bulten-app.firebasestorage.app/o/collection%2F3.jpg?alt=media&token=...
+        const urlMatch = decodedUrl.match(/\/o\/([^?]+)/);
+        let downloadURL: string;
+        
+        if (urlMatch) {
+            // Path'i decode et (collection%2F3.jpg -> collection/3.jpg)
+            const storagePath = decodeURIComponent(urlMatch[1]);
+            
+            try {
+                // Firebase Storage'dan yeni download URL al
+                const storageRef = ref(storage, storagePath);
+                downloadURL = await getDownloadURL(storageRef);
+            } catch (firebaseError: any) {
+                console.error('Firebase Storage URL hatası:', firebaseError);
+                // Eğer Firebase'den alamazsak, orijinal URL'i dene
+                downloadURL = decodedUrl;
+            }
+        } else {
+            downloadURL = decodedUrl;
+        }
 
-        // Görseli fetch et - redirect'leri takip et
+        // Görseli fetch et
         let response;
         try {
             response = await fetch(downloadURL, {
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                     'Accept': 'image/*',
-                    'Referer': 'https://kudatgroup.com',
                 },
                 redirect: 'follow',
             });
         } catch (fetchError: any) {
-            console.error('Fetch hatası:', fetchError.message, downloadURL.substring(0, 100));
+            console.error('Fetch hatası:', fetchError.message);
             return NextResponse.json(
                 { success: false, error: `Fetch hatası: ${fetchError.message}` },
                 { status: 500 }
@@ -54,9 +72,11 @@ export async function GET(request: NextRequest) {
         }
 
         if (!response.ok) {
-            console.error('Görsel yüklenemedi:', response.status, response.statusText, downloadURL.substring(0, 100));
-            // Hata durumunda orijinal URL'i redirect header ile döndür
-            return NextResponse.redirect(downloadURL, 302);
+            console.error('Görsel yüklenemedi:', response.status, response.statusText);
+            return NextResponse.json(
+                { success: false, error: `Görsel yüklenemedi: ${response.status} ${response.statusText}` },
+                { status: response.status }
+            );
         }
 
         // Görsel verisini al
