@@ -1,6 +1,4 @@
 import { MetadataRoute } from 'next';
-import { connectToDatabase } from '@/lib/mongodb';
-import Product from '@/models/Product';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://kudatgroup.com';
@@ -57,24 +55,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ];
 
-  // Dinamik ürün sayfaları
-  let productPages: MetadataRoute.Sitemap = [];
-  
-  try {
-    await connectToDatabase();
-    const products = await Product.find({}).select('_id updatedAt').lean();
-    
-    productPages = products.map((product) => ({
-      url: `${baseUrl}/products/${product._id}`,
-      lastModified: product.updatedAt ? new Date(product.updatedAt) : new Date(),
-      changeFrequency: 'weekly' as const,
-      priority: 0.7,
-    }));
-  } catch (error) {
-    console.error('Sitemap ürün yükleme hatası:', error);
-    // Hata durumunda sadece statik sayfaları döndür
-  }
-
-  return [...staticPages, ...productPages];
+  return staticPages;
 }
 
