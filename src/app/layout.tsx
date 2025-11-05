@@ -30,7 +30,13 @@ export const metadata: Metadata = {
   description: "Kudat Steel Jewelry'nin zarif çelik takı koleksiyonundan seçkin parçalar. Özel tasarım çelik takılar ve mücevherler.",
   keywords: "Kudat Steel Jewelry, çelik takı, çelik bileklik, çelik kolye, çelik yüzük, çelik küpe, özel tasarım",
   icons: {
-    icon: "/favicon.png",
+    icon: [
+      { url: "/favicon.png", type: "image/png" },
+      { url: "/icon.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: [
+      { url: "/icon.png", type: "image/png", sizes: "512x512" },
+    ],
   },
   other: {
     "preload-1": "/products/1.jpg",
