@@ -13,13 +13,29 @@ const scrollbarHideStyles = `
   }
 `;
 
+interface CollectionImage {
+    url: string;
+    name: string;
+    id?: string;
+    title?: string;
+    code?: string;
+    description?: string;
+    order?: number;
+}
+
 export default function CollectionImagesPage() {
     const router = useRouter();
-    const [images, setImages] = useState<{ url: string; name: string }[]>([]);
+    const [images, setImages] = useState<CollectionImage[]>([]);
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
+    const [editingImage, setEditingImage] = useState<CollectionImage | null>(null);
+    const [formData, setFormData] = useState({
+        title: '',
+        code: '',
+        description: '',
+    });
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Collection görsellerini çek
@@ -34,13 +50,21 @@ export default function CollectionImagesPage() {
             const result = await response.json();
             
             if (result.success && Array.isArray(result.images)) {
-                // URL'den dosya adını çıkar
-                const imagesWithNames = result.images.map((url: string) => {
-                    const urlParts = url.split('/');
+                // Metadata ile birlikte görselleri al
+                const imagesWithData = result.images.map((img: any) => {
+                    const urlParts = img.url.split('/');
                     const fileName = urlParts[urlParts.length - 1].split('?')[0];
-                    return { url, name: fileName };
+                    return {
+                        url: img.url,
+                        name: fileName,
+                        id: img.id,
+                        title: img.title || '',
+                        code: img.code || '',
+                        description: img.description || '',
+                        order: img.order || 0,
+                    };
                 });
-                setImages(imagesWithNames);
+                setImages(imagesWithData);
             } else {
                 setError('Görseller yüklenirken bir hata oluştu');
             }
@@ -85,11 +109,26 @@ export default function CollectionImagesPage() {
             const data = await response.json();
 
             if (data.success) {
-                setSuccess('Görsel başarıyla yüklendi!');
+                setSuccess('Görsel başarıyla yüklendi! Şimdi ürün bilgilerini girebilirsiniz.');
                 // Cache'i temizle
                 await fetch('/api/collection-images', { method: 'DELETE' });
                 // Görselleri yeniden yükle
-                await fetchCollectionImages();
+                await fetchCollectionImages().then(() => {
+                    // Yeni yüklenen görseli düzenleme moduna al
+                    const newImage: CollectionImage = {
+                        url: data.url,
+                        name: data.fileName || data.url.split('/').pop()?.split('?')[0] || '',
+                        title: '',
+                        code: '',
+                        description: '',
+                    };
+                    setEditingImage(newImage);
+                    setFormData({
+                        title: '',
+                        code: '',
+                        description: '',
+                    });
+                });
             } else {
                 setError('Görsel yüklenirken bir hata oluştu: ' + (data.error || 'Bilinmeyen hata'));
             }
@@ -104,7 +143,7 @@ export default function CollectionImagesPage() {
         }
     };
 
-    const handleDeleteImage = async (imageUrl: string) => {
+    const handleDeleteImage = async (imageUrl: string, imageId?: string) => {
         if (!confirm('Bu görseli silmek istediğinizden emin misiniz?')) {
             return;
         }
@@ -113,6 +152,14 @@ export default function CollectionImagesPage() {
             setError(null);
             setSuccess(null);
             
+            // Önce metadata'yı sil
+            if (imageId) {
+                await fetch(`/api/collection-images/metadata?id=${imageId}`, {
+                    method: 'DELETE',
+                });
+            }
+            
+            // Sonra görseli sil
             const response = await fetch(`/api/collection-images/delete?url=${encodeURIComponent(imageUrl)}`, {
                 method: 'DELETE',
             });
@@ -132,6 +179,61 @@ export default function CollectionImagesPage() {
             console.error('Görsel silme hatası:', err);
             setError('Görsel silinirken bir hata oluştu');
         }
+    };
+
+    const handleEditImage = (image: CollectionImage) => {
+        setEditingImage(image);
+        setFormData({
+            title: image.title || '',
+            code: image.code || '',
+            description: image.description || '',
+        });
+    };
+
+    const handleSaveMetadata = async () => {
+        if (!editingImage) return;
+
+        try {
+            setError(null);
+            setSuccess(null);
+
+            const response = await fetch('/api/collection-images/metadata', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    id: editingImage.id,
+                    imageUrl: editingImage.url,
+                    title: formData.title,
+                    code: formData.code,
+                    description: formData.description,
+                    order: editingImage.order || 0,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                setSuccess('Ürün bilgileri başarıyla kaydedildi!');
+                setEditingImage(null);
+                setFormData({ title: '', code: '', description: '' });
+                // Cache'i temizle
+                await fetch('/api/collection-images', { method: 'DELETE' });
+                // Görselleri yeniden yükle
+                await fetchCollectionImages();
+            } else {
+                setError('Bilgiler kaydedilirken bir hata oluştu: ' + (data.error || 'Bilinmeyen hata'));
+            }
+        } catch (err) {
+            console.error('Metadata kaydetme hatası:', err);
+            setError('Bilgiler kaydedilirken bir hata oluştu');
+        }
+    };
+
+    const handleCancelEdit = () => {
+        setEditingImage(null);
+        setFormData({ title: '', code: '', description: '' });
     };
 
     return (
@@ -222,23 +324,120 @@ export default function CollectionImagesPage() {
                                     <div className="aspect-video bg-gray-100 relative">
                                         <img
                                             src={image.url}
-                                            alt={`Collection ${index + 1}`}
+                                            alt={image.title || `Collection ${index + 1}`}
                                             className="w-full h-full object-cover"
                                         />
                                     </div>
                                     <div className="p-4">
                                         <p className="text-sm font-medium text-gray-900 truncate">
-                                            {image.name}
+                                            {image.title || image.name}
                                         </p>
-                                        <button
-                                            onClick={() => handleDeleteImage(image.url)}
-                                            className="mt-2 text-sm text-red-600 hover:text-red-800"
-                                        >
-                                            Sil
-                                        </button>
+                                        {image.code && (
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                Kod: {image.code}
+                                            </p>
+                                        )}
+                                        <div className="mt-3 flex gap-2">
+                                            <button
+                                                onClick={() => handleEditImage(image)}
+                                                className="flex-1 text-sm px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                                            >
+                                                Düzenle
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteImage(image.url, image.id)}
+                                                className="flex-1 text-sm px-3 py-1.5 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                                            >
+                                                Sil
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             ))}
+                        </div>
+                    )}
+
+                    {/* Edit Modal */}
+                    {editingImage && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                                <div className="p-6">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="text-xl font-semibold">Ürün Bilgilerini Düzenle</h3>
+                                        <button
+                                            onClick={handleCancelEdit}
+                                            className="text-gray-400 hover:text-gray-600"
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+
+                                    <div className="mb-4">
+                                        <img
+                                            src={editingImage.url}
+                                            alt="Preview"
+                                            className="w-full h-48 object-cover rounded-lg"
+                                        />
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Ürün Adı *
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={formData.title}
+                                                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                placeholder="Örn: Zarif Çelik Kolye"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Ürün Kodu *
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={formData.code}
+                                                onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                placeholder="Örn: KT-001"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Açıklama
+                                            </label>
+                                            <textarea
+                                                value={formData.description}
+                                                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                                rows={4}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                placeholder="Ürün hakkında açıklama..."
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-6 flex gap-3">
+                                        <button
+                                            onClick={handleSaveMetadata}
+                                            disabled={!formData.title || !formData.code}
+                                            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                        >
+                                            Kaydet
+                                        </button>
+                                        <button
+                                            onClick={handleCancelEdit}
+                                            className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                                        >
+                                            İptal
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>

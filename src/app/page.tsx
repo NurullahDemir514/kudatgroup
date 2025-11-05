@@ -658,13 +658,17 @@ export default function Home() {
                 title: string;
                 description: string;
               }> = collectionImages.length > 0
-                ? collectionImages.map((imageUrl, index) => {
-                    const productCode = `KT-${String(index + 1).padStart(3, '0')}`;
+                ? collectionImages.map((img: any, index: number) => {
+                    // Eğer metadata varsa kullan, yoksa fallback
+                    const title = img.title || shuffledNames[index % shuffledNames.length];
+                    const code = img.code || `KT-${String(index + 1).padStart(3, '0')}`;
+                    const description = img.description || productDescriptions[index % productDescriptions.length];
+                    
                     return {
-                      image: imageUrl,
+                      image: img.url || img,
                       link: `/products/${index + 1}`,
-                      title: `${shuffledNames[index % shuffledNames.length]} ${productCode}`,
-                      description: productDescriptions[index % productDescriptions.length],
+                      title: `${title} ${code}`,
+                      description: description,
                     };
                   })
                 : products.length > 0 && products.filter((product) => product.image).length > 0
