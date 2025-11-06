@@ -281,8 +281,7 @@ export default function Home() {
           "@type": "Product",
           "name": product.name || "Çelik Takı",
           "description": product.description || "Zarif çelik takı",
-          "image": product.image || "https://kudatgroup.com/icon.png",
-          "url": `https://kudatgroup.com/products/${product._id}`
+          "image": product.image || "https://kudatgroup.com/icon.png"
         },
         "position": index + 1
       }))
@@ -405,25 +404,35 @@ export default function Home() {
         }} />
       </div>
       {/* iOS-style Header */}
-      <header className="fixed w-full z-50">
+      <header className="fixed w-full z-50 md:bg-transparent md:backdrop-blur-0 bg-white/80 backdrop-blur-sm md:border-0 border-b border-gray-100">
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-center md:justify-between h-24 px-6">
+          <div className="flex items-center justify-between h-16 sm:h-20 md:h-24 px-4 sm:px-6">
             <Link href="/" className="flex items-center">
               <Image 
                 src="/icon.png" 
                 alt="Kudat Group" 
                 width={500} 
                 height={166}
-                className="h-40 md:h-44 w-auto object-contain"
+                className="h-24 sm:h-32 md:h-40 lg:h-44 w-auto object-contain"
                 priority
               />
             </Link>
 
             {/* Desktop Menu */}
-            <nav className="flex items-center absolute right-6">
+            <nav className="hidden md:flex items-center absolute right-6">
               <Link 
                 href="/bulten-kayit" 
-                className="px-6 py-2.5 bg-gray-900 text-white text-sm font-light rounded-full hover:bg-gray-800 transition-colors"
+                className="px-4 sm:px-6 py-2 sm:py-2.5 bg-gray-900 text-white text-xs sm:text-sm font-light rounded-full hover:bg-gray-800 transition-colors"
+              >
+                Bülten
+              </Link>
+            </nav>
+
+            {/* Mobile Menu Button */}
+            <nav className="md:hidden flex items-center">
+              <Link 
+                href="/bulten-kayit" 
+                className="px-4 py-1.5 bg-gray-900 text-white text-xs font-light rounded-full hover:bg-gray-800 transition-colors"
               >
                 Bülten
               </Link>
@@ -509,11 +518,11 @@ export default function Home() {
         {/* Full width container - no max-width constraint */}
         <div className="w-full relative">
           {/* Center Column - Hero Content */}
-          <div className="text-center w-full relative z-10 px-6 lg:px-8 max-w-6xl mx-auto">
-            <h1 className="text-5xl md:text-7xl font-light tracking-wider mb-8 leading-[1.1] drop-shadow-lg" style={{ fontFamily: 'var(--font-cinzel), serif', letterSpacing: '0.15em' }}>
+          <div className="text-center w-full relative z-10 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto pt-16 sm:pt-20 md:pt-24">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-light tracking-wider mb-6 sm:mb-8 leading-[1.1] drop-shadow-lg" style={{ fontFamily: 'var(--font-cinzel), serif', letterSpacing: '0.15em' }}>
               <span className="bg-gradient-to-r from-black via-gray-900 to-black bg-clip-text text-transparent drop-shadow-md">Zarif, Modern, Şık</span>
             </h1>
-            <p className="text-lg md:text-xl max-w-2xl mx-auto mb-12 leading-relaxed font-semibold drop-shadow-lg">
+            <p className="text-sm sm:text-base md:text-lg lg:text-xl max-w-2xl mx-auto mb-8 sm:mb-10 md:mb-12 leading-relaxed font-semibold drop-shadow-lg px-2">
               <span className="bg-gradient-to-r from-black via-gray-900 to-black bg-clip-text text-transparent">
                 Çelik takı koleksiyonumuzla tarzınızı yansıtın. Dayanıklılık ve estetiğin buluştuğu özel tasarımlar.
               </span>
@@ -522,11 +531,11 @@ export default function Home() {
           {/* Statistics / Features */}
           <div 
             id="stats-section"
-            className="flex flex-wrap justify-center items-center gap-8 md:gap-12 mb-16"
+            className="flex flex-wrap justify-center items-center gap-4 sm:gap-6 md:gap-8 lg:gap-12 mb-10 sm:mb-12 md:mb-16"
           >
             <div className="text-center">
               <div 
-                className="text-3xl md:text-4xl font-light text-gray-900 mb-2 transition-all duration-1000 drop-shadow-md"
+                className="text-2xl sm:text-3xl md:text-4xl font-light text-gray-900 mb-1 sm:mb-2 transition-all duration-1000 drop-shadow-md"
                 style={{
                   opacity: statsVisible ? 1 : 0,
                   transform: statsVisible ? 'translateY(0)' : 'translateY(20px)',
@@ -534,12 +543,12 @@ export default function Home() {
               >
                 100+
               </div>
-              <div className="text-sm text-gray-700 font-light">Ürün Çeşidi</div>
+              <div className="text-xs sm:text-sm text-gray-700 font-light">Ürün Çeşidi</div>
             </div>
-            <div className="hidden md:block w-px h-12 bg-gray-300" />
+            <div className="hidden sm:block w-px h-8 sm:h-10 md:h-12 bg-gray-300" />
             <div className="text-center">
               <div 
-                className="text-3xl md:text-4xl font-light text-gray-900 mb-2 transition-all duration-1000 delay-200 drop-shadow-md"
+                className="text-2xl sm:text-3xl md:text-4xl font-light text-gray-900 mb-1 sm:mb-2 transition-all duration-1000 delay-200 drop-shadow-md"
                 style={{
                   opacity: statsVisible ? 1 : 0,
                   transform: statsVisible ? 'translateY(0)' : 'translateY(20px)',
@@ -547,12 +556,12 @@ export default function Home() {
               >
                 1000+
               </div>
-              <div className="text-sm text-gray-700 font-light">Mutlu Müşteri</div>
+              <div className="text-xs sm:text-sm text-gray-700 font-light">Mutlu Müşteri</div>
             </div>
-            <div className="hidden md:block w-px h-12 bg-gray-300" />
+            <div className="hidden sm:block w-px h-8 sm:h-10 md:h-12 bg-gray-300" />
             <div className="text-center">
               <div 
-                className="text-3xl md:text-4xl font-light text-gray-900 mb-2 transition-all duration-1000 delay-400 drop-shadow-md"
+                className="text-2xl sm:text-3xl md:text-4xl font-light text-gray-900 mb-1 sm:mb-2 transition-all duration-1000 delay-400 drop-shadow-md"
                 style={{
                   opacity: statsVisible ? 1 : 0,
                   transform: statsVisible ? 'translateY(0)' : 'translateY(20px)',
@@ -560,60 +569,60 @@ export default function Home() {
               >
                 10+
               </div>
-              <div className="text-sm text-gray-700 font-light">Yıl Deneyim</div>
+              <div className="text-xs sm:text-sm text-gray-700 font-light">Yıl Deneyim</div>
             </div>
           </div>
 
           {/* Features */}
-          <div className="flex flex-wrap justify-center gap-6 mb-16">
-            <div className="flex items-center gap-2 text-gray-800 text-sm font-medium bg-white/70 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm">
-              <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="flex flex-wrap justify-center gap-3 sm:gap-4 md:gap-6 mb-10 sm:mb-12 md:mb-16 px-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 text-gray-800 text-xs sm:text-sm font-medium bg-white/70 backdrop-blur-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-full shadow-sm">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
-              <span>Ücretsiz Kargo</span>
+              <span className="whitespace-nowrap">Ücretsiz Kargo</span>
             </div>
-            <div className="flex items-center gap-2 text-gray-800 text-sm font-medium bg-white/70 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm">
-              <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center gap-1.5 sm:gap-2 text-gray-800 text-xs sm:text-sm font-medium bg-white/70 backdrop-blur-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-full shadow-sm">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
-              <span>Güvenli Ödeme</span>
+              <span className="whitespace-nowrap">Güvenli Ödeme</span>
             </div>
-            <div className="flex items-center gap-2 text-gray-800 text-sm font-medium bg-white/70 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm">
-              <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center gap-1.5 sm:gap-2 text-gray-800 text-xs sm:text-sm font-medium bg-white/70 backdrop-blur-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-full shadow-sm">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
               </svg>
-              <span>Kalite Garantisi</span>
+              <span className="whitespace-nowrap">Kalite Garantisi</span>
             </div>
-            <div className="flex items-center gap-2 text-gray-800 text-sm font-medium bg-white/70 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm">
-              <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center gap-1.5 sm:gap-2 text-gray-800 text-xs sm:text-sm font-medium bg-white/70 backdrop-blur-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-full shadow-sm">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span>Özel Tasarım</span>
+              <span className="whitespace-nowrap">Özel Tasarım</span>
             </div>
           </div>
 
           {/* Cards */}
-          <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+          <div className="grid sm:grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 md:gap-6 max-w-3xl mx-auto px-4 sm:px-6 items-stretch">
             {/* Wholesale Card */}
             <TiltedCardWrapper href="/toptan-satis">
-              <div className="group relative overflow-hidden bg-white/90 backdrop-blur-md hover:bg-white rounded-[2rem] p-6 text-left transition-all duration-500 shadow-xl hover:shadow-2xl border border-white/50">
-                <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-blue-50 to-transparent rounded-full -mr-20 -mt-20 opacity-50" />
+              <div className="group relative overflow-hidden bg-white/90 backdrop-blur-md hover:bg-white rounded-2xl sm:rounded-[2rem] p-4 sm:p-5 md:p-6 text-left transition-all duration-500 shadow-xl hover:shadow-2xl border border-white/50 h-full flex flex-col">
+                <div className="absolute top-0 right-0 w-32 sm:w-40 h-32 sm:h-40 bg-gradient-to-br from-blue-50 to-transparent rounded-full -mr-16 sm:-mr-20 -mt-16 sm:-mt-20 opacity-50" />
                 
                 <div className="relative">
-                  <div className="w-14 h-14 bg-gradient-to-br from-gray-900 to-gray-700 rounded-[1.2rem] flex items-center justify-center mb-6 shadow-lg">
-                    <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-gray-900 to-gray-700 rounded-xl sm:rounded-[1.2rem] flex items-center justify-center mb-4 sm:mb-6 shadow-lg">
+                    <svg className="w-6 h-6 sm:w-7 sm:h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                     </svg>
                   </div>
                   
-                  <h3 className="text-2xl font-bold text-gray-900 mb-3 tracking-tight">Toptan Satış</h3>
-                  <p className="text-sm text-gray-500 mb-6 leading-relaxed font-light">
+                  <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 sm:mb-3 tracking-tight">Toptan Satış</h3>
+                  <p className="text-xs sm:text-sm text-gray-500 mb-4 sm:mb-6 leading-relaxed font-light flex-grow">
                     İşletmeniz için özel fiyatlar ve toplu alım avantajları
                   </p>
                   
-                  <div className="inline-flex items-center text-sm font-semibold text-gray-900">
+                  <div className="inline-flex items-center text-xs sm:text-sm font-semibold text-gray-900 mt-auto">
                     <span>Detayları Gör</span>
-                    <svg className="w-4 h-4 ml-2 group-hover:translate-x-2 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3 h-3 sm:w-4 sm:h-4 ml-2 group-hover:translate-x-2 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                     </svg>
                   </div>
@@ -623,24 +632,24 @@ export default function Home() {
 
             {/* Retail Card */}
             <TiltedCardWrapper href="/perakende-satis">
-              <div className="group relative overflow-hidden bg-gradient-to-br from-gray-900/95 to-gray-800/95 backdrop-blur-md hover:from-gray-900 hover:to-gray-800 rounded-[2rem] p-6 text-left transition-all duration-500 shadow-xl hover:shadow-2xl border border-gray-800/50">
-                <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-white/10 to-transparent rounded-full -mr-20 -mt-20" />
+              <div className="group relative overflow-hidden bg-gradient-to-br from-gray-900/95 to-gray-800/95 backdrop-blur-md hover:from-gray-900 hover:to-gray-800 rounded-2xl sm:rounded-[2rem] p-4 sm:p-5 md:p-6 text-left transition-all duration-500 shadow-xl hover:shadow-2xl border border-gray-800/50 h-full flex flex-col">
+                <div className="absolute top-0 right-0 w-32 sm:w-40 h-32 sm:h-40 bg-gradient-to-br from-white/10 to-transparent rounded-full -mr-16 sm:-mr-20 -mt-16 sm:-mt-20" />
                 
                 <div className="relative">
-                  <div className="w-14 h-14 bg-white rounded-[1.2rem] flex items-center justify-center mb-6 shadow-lg">
-                    <svg className="w-7 h-7 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white rounded-xl sm:rounded-[1.2rem] flex items-center justify-center mb-4 sm:mb-6 shadow-lg">
+                    <svg className="w-6 h-6 sm:w-7 sm:h-7 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                     </svg>
                   </div>
                   
-                  <h3 className="text-2xl font-bold text-white mb-3 tracking-tight">Perakende Satış</h3>
-                  <p className="text-sm text-gray-300 mb-6 leading-relaxed font-light">
+                  <h3 className="text-xl sm:text-2xl font-bold text-white mb-2 sm:mb-3 tracking-tight">Perakende Satış</h3>
+                  <p className="text-xs sm:text-sm text-gray-300 mb-4 sm:mb-6 leading-relaxed font-light flex-grow">
                     Özenle tasarlanmış koleksiyonumuzu keşfedin
                   </p>
                   
-                  <div className="inline-flex items-center text-sm font-semibold text-white">
+                  <div className="inline-flex items-center text-xs sm:text-sm font-semibold text-white mt-auto">
                     <span>Ürünleri İncele</span>
-                    <svg className="w-4 h-4 ml-2 group-hover:translate-x-2 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3 h-3 sm:w-4 sm:h-4 ml-2 group-hover:translate-x-2 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                     </svg>
                   </div>
@@ -653,19 +662,19 @@ export default function Home() {
       </section>
 
       {/* Products Collection - Infinite Menu */}
-      <section className="py-32 relative z-10 overflow-hidden w-full" style={{ backgroundColor: '#ffffff' }}>
+      <section className="py-16 sm:py-20 md:py-24 lg:py-32 relative z-10 overflow-hidden w-full" style={{ backgroundColor: '#ffffff' }}>
         <div className="w-full" style={{ backgroundColor: '#ffffff' }}>
           {/* Section Header */}
-          <div className="text-center mb-20 px-6">
-            <h2 className="text-5xl md:text-7xl font-light text-gray-900 tracking-tight mb-6">
+          <div className="text-center mb-12 sm:mb-16 md:mb-20 px-4 sm:px-6">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-light text-gray-900 tracking-tight mb-4 sm:mb-6">
               Koleksiyonumuz
             </h2>
-            <p className="text-lg md:text-xl text-gray-500 font-light max-w-2xl mx-auto leading-relaxed">
+            <p className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-500 font-light max-w-2xl mx-auto leading-relaxed px-2">
               Zarif çelik takı tasarımlarımızı keşfedin
             </p>
           </div>
 
-          <div className="w-full h-[80vh] min-h-[600px] max-h-[900px] px-6" style={{ backgroundColor: '#ffffff' }}>
+          <div className="w-full h-[60vh] sm:h-[70vh] md:h-[80vh] min-h-[400px] sm:min-h-[500px] md:min-h-[600px] max-h-[800px] sm:max-h-[900px] px-4 sm:px-6" style={{ backgroundColor: '#ffffff' }}>
             {(() => {
               // InfiniteMenu için items formatına dönüştür
               const productNames = [
@@ -782,25 +791,25 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="py-20 relative z-10">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-12 mb-16">
+      <footer className="py-12 sm:py-16 md:py-20 relative z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-8 sm:gap-10 md:gap-12 mb-12 sm:mb-14 md:mb-16">
             {/* Brand Section */}
-            <div className="md:col-span-5">
-              <h3 className="text-gray-900 text-2xl font-light mb-6 tracking-tight">Kudat Steel Jewelry</h3>
-              <p className="text-gray-500 text-sm leading-relaxed mb-8 max-w-sm">
+            <div className="sm:col-span-2 lg:col-span-5">
+              <h3 className="text-gray-900 text-xl sm:text-2xl font-light mb-4 sm:mb-6 tracking-tight">Kudat Steel Jewelry</h3>
+              <p className="text-gray-500 text-xs sm:text-sm leading-relaxed mb-6 sm:mb-8 max-w-sm">
                 Zarif çelik takı koleksiyonumuzla tarzınızı yansıtın.
               </p>
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-3 sm:gap-4">
                 <a 
                   href="mailto:kurumsal@kudatgroup.com" 
-                  className="text-gray-600 hover:text-gray-900 transition-colors text-sm font-light"
+                  className="text-gray-600 hover:text-gray-900 transition-colors text-xs sm:text-sm font-light break-all"
                 >
                   kurumsal@kudatgroup.com
                 </a>
                 <a 
                   href="tel:+905443576214" 
-                  className="text-gray-600 hover:text-gray-900 transition-colors text-sm font-light"
+                  className="text-gray-600 hover:text-gray-900 transition-colors text-xs sm:text-sm font-light"
                 >
                   +90 (544) 357 62 14
                 </a>
@@ -808,33 +817,30 @@ export default function Home() {
             </div>
 
             {/* Navigation Links */}
-            <div className="md:col-span-3">
-              <nav className="flex flex-col gap-4">
-                <Link href="/products" className="text-gray-500 hover:text-gray-900 transition-colors text-sm font-light">
-                  Ürünler
-                </Link>
-                <Link href="/perakende-satis" className="text-gray-500 hover:text-gray-900 transition-colors text-sm font-light">
+            <div className="sm:col-span-1 lg:col-span-3">
+              <nav className="flex flex-col gap-3 sm:gap-4">
+                <Link href="/perakende-satis" className="text-gray-500 hover:text-gray-900 transition-colors text-xs sm:text-sm font-light">
                   Perakende Satış
                 </Link>
-                <Link href="/toptan-satis" className="text-gray-500 hover:text-gray-900 transition-colors text-sm font-light">
+                <Link href="/toptan-satis" className="text-gray-500 hover:text-gray-900 transition-colors text-xs sm:text-sm font-light">
                   Toptan Satış
                 </Link>
-                <Link href="/bulten-kayit" className="text-gray-500 hover:text-gray-900 transition-colors text-sm font-light">
+                <Link href="/bulten-kayit" className="text-gray-500 hover:text-gray-900 transition-colors text-xs sm:text-sm font-light">
                   Bülten Kaydı
                 </Link>
               </nav>
             </div>
 
             {/* Legal Links */}
-            <div className="md:col-span-4">
-              <nav className="flex flex-col gap-4">
-                <Link href="/privacy-policy" className="text-gray-500 hover:text-gray-900 transition-colors text-sm font-light">
+            <div className="sm:col-span-1 lg:col-span-4">
+              <nav className="flex flex-col gap-3 sm:gap-4">
+                <Link href="/privacy-policy" className="text-gray-500 hover:text-gray-900 transition-colors text-xs sm:text-sm font-light">
                   Gizlilik Politikası
                 </Link>
-                <Link href="/terms-of-service" className="text-gray-500 hover:text-gray-900 transition-colors text-sm font-light">
+                <Link href="/terms-of-service" className="text-gray-500 hover:text-gray-900 transition-colors text-xs sm:text-sm font-light">
                   Kullanım Koşulları
                 </Link>
-                <Link href="/data-deletion" className="text-gray-500 hover:text-gray-900 transition-colors text-sm font-light">
+                <Link href="/data-deletion" className="text-gray-500 hover:text-gray-900 transition-colors text-xs sm:text-sm font-light">
                   Veri Silme Talebi
                 </Link>
               </nav>
@@ -842,8 +848,8 @@ export default function Home() {
           </div>
 
           {/* Copyright */}
-          <div className="pt-8">
-            <p className="text-gray-400 text-xs font-light">
+          <div className="pt-6 sm:pt-8">
+            <p className="text-gray-400 text-xs font-light text-center sm:text-left">
               © {new Date().getFullYear()} Kudat Group
             </p>
           </div>

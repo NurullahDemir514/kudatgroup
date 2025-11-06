@@ -344,9 +344,6 @@ export default function PerakendeSatis() {
                             {/* Navigation Links */}
                             <div className="md:col-span-3">
                                 <nav className="flex flex-col gap-4">
-                                    <Link href="/products" className="text-gray-500 hover:text-gray-900 transition-colors text-sm font-light">
-                                        Ürünler
-                                    </Link>
                                     <Link href="/perakende-satis" className="text-gray-500 hover:text-gray-900 transition-colors text-sm font-light">
                                         Perakende Satış
                                     </Link>

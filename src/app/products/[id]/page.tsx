@@ -151,11 +151,11 @@ export default function ProductDetailPage() {
                     dangerouslySetInnerHTML={{ __html: JSON.stringify(productStructuredData) }}
                 />
             )}
-            <header className="fixed w-full z-40 bg-transparent">
+            <header className="fixed w-full z-40 md:bg-transparent bg-white/80 backdrop-blur-sm md:border-0 border-b border-gray-100">
                 <div className="container mx-auto">
-                    <div className="flex items-center justify-between py-4 px-4 md:px-6">
-                        <Link href="/" className="relative z-10">
-                            <h1 className="text-2xl font-bold">
+                    <div className="flex items-center justify-start md:justify-between py-3 sm:py-4 px-4 md:px-6">
+                        <Link href="/" className="relative z-10 md:mx-auto">
+                            <h1 className="text-lg sm:text-xl md:text-2xl font-bold">
                                 <span className="text-[var(--text-primary)]">Kudat Steel Jewelry</span>
                             </h1>
                         </Link>
@@ -165,13 +165,14 @@ export default function ProductDetailPage() {
                             <button
                                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                                 className="p-2 rounded-md border border-[var(--border-medium)] bg-[var(--primary-medium)] text-[var(--text-primary)]"
+                                aria-label="Menüyü aç/kapat"
                             >
                                 {!mobileMenuOpen ? (
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                                     </svg>
                                 ) : (
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                     </svg>
                                 )}
@@ -179,20 +180,17 @@ export default function ProductDetailPage() {
                         </div>
 
                         {/* Desktop menu */}
-                        <nav className="hidden md:flex items-center space-x-6">
-                            <Link href="/" className="text-[var(--text-primary)] hover:text-[var(--accent-silver)] transition-colors font-medium">
+                        <nav className="hidden md:flex items-center space-x-4 lg:space-x-6">
+                            <Link href="/" className="text-sm lg:text-base text-[var(--text-primary)] hover:text-[var(--accent-silver)] transition-colors font-medium">
                                 Ana Sayfa
                             </Link>
-                            <Link href="/products" className="text-[var(--text-primary)] hover:text-[var(--accent-silver)] transition-colors font-medium">
-                                Ürünler
-                            </Link>
-                            <Link href="/perakende-satis" className="text-[var(--text-primary)] hover:text-[var(--accent-silver)] transition-colors font-medium">
+                            <Link href="/perakende-satis" className="text-sm lg:text-base text-[var(--text-primary)] hover:text-[var(--accent-silver)] transition-colors font-medium">
                                 Perakende Satış
                             </Link>
-                            <Link href="/toptan-satis" className="text-[var(--text-primary)] hover:text-[var(--accent-silver)] transition-colors font-medium">
+                            <Link href="/toptan-satis" className="text-sm lg:text-base text-[var(--text-primary)] hover:text-[var(--accent-silver)] transition-colors font-medium">
                                 Toptan Satış
                             </Link>
-                            <Link href="/bulten-kayit" className="text-[var(--text-primary)] hover:text-[var(--accent-silver)] transition-colors font-medium">
+                            <Link href="/bulten-kayit" className="text-sm lg:text-base text-[var(--text-primary)] hover:text-[var(--accent-silver)] transition-colors font-medium">
                                 Bülten
                             </Link>
                         </nav>
@@ -207,13 +205,6 @@ export default function ProductDetailPage() {
                                 onClick={() => setMobileMenuOpen(false)}
                             >
                                 Ana Sayfa
-                            </Link>
-                            <Link
-                                href="/products"
-                                className="text-[var(--text-primary)] hover:text-[var(--accent-silver)] transition-colors py-2 px-3 rounded-md hover:bg-[var(--primary-medium)]"
-                                onClick={() => setMobileMenuOpen(false)}
-                            >
-                                Ürünler
                             </Link>
                             <Link
                                 href="/perakende-satis"

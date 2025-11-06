@@ -13,10 +13,22 @@ export default function ToptanSatis() {
 
     const onSubmit = async (data: any) => {
         try {
-            // API bağlantısı kurulduğunda burada form gönderimi yapılacak
-            console.log("Form data:", data);
-            setSubmitted(true);
             setError("");
+            const response = await fetch('/api/toptan-satis', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data),
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                setSubmitted(true);
+            } else {
+                setError(result.error || 'Bilgileriniz gönderilirken bir hata oluştu. Lütfen tekrar deneyin.');
+            }
         } catch (error) {
             console.error("Formda hata:", error);
             setError("Bilgileriniz gönderilirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.");
@@ -128,22 +140,36 @@ export default function ToptanSatis() {
                                     </svg>
                                 </div>
                                 <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 tracking-tight" style={{ fontFamily: 'var(--font-playfair-display), serif' }}>
-                                    Toptan Satış Platformu
+                                    Toptan Satış
                                 </h1>
-                                <div className="flex justify-center items-center mb-4">
-                                    <div className="px-4 py-1.5 rounded-full bg-gray-100 border border-gray-200">
-                                        <div className="flex items-center space-x-2">
-                                            <span className="relative flex h-3 w-3">
-                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-gray-400 opacity-75"></span>
-                                                <span className="relative inline-flex rounded-full h-3 w-3 bg-gray-500"></span>
-                                            </span>
-                                            <span className="text-sm font-medium text-gray-700">Çok Yakında</span>
-                                        </div>
-                                    </div>
-                                </div>
                                 <p className="text-gray-600 max-w-md mx-auto leading-relaxed font-light">
-                                    Toptan satış platformumuz şu anda geliştirme aşamasındadır. Lansman tarihimiz yaklaştığında bilgilendirilmek için lütfen iletişim bilgilerinizi bırakın.
+                                    Toptan satış için özel fiyatlar ve avantajlı koşullar. İşletmeniz için en uygun çözümü sunuyoruz.
                                 </p>
+                            </div>
+
+                            {/* Toptan Satış Platform Link Section */}
+                            <div className="mb-8 p-6 rounded-2xl bg-gradient-to-br from-gray-50 to-white border border-gray-200 shadow-sm">
+                                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                                    <div className="flex-1 text-center sm:text-left">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                                            Toptan Satış Mağazamız
+                                        </h3>
+                                        <p className="text-sm text-gray-600 font-light">
+                                            Toptan satış platformumuza erişmek ve ürünlerimizi incelemek için tıklayın.
+                                        </p>
+                                    </div>
+                                    <a
+                                        href="https://www.kudatsteeljewerly.com/"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="px-6 py-3 rounded-lg bg-gray-900 text-white font-medium hover:bg-gray-800 transition-colors shadow-lg hover:shadow-xl flex items-center justify-center whitespace-nowrap"
+                                    >
+                                        <span>Ziyaret Et</span>
+                                        <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                        </svg>
+                                    </a>
+                                </div>
                             </div>
 
                             {!submitted ? (
@@ -222,13 +248,13 @@ export default function ToptanSatis() {
 
                                     <div>
                                         <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
-                                            Notlar (İsteğe bağlı)
+                                            Mesajınız (İsteğe bağlı)
                                         </label>
                                         <textarea
                                             id="message"
                                             rows={4}
                                             className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all resize-none"
-                                            placeholder="Ürün çeşitleri, sipariş hacimleri veya diğer sorularınız..."
+                                            placeholder="Ürün çeşitleri, sipariş hacimleri, özel istekleriniz veya sorularınız..."
                                             {...register("message")}
                                         ></textarea>
                                     </div>
@@ -264,7 +290,7 @@ export default function ToptanSatis() {
                                             type="submit"
                                             className="w-full px-6 py-3 rounded-lg bg-gray-900 text-white font-medium hover:bg-gray-800 transition-colors shadow-lg hover:shadow-xl flex items-center justify-center"
                                         >
-                                            <span>Bilgi Almak İstiyorum</span>
+                                            <span>İletişime Geç</span>
                                             <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                             </svg>
@@ -282,7 +308,7 @@ export default function ToptanSatis() {
                                         Teşekkürler!
                                     </h2>
                                     <p className="text-gray-600 mb-6 leading-relaxed font-light">
-                                        Bilgileriniz başarıyla kaydedildi. Toptan satış platformumuz hazır olduğunda sizinle iletişime geçeceğiz.
+                                        Bilgileriniz başarıyla kaydedildi. En kısa sürede sizinle iletişime geçeceğiz.
                                     </p>
                                     <Link
                                         href="/"
@@ -325,9 +351,6 @@ export default function ToptanSatis() {
                             {/* Navigation Links */}
                             <div className="md:col-span-3">
                                 <nav className="flex flex-col gap-4">
-                                    <Link href="/products" className="text-gray-500 hover:text-gray-900 transition-colors text-sm font-light">
-                                        Ürünler
-                                    </Link>
                                     <Link href="/perakende-satis" className="text-gray-500 hover:text-gray-900 transition-colors text-sm font-light">
                                         Perakende Satış
                                     </Link>
