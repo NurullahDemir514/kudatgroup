@@ -404,7 +404,7 @@ export default function Home() {
         }} />
       </div>
       {/* iOS-style Header */}
-      <header className="fixed w-full z-50 md:bg-transparent md:backdrop-blur-0 bg-white/80 backdrop-blur-sm md:border-0 border-b border-gray-100">
+      <header className="fixed w-full z-50 md:bg-transparent bg-white/80 md:border-0 border-b border-gray-100">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between h-16 sm:h-20 md:h-24 px-4 sm:px-6">
             <Link href="/" className="flex items-center">

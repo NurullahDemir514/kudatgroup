@@ -14,6 +14,7 @@ export default function robots(): MetadataRoute.Robots {
           '/firebase-setup/',
           '/_next/',
           '/private/',
+          '/products', // Products list sayfasını engelle
         ],
       },
     ],

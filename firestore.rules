@@ -57,5 +57,10 @@ service cloud.firestore {
     match /collectionImages/{document} {
       allow read, write: if true; // API'den erişim için geçici olarak açık
     }
+    
+    // Toptan Satış form kayıtları - API'den yazma, admin'den okuma
+    match /toptanSatis/{document} {
+      allow read, write: if true; // API'den erişim için geçici olarak açık
+    }
   }
 }

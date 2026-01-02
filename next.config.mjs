@@ -6,7 +6,8 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  output: 'standalone', // DigitalOcean App Platform için optimize edilmiş build
+  // Vercel için output: 'standalone' gerekli değil (otomatik optimize eder)
+  // DigitalOcean için gerekirse manuel olarak eklenebilir
 }
 
 export default nextConfig 
