@@ -126,7 +126,7 @@ export default function RootLayout({
         <link rel="preload" as="image" href="/products/6.jpg" fetchPriority="high" />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${playfairDisplay.variable} ${cinzel.variable} antialiased bg-white text-gray-900`}
+        className={`${geistSans.variable} ${geistMono.variable} ${playfairDisplay.variable} ${cinzel.variable} overflow-x-hidden antialiased bg-white text-gray-900`}
         style={{ backgroundColor: '#ffffff', color: '#171717' }}
       >
         <AuthProvider>{children}</AuthProvider>
