@@ -258,3 +258,80 @@ h6 {
     transform: rotate(360deg);
   }
 }
+
+@keyframes progressShine {
+  0% {
+    transform: translateX(0);
+  }
+
+  55%,
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+.home-ready-logo {
+  animation: logoBreath 5.5s ease-in-out infinite;
+}
+
+@keyframes logoBreath {
+  0%,
+  100% {
+    filter: brightness(1);
+    opacity: 0.98;
+  }
+
+  50% {
+    filter: brightness(1.08);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-ready-logo {
+    animation: none;
+  }
+}
+
+@media (min-width: 640px) and (max-height: 820px) {
+  .home-ready-section {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  .home-ready-logo {
+    width: 320px;
+  }
+
+  .home-ready-content {
+    padding-top: 0;
+    padding-bottom: 8px;
+  }
+
+  .home-ready-title {
+    margin-top: 12px;
+    font-size: 48px;
+  }
+
+  .home-ready-copy {
+    margin-top: 12px;
+    max-width: 360px;
+    font-size: 15px;
+    line-height: 1.55;
+  }
+
+  .home-ready-progress {
+    margin-top: 12px;
+    max-width: 320px;
+  }
+
+  .home-ready-badges {
+    margin-top: 12px;
+    gap: 8px;
+  }
+
+  .home-ready-badge {
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+}
