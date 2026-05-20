@@ -3,14 +3,14 @@
 node_modules/
 *.tsbuildinfo
 
-1.png
-2.png
-3.png
-4.png
-5.png
-6.png
-kudattr.png
+/1.png
+/2.png
+/3.png
+/4.png
+/5.png
+/6.png
+/kudattr.png
 
-export-newsletters.js
-newsletter-subscribers.json
-public/products/.cursor/
+/export-newsletters.js
+/newsletter-subscribers.json
+/public/products/.cursor/
