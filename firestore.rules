@@ -16,6 +16,15 @@ service cloud.firestore {
       allow read: if true;
       allow write: if true; // API'den erişim için geçici olarak açık
     }
+
+    // Dijital katalog kategori ve ürünleri
+    match /catalog_categories/{document} {
+      allow read, write: if true; // API'den erişim için geçici olarak açık
+    }
+
+    match /catalog_products/{document} {
+      allow read, write: if true; // API'den erişim için geçici olarak açık
+    }
     
     // Customers koleksiyonu - API'den erişim
     match /customers/{document} {
@@ -60,6 +69,11 @@ service cloud.firestore {
     
     // Toptan Satış form kayıtları - API'den yazma, admin'den okuma
     match /toptanSatis/{document} {
+      allow read, write: if true; // API'den erişim için geçici olarak açık
+    }
+
+    // Admin giriş kodu ayarları - API üzerinden yönetilir
+    match /admin_settings/{document} {
       allow read, write: if true; // API'den erişim için geçici olarak açık
     }
   }

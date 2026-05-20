@@ -1,44 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { cookieName, verifyAdminSessionToken } from "@/lib/admin-session";
 
 export async function middleware(req: NextRequest) {
     const pathname = req.nextUrl.pathname;
 
-    // Tasarım ve katalog kurulum aşamasında yeni admin ekranları doğrudan açılır.
-    // Canlıya çıkmadan önce bu allowlist kaldırılıp auth tekrar zorunlu yapılabilir.
-    const publicAdminPaths = ["/admin", "/admin/catalog", "/admin/orders"];
-    if (publicAdminPaths.includes(pathname)) {
-        return NextResponse.next();
-    }
-
-    // Admin sayfaları için kontrol
     if (pathname.startsWith("/admin")) {
-        // Login sayfası kontrolü
         const isLoginPage = pathname === "/admin/login";
+        const isAuthenticated = await verifyAdminSessionToken(
+            req.cookies.get(cookieName)?.value
+        );
 
-        // JWT token kontrolü - kullanıcı giriş yapmış mı?
-        const token = await getToken({
-            req,
-            secret: process.env.NEXTAUTH_SECRET || "gizli-anahtar-bulten-admin-panel"
-        });
-
-        const isAuthenticated = !!token;
-
-        // 1. Kullanıcı giriş yapmamış ve login sayfasında değilse - Login sayfasına yönlendir
         if (!isAuthenticated && !isLoginPage) {
             const url = new URL("/admin/login", req.url);
             return NextResponse.redirect(url);
         }
 
-        // 2. Kullanıcı giriş yapmış ve login sayfasındaysa - Admin ana sayfasına yönlendir
         if (isAuthenticated && isLoginPage) {
             const url = new URL("/admin", req.url);
-            return NextResponse.redirect(url);
-        }
-
-        // 3. Kullanıcı admin değilse - Ana sayfaya yönlendir
-        if (isAuthenticated && token.role !== "admin" && !isLoginPage) {
-            const url = new URL("/", req.url);
             return NextResponse.redirect(url);
         }
     }

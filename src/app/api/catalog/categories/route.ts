@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   getAdminCatalogCategories,
-  saveAdminCatalogCategories,
   type AdminCatalogCategory,
 } from "@/services/catalogCategoryService";
 
@@ -22,7 +21,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  await saveAdminCatalogCategories(categories);
-
-  return NextResponse.json({ success: true, data: categories });
+  return NextResponse.json(
+    {
+      success: false,
+      error:
+        "Toplu kategori kaydı kaldırıldı. Katalog yönetimi için /api/admin/catalog kullanın.",
+    },
+    { status: 410 }
+  );
 }

@@ -1,6 +1,14 @@
-import { collection, getDocs } from "firebase/firestore";
-import { mkdir, readFile, writeFile } from "fs/promises";
-import path from "path";
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
   buildCatalogTree,
@@ -12,14 +20,16 @@ import {
 type FirestoreCatalogCategory = Omit<CatalogCategoryRecord, "id">;
 
 const collectionName = "catalog_categories";
-const catalogReadTimeoutMs = 1200;
-const localCatalogFile = path.join(process.cwd(), ".data", "catalog-categories.json");
 
 export type AdminCatalogCategory = {
   id: string;
-  name: string;
+  title: string;
+  slug: string;
   parentId: string | null;
-  image?: string;
+  description?: string;
+  imageSrc?: string;
+  order: number;
+  isActive: boolean;
 };
 
 const toCatalogCategoryRecord = (
@@ -43,19 +53,8 @@ const toCatalogCategoryRecord = (
 };
 
 export async function getCatalogTree(): Promise<CatalogNode[]> {
-  const localTree = await getLocalCatalogTree();
-  if (localTree.length) return localTree;
-
   try {
-    const snapshot = await Promise.race([
-      getDocs(collection(db, collectionName)),
-      new Promise<never>((_, reject) => {
-        setTimeout(
-          () => reject(new Error("Katalog kategori okuma zaman aşımına uğradı")),
-          catalogReadTimeoutMs
-        );
-      }),
-    ]);
+    const snapshot = await getDocs(query(collection(db, collectionName)));
     const records = snapshot.docs
       .map((document) =>
         toCatalogCategoryRecord(
@@ -76,33 +75,62 @@ export async function getCatalogTree(): Promise<CatalogNode[]> {
 }
 
 export async function getAdminCatalogCategories(): Promise<AdminCatalogCategory[]> {
-  try {
-    const content = await readFile(localCatalogFile, "utf-8");
-    const parsed = JSON.parse(content) as AdminCatalogCategory[];
+  const snapshot = await getDocs(query(collection(db, collectionName)));
 
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
+  return snapshot.docs
+    .map((document) => {
+      const data = document.data() as Partial<FirestoreCatalogCategory> & {
+        slug?: string;
+      };
+
+      return {
+        id: document.id,
+        title: data.title ?? "",
+        slug: data.slug ?? document.id,
+        parentId: data.parentId ?? null,
+        description: data.description,
+        imageSrc: data.imageSrc,
+        order: typeof data.order === "number" ? data.order : 0,
+        isActive: data.isActive !== false,
+      };
+    })
+    .sort((first, second) => first.order - second.order);
+}
+
+export async function createAdminCatalogCategory(
+  category: Omit<AdminCatalogCategory, "id">
+) {
+  let id = category.slug;
+  let suffix = 2;
+
+  while ((await getDoc(doc(db, collectionName, id))).exists()) {
+    id = `${category.slug}-${suffix}`;
+    suffix += 1;
   }
+
+  await setDoc(doc(db, collectionName, id), {
+    ...category,
+    slug: id,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+
+  return { id, ...category, slug: id };
 }
 
-export async function saveAdminCatalogCategories(categories: AdminCatalogCategory[]) {
-  await mkdir(path.dirname(localCatalogFile), { recursive: true });
-  await writeFile(localCatalogFile, JSON.stringify(categories, null, 2), "utf-8");
+export async function updateAdminCatalogCategory(
+  id: string,
+  category: Partial<Omit<AdminCatalogCategory, "id">>
+) {
+  await updateDoc(doc(db, collectionName, id), {
+    ...category,
+    updatedAt: serverTimestamp(),
+  });
+
+  return { id, ...category };
 }
 
-async function getLocalCatalogTree(): Promise<CatalogNode[]> {
-  const categories = await getAdminCatalogCategories();
-  if (!categories.length) return [];
-
-  return buildCatalogTree(
-    categories.map((category, index) => ({
-      id: category.id,
-      title: category.name,
-      parentId: category.parentId,
-      imageSrc: category.image,
-      order: index,
-      isActive: true,
-    }))
-  );
+export async function deleteAdminCatalogCategory(id: string) {
+  await deleteDoc(doc(db, collectionName, id));
+  return true;
 }

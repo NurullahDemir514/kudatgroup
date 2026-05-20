@@ -19,9 +19,10 @@ type CategoryBrowserProps = {
   categories: CatalogNode[];
   currentNode?: CatalogNode | null;
   path?: string[];
+  products?: CatalogProduct[];
 };
 
-type CatalogProduct = {
+export type CatalogProduct = {
   id: string;
   name: string;
   code: string;
@@ -30,6 +31,8 @@ type CatalogProduct = {
   compareAtPrice?: number;
   stock: number;
   isNew?: boolean;
+  categoryId?: string;
+  isActive?: boolean;
 };
 
 type ProductQuantities = Record<string, number>;
@@ -263,10 +266,22 @@ function ProductCard({
   );
 }
 
-function ProductCatalogView({ category }: { category: CatalogNode }) {
+function ProductCatalogView({
+  category,
+  products: sourceProducts,
+}: {
+  category: CatalogNode;
+  products?: CatalogProduct[];
+}) {
   const router = useRouter();
   const pathname = usePathname();
-  const products = useMemo(() => createProductsForCategory(category), [category]);
+  const products = useMemo(() => {
+    const categoryProducts = (sourceProducts ?? []).filter(
+      (product) => product.categoryId === category.id && product.isActive !== false
+    );
+
+    return categoryProducts.length ? categoryProducts : createProductsForCategory(category);
+  }, [category, sourceProducts]);
   const [quantities, setQuantities] = useState<ProductQuantities>({});
   const [query, setQuery] = useState("");
 
@@ -546,6 +561,7 @@ export function CategoryBrowser({
   categories,
   currentNode,
   path = [],
+  products = [],
 }: CategoryBrowserProps) {
   const clientCategories = categories;
   const activeCurrentNode = useMemo(() => {
@@ -606,7 +622,10 @@ export function CategoryBrowser({
                 path={path}
                 isRoot={false}
               />
-              <ProductCatalogView category={activeCurrentNode} />
+              <ProductCatalogView
+                category={activeCurrentNode}
+                products={products}
+              />
             </>
           ) : visibleCategories.length ? (
             <>

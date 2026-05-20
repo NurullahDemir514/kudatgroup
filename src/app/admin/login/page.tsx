@@ -1,246 +1,107 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { signIn } from "next-auth/react";
-import { loginSchema, LoginFormValues } from "@/schemas/authSchemas";
-import { Suspense } from 'react';
+import { FormEvent, Suspense, useState } from "react";
+import { useRouter } from "next/navigation";
 
-// Login içeriğini ayrı bir bileşene taşıyoruz
 function LoginContent() {
-    const router = useRouter();
-    const searchParams = useSearchParams();
-    const [error, setError] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+  const [code, setCode] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-    const {
-        register,
-        handleSubmit,
-        formState: { errors },
-    } = useForm<LoginFormValues>({
-        resolver: zodResolver(loginSchema),
-        defaultValues: {
-            username: "",
-            password: "",
-        },
-    });
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    setIsLoading(true);
 
-    const onSubmit = async (data: LoginFormValues) => {
-        setIsLoading(true);
-        setError(null);
+    try {
+      const response = await fetch("/api/admin/access/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      const result = await response.json();
 
-        try {
-            const result = await signIn("credentials", {
-                redirect: false,
-                username: data.username,
-                password: data.password,
-            });
+      if (!response.ok || !result.success) {
+        setError(result.error || "Giriş kodu hatalı");
+        setIsLoading(false);
+        return;
+      }
 
-            if (result?.error) {
-                setError("Geçersiz kullanıcı adı veya şifre");
-                setIsLoading(false);
-                return;
-            }
+      router.replace("/admin");
+      router.refresh();
+    } catch {
+      setError("Giriş yapılamadı. Lütfen tekrar deneyin.");
+      setIsLoading(false);
+    }
+  };
 
-            router.push("/admin");
-        } catch (error) {
-            setError("Bir hata oluştu. Lütfen tekrar deneyin.");
-            setIsLoading(false);
-        }
-    };
+  return (
+    <main className="min-h-screen bg-[#f8f6f2] text-black">
+      <section className="mx-auto flex min-h-screen w-full max-w-md flex-col px-5 py-6">
+        <header className="flex justify-center pt-4">
+          <img
+            src="/kudattr.png"
+            alt="Kudat Bijuteri"
+            className="h-auto w-[190px] object-contain"
+          />
+        </header>
 
-    return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-4 login-container">
-            {/* Arka plan desenler ve blob efektleri */}
-            <div className="login-blob" style={{ top: '20%', left: '10%', width: '300px', height: '300px', background: 'var(--accent-gold)', opacity: 0.15 }}></div>
-            <div className="login-blob" style={{ bottom: '30%', right: '15%', width: '250px', height: '250px', background: 'var(--accent-silver)', opacity: 0.15 }}></div>
-            <div className="login-blob" style={{ top: '60%', left: '25%', width: '200px', height: '200px', background: '#606060', opacity: 0.1, animation: 'float 6s ease-in-out infinite' }}></div>
+        <div className="flex flex-1 items-center">
+          <div className="w-full">
+            <p className="text-center text-[11px] font-semibold uppercase tracking-[0.26em] text-black/34">
+              Yönetim Girişi
+            </p>
+            <h1 className="mt-4 text-center text-[38px] font-semibold leading-[0.96] tracking-[-0.06em]">
+              Katalog paneline erişin.
+            </h1>
+            <p className="mx-auto mt-5 max-w-[320px] text-center text-[15px] leading-6 tracking-[-0.02em] text-black/48">
+              Size iletilen yönetim kodunu girerek katalog, ürün ve sipariş
+              alanlarını yönetebilirsiniz.
+            </p>
 
-            <div className="w-full max-w-md relative">
-                {/* Logo ve başlık */}
-                <div className="absolute -top-20 left-1/2 transform -translate-x-1/2 w-28 h-28 bg-gradient-to-br from-gray-800 to-gray-900 rounded-full flex items-center justify-center shadow-lg border border-gray-700 z-10" style={{ animation: 'pulse 3s infinite ease-in-out' }}>
-                    <div className="text-2xl font-serif text-transparent bg-clip-text bg-gradient-to-r from-gray-300 via-white to-gray-400">KS</div>
-                </div>
+            <form onSubmit={submit} className="mt-9 space-y-4">
+              <label className="block">
+                <span className="mb-2 block text-[13px] font-medium text-black/48">
+                  Yönetim Kodu
+                </span>
+                <input
+                  value={code}
+                  onChange={(event) => setCode(event.target.value)}
+                  autoFocus
+                  autoComplete="one-time-code"
+                  inputMode="text"
+                  placeholder="Kodu girin"
+                  className="h-14 w-full rounded-full border border-black/10 bg-white/70 px-5 text-center text-[18px] font-semibold tracking-[0.08em] text-black outline-none transition placeholder:text-black/24 focus:border-black/25 focus:bg-white"
+                  disabled={isLoading}
+                />
+              </label>
 
-                {/* Kart bileşeni */}
-                <div className="login-card rounded-xl overflow-hidden shadow-2xl">
-                    {/* Üst kısım */}
-                    <div className="pt-16 pb-6 px-8 bg-gradient-to-b from-gray-800/30 to-transparent">
-                        <h1 className="login-title text-3xl font-serif font-bold text-center">
-                            Kudat Steel Jewelry
-                        </h1>
-                        <p className="mt-1 text-center text-gray-400 text-sm">
-                            Yönetim Paneli
-                        </p>
-                    </div>
+              {error ? (
+                <p className="rounded-2xl bg-red-50 px-4 py-3 text-center text-sm font-medium text-red-600">
+                  {error}
+                </p>
+              ) : null}
 
-                    {/* Giriş formu */}
-                    <div className="p-8">
-                        {error && (
-                            <div className="login-error mb-6 rounded-lg bg-red-500/10 backdrop-blur-sm p-4 border border-red-800/50 flex items-center text-sm text-red-400">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                </svg>
-                                <span>{error}</span>
-                            </div>
-                        )}
-
-                        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                            <div className="space-y-5">
-                                <div className="relative group">
-                                    <div className="relative">
-                                        <label htmlFor="username" className="block text-sm font-medium text-gray-400 mb-1.5 ml-1">
-                                            Kullanıcı Adı
-                                        </label>
-                                        <div className="relative">
-                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                                </svg>
-                                            </div>
-                                            <input
-                                                id="username"
-                                                type="text"
-                                                {...register("username")}
-                                                className={`login-input block w-full pl-10 pr-4 py-2.5 text-white rounded-lg ${errors.username ? "border-red-500/50" : "border-gray-700"}`}
-                                                placeholder="Kullanıcı adınızı girin"
-                                                disabled={isLoading}
-                                            />
-                                        </div>
-                                        {errors.username && (
-                                            <p className="mt-1.5 text-xs text-red-400 ml-1 animate-fadeIn">
-                                                {errors.username.message}
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div className="relative group">
-                                    <div className="relative">
-                                        <label htmlFor="password" className="block text-sm font-medium text-gray-400 mb-1.5 ml-1">
-                                            Şifre
-                                        </label>
-                                        <div className="relative">
-                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                                </svg>
-                                            </div>
-                                            <input
-                                                id="password"
-                                                type="password"
-                                                {...register("password")}
-                                                className={`login-input block w-full pl-10 pr-4 py-2.5 text-white rounded-lg ${errors.password ? "border-red-500/50" : "border-gray-700"}`}
-                                                placeholder="Şifrenizi girin"
-                                                disabled={isLoading}
-                                            />
-                                        </div>
-                                        {errors.password && (
-                                            <p className="mt-1.5 text-xs text-red-400 ml-1 animate-fadeIn">
-                                                {errors.password.message}
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <button
-                                type="submit"
-                                disabled={isLoading}
-                                className="login-button relative w-full px-5 py-2.5 rounded-lg font-medium text-gray-900"
-                            >
-                                {isLoading ? (
-                                    <div className="flex items-center justify-center">
-                                        <div className="spinner mr-2"></div>
-                                        <span>Giriş yapılıyor...</span>
-                                    </div>
-                                ) : (
-                                    <span>Giriş Yap</span>
-                                )}
-                            </button>
-                        </form>
-                    </div>
-
-                    {/* Alt bilgi */}
-                    <div className="border-t border-gray-800 py-4 text-center text-xs text-gray-500">
-                        © {new Date().getFullYear()} Kudat Steel Jewelry. Tüm hakları saklıdır.
-                    </div>
-                </div>
-            </div>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="h-14 w-full rounded-full bg-black text-[15px] font-semibold text-white transition active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-black/35"
+              >
+                {isLoading ? "Kontrol ediliyor..." : "Panele gir"}
+              </button>
+            </form>
+          </div>
         </div>
-    );
+      </section>
+    </main>
+  );
 }
 
-// Ana bileşen sadece Suspense ile LoginContent'i sarar
 export default function LoginPage() {
-    return (
-        <Suspense fallback={
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-                <div className="text-center">
-                    <div className="spinner mx-auto"></div>
-                    <p className="mt-4 text-gray-400">Yükleniyor...</p>
-                </div>
-            </div>
-        }>
-            <LoginContent />
-        </Suspense>
-    );
+  return (
+    <Suspense fallback={null}>
+      <LoginContent />
+    </Suspense>
+  );
 }
-
-// Özel stil tanımlamaları için bu CSS kodunu style.css dosyasına veya global css dosyasına ekleyin
-/*
-@keyframes blob {
-  0% {
-    transform: translate(0px, 0px) scale(1);
-  }
-  33% {
-    transform: translate(30px, -50px) scale(1.1);
-  }
-  66% {
-    transform: translate(-20px, 20px) scale(0.9);
-  }
-  100% {
-    transform: translate(0px, 0px) scale(1);
-  }
-}
-
-@keyframes shine {
-  from {
-    left: -100%;
-  }
-  to {
-    left: 100%;
-  }
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.animate-blob {
-  animation: blob 7s infinite;
-}
-
-.animation-delay-2000 {
-  animation-delay: 2s;
-}
-
-.animation-delay-4000 {
-  animation-delay: 4s;
-}
-
-.animate-shine {
-  animation: shine 1.2s linear infinite;
-}
-
-.animate-fadeIn {
-  animation: fadeIn 0.3s ease-out;
-}
-*/

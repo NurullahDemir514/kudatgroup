@@ -12,11 +12,11 @@ export default function Home() {
           <img
             src="/kudattr.png"
             alt="Kudat Bijuteri"
-            className="h-auto w-[220px] object-contain sm:w-[260px]"
+            className="h-auto w-[634px] max-w-full object-contain sm:w-[420px]"
           />
         </header>
 
-        <div className="flex flex-1 flex-col justify-center py-12 sm:py-16">
+        <div className="flex flex-1 flex-col justify-start pt-5 pb-8 sm:pt-7 sm:pb-12">
           <div className="mx-auto w-full max-w-[520px] text-center">
             <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-black/36">
               Yakında Hizmetinizde
@@ -45,6 +45,11 @@ export default function Home() {
           </div>
         </div>
 
+        <footer className="pb-2 text-center">
+          <p className="text-[12px] font-medium tracking-[-0.01em] text-black/34">
+            Faturalı | Yasal Satış
+          </p>
+        </footer>
       </section>
     </main>
   );
