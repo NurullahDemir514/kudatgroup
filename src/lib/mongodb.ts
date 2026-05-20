@@ -1,11 +1,5 @@
 import mongoose from 'mongoose';
 
-if (!process.env.MONGODB_URI) {
-    throw new Error('MONGODB_URI ortam değişkeni tanımlanmamış');
-}
-
-const MONGODB_URI = process.env.MONGODB_URI;
-
 /**
  * Global değişken - bağlantı durumunu saklar
  */
@@ -26,6 +20,12 @@ if (!cached) {
  * Veritabanına bağlantı kurar
  */
 export async function connectToDatabase() {
+    const mongoUri = process.env.MONGODB_URI;
+
+    if (!mongoUri) {
+        throw new Error('MONGODB_URI ortam değişkeni tanımlanmamış');
+    }
+
     if (cached.conn) {
         console.log('MongoDB bağlantısı mevcut');
         return cached.conn;
@@ -37,7 +37,7 @@ export async function connectToDatabase() {
         };
 
         mongoose.set('strictQuery', true);
-        cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
+        cached.promise = mongoose.connect(mongoUri, opts).then((mongoose) => {
             console.log('MongoDB\'ye başarıyla bağlanıldı!');
             return mongoose.connection;
         });
