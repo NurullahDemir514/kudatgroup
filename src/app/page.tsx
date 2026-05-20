@@ -6,9 +6,9 @@ const previewItems = [
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-[#f8f6f2] text-black">
-      <section className="mx-auto flex min-h-screen w-full max-w-2xl flex-col px-5 py-5 sm:px-8 sm:py-8">
-        <header className="flex justify-center">
+    <main className="h-screen overflow-hidden bg-[#f8f6f2] text-black supports-[height:100dvh]:h-[100dvh]">
+      <section className="mx-auto flex h-full w-full max-w-2xl flex-col px-5 py-4 sm:px-8 sm:py-8">
+        <header className="flex shrink-0 justify-center">
           <img
             src="/kudattr.png"
             alt="Kudat Bijuteri"
@@ -16,7 +16,7 @@ export default function Home() {
           />
         </header>
 
-        <div className="flex flex-1 flex-col justify-start pt-5 pb-8 sm:pt-7 sm:pb-12">
+        <div className="flex min-h-0 flex-1 flex-col justify-center pt-3 pb-5 sm:pt-7 sm:pb-10">
           <div className="mx-auto w-full max-w-[520px] text-center">
             <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-black/36">
               Yakında Hizmetinizde
@@ -32,7 +32,7 @@ export default function Home() {
               talebinizi pratik bir şekilde iletebileceksiniz.
             </p>
 
-            <div className="mt-9 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+            <div className="mt-6 grid grid-cols-1 gap-2 sm:mt-9 sm:grid-cols-3 sm:gap-2.5">
               {previewItems.map((item) => (
                 <div
                   key={item}
@@ -45,7 +45,7 @@ export default function Home() {
           </div>
         </div>
 
-        <footer className="pb-2 text-center">
+        <footer className="shrink-0 pb-1 text-center">
           <p className="text-[12px] font-medium tracking-[-0.01em] text-black/34">
             Faturalı | Yasal Satış
           </p>
