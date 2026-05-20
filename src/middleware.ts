@@ -4,6 +4,13 @@ import { getToken } from "next-auth/jwt";
 export async function middleware(req: NextRequest) {
     const pathname = req.nextUrl.pathname;
 
+    // Tasarım ve katalog kurulum aşamasında yeni admin ekranları doğrudan açılır.
+    // Canlıya çıkmadan önce bu allowlist kaldırılıp auth tekrar zorunlu yapılabilir.
+    const publicAdminPaths = ["/admin", "/admin/catalog", "/admin/orders"];
+    if (publicAdminPaths.includes(pathname)) {
+        return NextResponse.next();
+    }
+
     // Admin sayfaları için kontrol
     if (pathname.startsWith("/admin")) {
         // Login sayfası kontrolü

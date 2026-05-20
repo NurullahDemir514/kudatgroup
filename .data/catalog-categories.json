@@ -1,0 +1,203 @@
+[
+  {
+    "id": "celik-urunlerimiz",
+    "name": "ÇELİK ÜRÜNLERİMİZ",
+    "parentId": null,
+    "image": "/catalog/categories/category-01-steel-family.png"
+  },
+  {
+    "id": "celik-urunlerimiz-kolye",
+    "name": "KOLYE",
+    "parentId": "celik-urunlerimiz",
+    "image": "/catalog/categories/category-04-steel-necklaces.png"
+  },
+  {
+    "id": "celik-urunlerimiz-bileklik",
+    "name": "BİLEKLİK",
+    "parentId": "celik-urunlerimiz",
+    "image": "/catalog/categories/category-03-steel-bracelets.png"
+  },
+  {
+    "id": "celik-urunlerimiz-kupe",
+    "name": "KÜPE",
+    "parentId": "celik-urunlerimiz",
+    "image": "/catalog/categories/category-02-steel-earrings.png"
+  },
+  {
+    "id": "celik-urunlerimiz-yuzuk",
+    "name": "YÜZÜK",
+    "parentId": "celik-urunlerimiz"
+  },
+  {
+    "id": "celik-urunlerimiz-kelepce",
+    "name": "KELEPÇE",
+    "parentId": "celik-urunlerimiz"
+  },
+  {
+    "id": "ysx-urunlerimiz",
+    "name": "YSX ÜRÜNLERİMİZ",
+    "parentId": null,
+    "image": "/catalog/categories/category-05-ysx.png"
+  },
+  {
+    "id": "ysx-urunlerimiz-kolye",
+    "name": "KOLYE",
+    "parentId": "ysx-urunlerimiz",
+    "image": "/catalog/categories/category-04-steel-necklaces.png"
+  },
+  {
+    "id": "ysx-urunlerimiz-bileklik",
+    "name": "BİLEKLİK",
+    "parentId": "ysx-urunlerimiz",
+    "image": "/catalog/categories/category-03-steel-bracelets.png"
+  },
+  {
+    "id": "ysx-urunlerimiz-kupe",
+    "name": "KÜPE",
+    "parentId": "ysx-urunlerimiz",
+    "image": "/catalog/categories/category-02-steel-earrings.png"
+  },
+  {
+    "id": "ysx-urunlerimiz-yuzuk",
+    "name": "YÜZÜK",
+    "parentId": "ysx-urunlerimiz"
+  },
+  {
+    "id": "ysx-urunlerimiz-kelepce",
+    "name": "KELEPÇE",
+    "parentId": "ysx-urunlerimiz"
+  },
+  {
+    "id": "xuping-urunlerimiz",
+    "name": "XUPİNG ÜRÜNLERİMİZ",
+    "parentId": null
+  },
+  {
+    "id": "xuping-urunlerimiz-kolye",
+    "name": "KOLYE",
+    "parentId": "xuping-urunlerimiz",
+    "image": "/catalog/categories/category-04-steel-necklaces.png"
+  },
+  {
+    "id": "xuping-urunlerimiz-bileklik",
+    "name": "BİLEKLİK",
+    "parentId": "xuping-urunlerimiz",
+    "image": "/catalog/categories/category-03-steel-bracelets.png"
+  },
+  {
+    "id": "xuping-urunlerimiz-kupe",
+    "name": "KÜPE",
+    "parentId": "xuping-urunlerimiz",
+    "image": "/catalog/categories/category-02-steel-earrings.png"
+  },
+  {
+    "id": "xuping-urunlerimiz-yuzuk",
+    "name": "YÜZÜK",
+    "parentId": "xuping-urunlerimiz"
+  },
+  {
+    "id": "xuping-urunlerimiz-kelepce",
+    "name": "KELEPÇE",
+    "parentId": "xuping-urunlerimiz"
+  },
+  {
+    "id": "cm-urunlerimiz",
+    "name": "CM ÜRÜNLERİMİZ",
+    "parentId": null
+  },
+  {
+    "id": "cm-urunlerimiz-kolye",
+    "name": "KOLYE",
+    "parentId": "cm-urunlerimiz",
+    "image": "/catalog/categories/category-04-steel-necklaces.png"
+  },
+  {
+    "id": "cm-urunlerimiz-bileklik",
+    "name": "BİLEKLİK",
+    "parentId": "cm-urunlerimiz",
+    "image": "/catalog/categories/category-03-steel-bracelets.png"
+  },
+  {
+    "id": "cm-urunlerimiz-kupe",
+    "name": "KÜPE",
+    "parentId": "cm-urunlerimiz",
+    "image": "/catalog/categories/category-02-steel-earrings.png"
+  },
+  {
+    "id": "cm-urunlerimiz-yuzuk",
+    "name": "YÜZÜK",
+    "parentId": "cm-urunlerimiz"
+  },
+  {
+    "id": "cm-urunlerimiz-kelepce",
+    "name": "KELEPÇE",
+    "parentId": "cm-urunlerimiz"
+  },
+  {
+    "id": "bijuteri-urunlerimiz",
+    "name": "BİJUTERİ ÜRÜNLERİMİZ",
+    "parentId": null
+  },
+  {
+    "id": "bijuteri-urunlerimiz-kolye",
+    "name": "KOLYE",
+    "parentId": "bijuteri-urunlerimiz",
+    "image": "/catalog/categories/category-04-steel-necklaces.png"
+  },
+  {
+    "id": "bijuteri-urunlerimiz-bileklik",
+    "name": "BİLEKLİK",
+    "parentId": "bijuteri-urunlerimiz",
+    "image": "/catalog/categories/category-03-steel-bracelets.png"
+  },
+  {
+    "id": "bijuteri-urunlerimiz-kupe",
+    "name": "KÜPE",
+    "parentId": "bijuteri-urunlerimiz",
+    "image": "/catalog/categories/category-02-steel-earrings.png"
+  },
+  {
+    "id": "bijuteri-urunlerimiz-yuzuk",
+    "name": "YÜZÜK",
+    "parentId": "bijuteri-urunlerimiz"
+  },
+  {
+    "id": "bijuteri-urunlerimiz-kelepce",
+    "name": "KELEPÇE",
+    "parentId": "bijuteri-urunlerimiz"
+  },
+  {
+    "id": "vip-urunlerimiz",
+    "name": "VIP ÜRÜNLERİMİZ",
+    "parentId": null,
+    "image": "/catalog/categories/category-06-vip-series.png"
+  },
+  {
+    "id": "vip-urunlerimiz-kolye",
+    "name": "KOLYE",
+    "parentId": "vip-urunlerimiz",
+    "image": "/catalog/categories/category-04-steel-necklaces.png"
+  },
+  {
+    "id": "vip-urunlerimiz-bileklik",
+    "name": "BİLEKLİK",
+    "parentId": "vip-urunlerimiz",
+    "image": "/catalog/categories/category-03-steel-bracelets.png"
+  },
+  {
+    "id": "vip-urunlerimiz-kupe",
+    "name": "KÜPE",
+    "parentId": "vip-urunlerimiz",
+    "image": "/catalog/categories/category-06-vip-series.png"
+  },
+  {
+    "id": "vip-urunlerimiz-yuzuk",
+    "name": "YÜZÜK",
+    "parentId": "vip-urunlerimiz"
+  },
+  {
+    "id": "vip-urunlerimiz-kelepce",
+    "name": "KELEPÇE",
+    "parentId": "vip-urunlerimiz"
+  }
+]

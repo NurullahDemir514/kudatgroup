@@ -247,7 +247,7 @@ export default function CollectionImagesPage() {
                         <div>
                             <h1 className="text-3xl font-bold text-gray-900">Koleksiyon Görselleri Yönetimi</h1>
                             <p className="text-gray-600 mt-2">
-                                Ana sayfa koleksiyon bölümündeki görselleri yönetin. Tüm görseller InfiniteMenu'de gösterilir.
+                                Koleksiyon görsellerini yönetin. Yeni tasarımda kullanılacak görseller burada tutulur.
                             </p>
                         </div>
                         <button
@@ -445,4 +445,3 @@ export default function CollectionImagesPage() {
         </div>
     );
 }
-
