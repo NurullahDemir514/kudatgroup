@@ -4,6 +4,14 @@ const defaultEndpoint =
   "https://us-central1-qanta-de0b9.cloudfunctions.net/createKudatWholesaleOrder";
 const defaultBusinessId = "tvuoVQFqrE5kweIXP0jn";
 
+function publicBaseUrl(request: NextRequest) {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  if (configured) {
+    return configured.startsWith("http") ? configured : `https://${configured}`;
+  }
+  return request.nextUrl.origin;
+}
+
 type KudatOrderItem = {
   id?: string;
   name?: string;
@@ -32,6 +40,10 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const items = Array.isArray(body.items) ? (body.items as KudatOrderItem[]) : [];
+    const trackingToken = cleanText(body.trackingToken);
+    const trackingUrl = trackingToken
+      ? `${publicBaseUrl(request)}/siparis-takip/${encodeURIComponent(trackingToken)}`
+      : "";
     const response = await fetch(endpoint, {
       method: "POST",
       headers: {
@@ -41,6 +53,8 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         businessId,
         externalOrderId: cleanText(body.id),
+        trackingToken,
+        trackingUrl,
         orderDate: cleanText(body.createdAt) || new Date().toISOString(),
         customer: body.customer ?? {},
         items: items.map((item) => ({
@@ -65,7 +79,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ success: true, data });
+    return NextResponse.json({
+      success: true,
+      data: {
+        ...data,
+        trackingToken: data.trackingToken || trackingToken,
+        trackingUrl: data.trackingUrl || trackingUrl,
+      },
+    });
   } catch (error) {
     return NextResponse.json(
       {

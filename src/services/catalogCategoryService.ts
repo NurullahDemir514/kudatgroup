@@ -82,24 +82,27 @@ export async function getCatalogTree(): Promise<CatalogNode[]> {
 export async function getAdminCatalogCategories(): Promise<AdminCatalogCategory[]> {
   const snapshot = await getDocs(query(collection(db, collectionName)));
 
-  return snapshot.docs
-    .map((document) => {
+  const categories: AdminCatalogCategory[] = [];
+
+  snapshot.docs.forEach((document) => {
       const data = document.data() as Partial<FirestoreCatalogCategory> & {
         slug?: string;
       };
+      if (!data.title || typeof data.title !== "string") return;
 
-      return {
+      categories.push({
         id: document.id,
-        title: data.title ?? "",
+        title: data.title,
         slug: data.slug ?? document.id,
         parentId: data.parentId ?? null,
         description: data.description,
         imageSrc: data.imageSrc,
         order: typeof data.order === "number" ? data.order : 0,
         isActive: data.isActive !== false,
-      };
-    })
-    .sort((first, second) => first.order - second.order);
+      });
+    });
+
+  return categories.sort((first, second) => first.order - second.order);
 }
 
 export async function createAdminCatalogCategory(

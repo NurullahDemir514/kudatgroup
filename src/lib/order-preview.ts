@@ -34,6 +34,8 @@ export type SubmittedOrder = {
   id: string;
   createdAt: string;
   status: "new" | "reviewed";
+  trackingToken?: string;
+  trackingUrl?: string;
   categoryTitle: string;
   customer: CustomerInfo;
   items: OrderPreviewItem[];

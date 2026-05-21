@@ -9,6 +9,7 @@ const navItems = [
     { name: "Panel", path: "/admin", exact: true },
     { name: "Katalog", path: "/admin/catalog" },
     { name: "Ürünler", path: "/admin/products" },
+    { name: "Ana Sayfa", path: "/admin/home" },
     { name: "Siparişler", path: "/admin/orders" },
     { name: "Ayarlar", path: "/admin/settings" },
 ];

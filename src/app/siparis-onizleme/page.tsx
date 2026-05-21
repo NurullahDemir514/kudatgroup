@@ -93,6 +93,14 @@ function saveSubmittedOrder(order: SubmittedOrder) {
   }
 }
 
+function createTrackingToken() {
+  const randomId =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  return randomId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 32);
+}
+
 function QuantityControl({
   item,
   onChange,
@@ -183,6 +191,7 @@ export default function OrderPreviewPage() {
   const [customer, setCustomer] = useState<CustomerInfo>(emptyCustomer);
   const [rememberedPhone, setRememberedPhone] = useState<string | null>(null);
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
+  const [createdTrackingUrl, setCreatedTrackingUrl] = useState<string | null>(null);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);
 
@@ -244,6 +253,7 @@ export default function OrderPreviewPage() {
       id: `KDT-${Date.now().toString(36).toUpperCase()}`,
       createdAt: new Date().toISOString(),
       status: "new",
+      trackingToken: createTrackingToken(),
       categoryTitle: draft.categoryTitle,
       customer,
       items: draft.items,
@@ -265,10 +275,12 @@ export default function OrderPreviewPage() {
       }
 
       saveCustomerToCache(customer);
+      const trackingUrl = result?.data?.trackingUrl || (order.trackingToken ? `/siparis-takip/${order.trackingToken}` : "");
       saveSubmittedOrder(order);
       window.sessionStorage.removeItem(orderPreviewStorageKey);
       window.localStorage.removeItem(cartStorageKey);
       setCreatedOrderId(order.id);
+      setCreatedTrackingUrl(trackingUrl || null);
     } catch (error) {
       setOrderError(
         error instanceof Error ? error.message : "Sipariş oluşturulamadı."
@@ -315,11 +327,19 @@ export default function OrderPreviewPage() {
             <p className="text-[12px] font-semibold uppercase tracking-[0.2em] text-black/36">Sipariş alındı</p>
             <h1 className="mt-3 text-[34px] font-medium leading-none tracking-[-0.06em]">{createdOrderId}</h1>
             <p className="mx-auto mt-4 max-w-xs text-[14px] leading-6 text-black/48">
-              Siparişiniz bize ulaştı. Ekibimiz en kısa sürede sizinle iletişime geçecek.
+              Siparişiniz bize ulaştı. Durum güncellemelerini sipariş takip ekranından izleyebilirsiniz.
             </p>
-            <Link href="/" className="mt-8 inline-flex rounded-full bg-black px-5 py-3 text-[14px] font-semibold text-white">
-              Kataloğa dön
-            </Link>
+            <div className="mt-8 flex flex-col items-center gap-3">
+              <Link
+                href={createdTrackingUrl || "/"}
+                className="inline-flex rounded-full bg-black px-5 py-3 text-[14px] font-semibold text-white"
+              >
+                Siparişi takip et
+              </Link>
+              <Link href="/" className="text-[14px] font-semibold text-black/42">
+                Kataloğa dön
+              </Link>
+            </div>
           </div>
         </section>
       </main>
