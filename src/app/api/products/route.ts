@@ -1,6 +1,79 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { productService } from '@/services/firebaseServices';
 import { getAdminCatalogProducts } from '@/services/catalogProductService';
+import {
+    getAdminCatalogCategories,
+    type AdminCatalogCategory,
+} from '@/services/catalogCategoryService';
+
+const categoryWordMap: Record<string, string> = {
+    bijuteri: 'Bijuteri',
+    bujiteri: 'Bijuteri',
+    celik: 'Çelik',
+    yuzuk: 'Yüzük',
+    kupe: 'Küpe',
+    bileklik: 'Bileklik',
+    kolye: 'Kolye',
+    xuping: 'Xuping',
+};
+
+function cleanCategoryTitle(value: string) {
+    const normalized = value
+        .trim()
+        .replace(/[_-]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .replace(/\b[uü]r[uü]nlerimiz\b/gi, '')
+        .trim();
+
+    if (!normalized) return '';
+
+    return normalized
+        .split(' ')
+        .map((word) => {
+            const key = word.toLocaleLowerCase('tr-TR');
+            const mapped = categoryWordMap[key];
+            if (mapped) return mapped;
+            return `${key.charAt(0).toLocaleUpperCase('tr-TR')}${key.slice(1)}`;
+        })
+        .join(' ')
+        .trim();
+}
+
+function categoryPathFor(
+    categoryId: string,
+    categoriesById: Map<string, AdminCatalogCategory>
+) {
+    const path: string[] = [];
+    const visited = new Set<string>();
+    let currentId = categoryId.trim();
+
+    while (currentId && !visited.has(currentId)) {
+        visited.add(currentId);
+        const category = categoriesById.get(currentId);
+        if (!category) break;
+        const title = cleanCategoryTitle(category.title || category.slug || category.id);
+        if (title) path.unshift(title);
+        currentId = category.parentId ?? '';
+    }
+
+    if (!path.length && categoryId.trim()) {
+        const fallback = cleanCategoryTitle(categoryId);
+        if (fallback) path.push(fallback);
+    }
+
+    if (path.length >= 2) {
+        const main = path[0];
+        return path.map((item, index) => {
+            if (index === 0) return item;
+            const prefix = `${main} `;
+            return item.toLocaleLowerCase('tr-TR').startsWith(prefix.toLocaleLowerCase('tr-TR'))
+                ? item.slice(prefix.length).trim()
+                : item;
+        }).filter(Boolean);
+    }
+
+    return path;
+}
 
 // Tüm ürünleri getir
 export async function GET(request: NextRequest) {
@@ -11,25 +84,43 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ success: true, data: legacyProducts });
         }
 
-        const [legacyProducts, catalogProducts] = await Promise.all([
+        const [legacyProducts, catalogProducts, catalogCategories] = await Promise.all([
             productService.getAll(),
             getAdminCatalogProducts(),
+            getAdminCatalogCategories(),
         ]);
+        const categoriesById = new Map(
+            catalogCategories.map((category) => [category.id, category])
+        );
         const mappedCatalogProducts = catalogProducts
             .filter((product) => product.isActive !== false)
-            .map((product) => ({
-                id: product.id,
-                name: product.name,
-                code: product.code,
-                category: product.categoryId,
-                image: product.imageSrc || '',
-                wholesalePrice: product.purchasePrice || 0,
-                salePrice: product.price || 0,
-                stock: product.stock || 0,
-                supplier: product.supplier || '',
-                source: 'catalog',
-                catalogId: product.id,
-            }));
+            .map((product) => {
+                const categoryPath = categoryPathFor(product.categoryId, categoriesById);
+                const mainCategory = categoryPath[0] ?? '';
+                const subCategory = categoryPath.length > 1
+                    ? categoryPath[categoryPath.length - 1]
+                    : '';
+
+                return {
+                    id: product.id,
+                    name: product.name,
+                    code: product.code,
+                    category: categoryPath.join(' / ') || product.categoryId,
+                    categoryId: product.categoryId,
+                    categoryPath,
+                    categoryMain: mainCategory,
+                    mainCategory,
+                    categoryTitle: subCategory || mainCategory,
+                    subCategory,
+                    image: product.imageSrc || '',
+                    wholesalePrice: product.purchasePrice || 0,
+                    salePrice: product.price || 0,
+                    stock: product.stock || 0,
+                    supplier: product.supplier || '',
+                    source: 'catalog',
+                    catalogId: product.id,
+                };
+            });
         const products = mappedCatalogProducts.length
             ? mappedCatalogProducts
             : legacyProducts;

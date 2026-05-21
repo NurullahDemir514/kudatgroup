@@ -284,7 +284,7 @@ function ProductCard({
               type="button"
               aria-label="Görseli kapat"
               onClick={() => setIsImageExpanded(false)}
-              className="absolute right-2 top-2 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/92 text-[20px] font-medium text-black shadow-sm backdrop-blur"
+              className="absolute right-2 top-2 z-10 flex h-10 w-10 items-center justify-center text-[22px] font-medium text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.55)]"
             >
               ×
             </button>
