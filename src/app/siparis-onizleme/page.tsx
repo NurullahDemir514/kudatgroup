@@ -183,6 +183,8 @@ export default function OrderPreviewPage() {
   const [customer, setCustomer] = useState<CustomerInfo>(emptyCustomer);
   const [rememberedPhone, setRememberedPhone] = useState<string | null>(null);
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
+  const [isCreatingOrder, setIsCreatingOrder] = useState(false);
+  const [orderError, setOrderError] = useState<string | null>(null);
 
   useEffect(() => {
     const savedDraft =
@@ -234,8 +236,8 @@ export default function OrderPreviewPage() {
     setRememberedPhone(cachedCustomer ? phone : null);
   };
 
-  const createOrder = () => {
-    if (!draft || !draft.items.length) return;
+  const createOrder = async () => {
+    if (!draft || !draft.items.length || isCreatingOrder) return;
 
     const order: SubmittedOrder = {
       id: `KDT-${Date.now().toString(36).toUpperCase()}`,
@@ -248,11 +250,31 @@ export default function OrderPreviewPage() {
       totalAmount: orderTotal(draft.items),
     };
 
-    saveCustomerToCache(customer);
-    saveSubmittedOrder(order);
-    window.sessionStorage.removeItem(orderPreviewStorageKey);
-    window.localStorage.removeItem(cartStorageKey);
-    setCreatedOrderId(order.id);
+    setIsCreatingOrder(true);
+    setOrderError(null);
+    try {
+      const response = await fetch("/api/qanta-wholesale-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(order),
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || result?.success !== true) {
+        throw new Error(result?.error || "Sipariş Qanta'ya gönderilemedi.");
+      }
+
+      saveCustomerToCache(customer);
+      saveSubmittedOrder(order);
+      window.sessionStorage.removeItem(orderPreviewStorageKey);
+      window.localStorage.removeItem(cartStorageKey);
+      setCreatedOrderId(order.id);
+    } catch (error) {
+      setOrderError(
+        error instanceof Error ? error.message : "Sipariş oluşturulamadı."
+      );
+    } finally {
+      setIsCreatingOrder(false);
+    }
   };
 
   if (!draft && !createdOrderId) {
@@ -434,6 +456,12 @@ export default function OrderPreviewPage() {
           </div>
         </div>
 
+        {orderError ? (
+          <p className="mt-5 rounded-2xl bg-red-50 px-4 py-3 text-[13px] font-medium leading-5 text-red-700">
+            {orderError}
+          </p>
+        ) : null}
+
         {activeDraft.items.length ? (
           <div className="sticky bottom-4 z-30 mt-8 rounded-[28px] border border-black/10 bg-[#111] p-3 text-white shadow-[0_18px_60px_rgba(0,0,0,0.24)]">
             <div className="flex items-center justify-between gap-3">
@@ -443,9 +471,10 @@ export default function OrderPreviewPage() {
               <button
                 type="button"
                 onClick={createOrder}
-                className="shrink-0 rounded-full bg-white px-5 py-3 text-[14px] font-semibold text-black transition active:scale-[0.98]"
+                disabled={isCreatingOrder}
+                className="shrink-0 rounded-full bg-white px-5 py-3 text-[14px] font-semibold text-black transition active:scale-[0.98] disabled:opacity-60"
               >
-                Siparişi oluştur
+                {isCreatingOrder ? "Gönderiliyor" : "Siparişi oluştur"}
               </button>
             </div>
           </div>
