@@ -169,8 +169,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             <main
                 className={
                     isCatalogAdmin
-                        ? "h-[calc(100vh-65px)] w-full overflow-hidden"
-                        : "mx-auto h-[calc(100vh-65px)] w-full max-w-7xl overflow-hidden px-4 py-3 sm:px-8 sm:py-4"
+                        ? "w-full"
+                        : "mx-auto w-full max-w-7xl px-4 py-3 sm:px-8 sm:py-4"
                 }
             >
                 {children}

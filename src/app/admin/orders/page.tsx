@@ -61,60 +61,76 @@ export default function AdminOrdersPage() {
         </div>
       </div>
 
-      <div className="mt-8 grid gap-4">
+      <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {orders.map((order) => (
           <article
             key={order.id}
-            className="rounded-[28px] bg-white/74 p-5 ring-1 ring-black/6"
+            className="flex min-h-[300px] flex-col rounded-[26px] bg-white/82 p-5 ring-1 ring-black/6"
           >
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div>
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-black/35">
                   {order.id}
                 </p>
-                <h2 className="mt-2 text-xl font-semibold tracking-[-0.035em]">
+                <h2 className="mt-2 truncate text-xl font-semibold tracking-[-0.035em]">
                   {order.customer.fullName || "İsimsiz müşteri"}
                 </h2>
-                <p className="mt-1 text-sm text-black/45">
-                  {order.customer.phone || "Telefon yok"} ·{" "}
-                  {order.customer.district || "Adres bölgesi yok"}
+                <p className="mt-1 line-clamp-2 text-sm leading-5 text-black/45">
+                  {order.customer.phone || "Telefon yok"}
+                  {order.customer.district ? ` · ${order.customer.district}` : ""}
                 </p>
               </div>
-              <div className="text-left sm:text-right">
+              <div className="shrink-0 text-right">
                 <p className="text-sm font-semibold">{formatPrice(order.totalAmount)}</p>
-                <p className="mt-1 text-xs text-black/38">
-                  {order.totalQuantity} adet · {formatDate(order.createdAt)}
-                </p>
+                <p className="mt-1 text-xs text-black/38">{order.totalQuantity} adet</p>
               </div>
             </div>
 
-            <div className="mt-5 grid gap-2">
+            <p className="mt-4 text-xs font-medium text-black/35">
+              {formatDate(order.createdAt)}
+            </p>
+
+            <div className="mt-4 grid gap-2.5">
               {order.items.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between gap-3 text-sm"
+                  className="grid grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl bg-black/[0.025] p-2 text-sm"
                 >
-                  <p className="min-w-0 truncate text-black/62">
-                    {item.quantity} adet · {item.name}
+                  <img
+                    src={item.imageSrc}
+                    alt={item.name}
+                    className="aspect-square rounded-xl bg-black/[0.04] object-cover"
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold tracking-[-0.02em] text-black/78">
+                      {item.name}
+                    </p>
+                    <p className="mt-0.5 truncate text-xs font-medium text-black/38">
+                      {item.quantity} adet · {item.code || "Kodsuz"} · {formatPrice(item.price)}
+                    </p>
+                  </div>
+                  <p className="shrink-0 text-right text-sm font-semibold">
+                    {formatPrice(item.price * item.quantity)}
                   </p>
-                  <p className="shrink-0 font-medium">{formatPrice(item.price)}</p>
                 </div>
               ))}
             </div>
 
             {(formatCustomerAddress(order.customer) || order.customer.note) && (
-              <div className="mt-5 grid gap-2 border-t border-black/8 pt-4 text-sm leading-6 text-black/52">
+              <div className="mt-auto grid gap-2 border-t border-black/8 pt-4 text-sm leading-6 text-black/52">
                 {formatCustomerAddress(order.customer) ? (
-                  <p>{formatCustomerAddress(order.customer)}</p>
+                  <p className="line-clamp-2">{formatCustomerAddress(order.customer)}</p>
                 ) : null}
-                {order.customer.note ? <p>Not: {order.customer.note}</p> : null}
+                {order.customer.note ? (
+                  <p className="line-clamp-2">Not: {order.customer.note}</p>
+                ) : null}
               </div>
             )}
           </article>
         ))}
 
         {!orders.length ? (
-          <div className="rounded-[32px] bg-white/60 px-6 py-12 text-center ring-1 ring-black/5">
+          <div className="md:col-span-2 xl:col-span-3 py-16 text-center">
             <p className="text-lg font-semibold tracking-[-0.03em]">
               Henüz sipariş yok
             </p>

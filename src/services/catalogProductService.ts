@@ -5,6 +5,7 @@ import {
   doc,
   getDocs,
   query,
+  runTransaction,
   serverTimestamp,
   updateDoc,
 } from "firebase/firestore";
@@ -32,6 +33,11 @@ export type AdminCatalogProduct = {
   isActive: boolean;
 };
 
+export type CatalogStockAdjustmentItem = {
+  id: string;
+  quantity: number;
+};
+
 export async function getAdminCatalogProducts(): Promise<AdminCatalogProduct[]> {
   const snapshot = await getDocs(query(collection(db, collectionName)));
 
@@ -57,6 +63,84 @@ export async function getAdminCatalogProducts(): Promise<AdminCatalogProduct[]> 
       };
     })
     .sort((first, second) => first.order - second.order);
+}
+
+export async function adjustAdminCatalogProductStock({
+  adjustmentId,
+  items,
+  source,
+}: {
+  adjustmentId: string;
+  items: CatalogStockAdjustmentItem[];
+  source: string;
+}) {
+  const cleanAdjustmentId = adjustmentId.trim();
+  if (!cleanAdjustmentId) throw new Error("Stok hareketi kimliği zorunludur");
+
+  const groupedItems = new Map<string, number>();
+  for (const item of items) {
+    const id = item.id.trim();
+    const quantity = Math.floor(Number(item.quantity) || 0);
+    if (!id || quantity <= 0) continue;
+    groupedItems.set(id, (groupedItems.get(id) ?? 0) + quantity);
+  }
+  const cleanItems = Array.from(groupedItems.entries()).map(([id, quantity]) => ({
+    id,
+    quantity,
+  }));
+
+  if (!cleanItems.length) throw new Error("Stok düşülecek ürün bulunamadı");
+
+  const adjustmentRef = doc(db, "catalog_stock_adjustments", cleanAdjustmentId);
+
+  return runTransaction(db, async (transaction) => {
+    const previousAdjustment = await transaction.get(adjustmentRef);
+    if (previousAdjustment.exists()) {
+      return { alreadyApplied: true };
+    }
+
+    const productSnapshots = await Promise.all(
+      cleanItems.map(async (item) => {
+        const ref = doc(db, collectionName, item.id);
+        return {
+          item,
+          ref,
+          snapshot: await transaction.get(ref),
+        };
+      })
+    );
+
+    for (const entry of productSnapshots) {
+      if (!entry.snapshot.exists()) {
+        throw new Error(`Ürün bulunamadı: ${entry.item.id}`);
+      }
+
+      const data = entry.snapshot.data() as Partial<AdminCatalogProduct>;
+      const currentStock = typeof data.stock === "number" ? data.stock : 0;
+      if (currentStock < entry.item.quantity) {
+        throw new Error(
+          `Yetersiz stok: ${data.name || entry.item.id}. Mevcut: ${currentStock}, İstenen: ${entry.item.quantity}`
+        );
+      }
+    }
+
+    for (const entry of productSnapshots) {
+      const data = entry.snapshot.data() as Partial<AdminCatalogProduct>;
+      const currentStock = typeof data.stock === "number" ? data.stock : 0;
+      transaction.update(entry.ref, {
+        stock: currentStock - entry.item.quantity,
+        updatedAt: serverTimestamp(),
+      });
+    }
+
+    transaction.set(adjustmentRef, {
+      source,
+      items: cleanItems,
+      createdAt: serverTimestamp(),
+    });
+
+    return { alreadyApplied: false };
+  });
 }
 
 export async function createAdminCatalogProduct(

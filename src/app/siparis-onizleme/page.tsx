@@ -285,7 +285,7 @@ export default function OrderPreviewPage() {
           <header className="grid grid-cols-[40px_1fr_40px] items-center">
             <BackButton fallbackPath="/" />
             <Link href="/" className="justify-self-center">
-              <img src="/kudattr.png" alt="Kudat" className="h-auto w-[132px] object-contain" />
+              <img src="/kudattr.png" alt="Kudat" className="h-auto w-[264px] object-contain" />
             </Link>
           </header>
           <div className="my-auto py-16 text-center">
@@ -308,7 +308,7 @@ export default function OrderPreviewPage() {
         <section className="mx-auto flex min-h-screen w-full max-w-2xl flex-col px-5 py-3 sm:px-8 sm:py-6">
           <header className="flex justify-center">
             <Link href="/">
-              <img src="/kudattr.png" alt="Kudat" className="h-auto w-[132px] object-contain" />
+              <img src="/kudattr.png" alt="Kudat" className="h-auto w-[264px] object-contain" />
             </Link>
           </header>
           <div className="my-auto py-16 text-center">
@@ -335,7 +335,7 @@ export default function OrderPreviewPage() {
         <header className="grid grid-cols-[40px_1fr_40px] items-center">
           <BackButton fallbackPath={draft?.sourcePath || "/"} />
           <Link href="/" className="justify-self-center">
-            <img src="/kudattr.png" alt="Kudat" className="h-auto w-[132px] object-contain" />
+            <img src="/kudattr.png" alt="Kudat" className="h-auto w-[264px] object-contain" />
           </Link>
         </header>
 
