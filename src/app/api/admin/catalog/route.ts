@@ -84,7 +84,7 @@ function cleanProduct(
     price,
     compareAtPrice: compareAtPrice > price ? compareAtPrice : undefined,
     stock: Math.floor(numberOrZero(product.stock)),
-    description: String(product.description ?? "").trim() || undefined,
+    supplier: String(product.supplier ?? "").trim() || undefined,
     order:
       typeof product.order === "number" && Number.isFinite(product.order)
         ? product.order

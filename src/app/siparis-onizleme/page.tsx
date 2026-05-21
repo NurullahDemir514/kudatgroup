@@ -32,35 +32,35 @@ const emptyCustomer: CustomerInfo = {
 type CustomerCache = Record<string, CustomerInfo>;
 
 function normalizePhone(value: string) {
-  return value.replace(/\D/g, "").slice(0, 11);
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return "";
+
+  let normalized = digits;
+  if (normalized.startsWith("0090")) normalized = normalized.slice(4);
+  if (normalized.startsWith("90")) normalized = normalized.slice(2);
+  if (normalized.startsWith("0")) normalized = normalized.slice(1);
+
+  if (normalized.length > 10) {
+    const lastTenDigits = normalized.slice(-10);
+    if (lastTenDigits.startsWith("5")) normalized = lastTenDigits;
+  }
+
+  return normalized.slice(0, 10);
 }
 
 function formatPhone(value: string) {
   const normalized = normalizePhone(value);
+  if (!normalized) return "";
 
-  if (normalized.startsWith("05")) {
-    return [
-      normalized.slice(0, 4),
-      normalized.slice(4, 7),
-      normalized.slice(7, 9),
-      normalized.slice(9, 11),
-    ]
-      .filter(Boolean)
-      .join(" ");
-  }
-
-  if (normalized.startsWith("5")) {
-    return [
-      normalized.slice(0, 3),
-      normalized.slice(3, 6),
-      normalized.slice(6, 8),
-      normalized.slice(8, 10),
-    ]
-      .filter(Boolean)
-      .join(" ");
-  }
-
-  return normalized;
+  return [
+    "+90",
+    normalized.slice(0, 3),
+    normalized.slice(3, 6),
+    normalized.slice(6, 8),
+    normalized.slice(8, 10),
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 function readCustomerCache(): CustomerCache {
@@ -227,7 +227,8 @@ export default function OrderPreviewPage() {
 
   const updatePhone = (value: string) => {
     const phone = normalizePhone(value);
-    const cachedCustomer = readCustomerCache()[phone];
+    const cache = readCustomerCache();
+    const cachedCustomer = cache[phone] ?? cache[value.replace(/\D/g, "").slice(0, 11)];
 
     setCustomer((current) => ({
       ...(cachedCustomer ?? current),

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Playfair_Display, Cinzel } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/providers/auth-provider";
+import { ToastProvider } from "@/providers/toast-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -129,7 +130,9 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${playfairDisplay.variable} ${cinzel.variable} overflow-x-hidden antialiased bg-white text-gray-900`}
         style={{ backgroundColor: '#ffffff', color: '#171717' }}
       >
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <ToastProvider>{children}</ToastProvider>
+        </AuthProvider>
       </body>
     </html>
   );

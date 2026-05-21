@@ -24,7 +24,7 @@ type Product = {
   price: number;
   compareAtPrice?: number;
   stock: number;
-  description?: string;
+  supplier?: string;
   order: number;
   isActive: boolean;
 };
@@ -45,7 +45,7 @@ type ProductForm = {
   purchasePrice: string;
   price: string;
   stock: string;
-  description: string;
+  supplier: string;
   isActive: boolean;
 };
 
@@ -71,7 +71,7 @@ const emptyProductForm: ProductForm = {
   purchasePrice: "",
   price: "",
   stock: "",
-  description: "",
+  supplier: "",
   isActive: true,
 };
 
@@ -139,7 +139,6 @@ export default function CatalogAdminPage() {
   const categoryImageRef = useRef<HTMLInputElement>(null);
   const productImageRef = useRef<HTMLInputElement>(null);
 
-  const rootCategories = useMemo(() => childrenOf(categories, null), [categories]);
   const selectedCategory =
     categories.find((category) => category.id === selectedCategoryId) ?? null;
   const visibleCategories = useMemo(
@@ -154,7 +153,17 @@ export default function CatalogAdminPage() {
     [products, selectedCategoryId]
   );
   const isProductLevel = Boolean(selectedCategory && visibleCategories.length === 0);
-  const activeProducts = products.filter((product) => product.isActive).length;
+  const supplierOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          products
+            .map((product) => product.supplier?.trim())
+            .filter((supplier): supplier is string => Boolean(supplier))
+        )
+      ).sort((first, second) => first.localeCompare(second, "tr-TR")),
+    [products]
+  );
   const pageTitle = selectedCategory?.title ?? "Koleksiyonlar";
   const selectedCategoryPath = selectedCategory
     ? categoryPath(categories, selectedCategory.id)
@@ -297,7 +306,7 @@ export default function CatalogAdminPage() {
       purchasePrice: String(product.purchasePrice || ""),
       price: String(product.price || ""),
       stock: String(product.stock || ""),
-      description: product.description ?? "",
+      supplier: product.supplier ?? "",
       isActive: product.isActive,
     });
     setEditorMode("product");
@@ -404,10 +413,10 @@ export default function CatalogAdminPage() {
       code: productForm.code.trim(),
       categoryId,
       imageSrc: productForm.imageSrc.trim(),
-      description: productForm.description.trim(),
       purchasePrice: Number(productForm.purchasePrice) || 0,
       price: Number(productForm.price) || 0,
       stock: Number(productForm.stock) || 0,
+      supplier: productForm.supplier.trim(),
       order: products.length,
     };
 
@@ -891,6 +900,23 @@ export default function CatalogAdminPage() {
                   <div className="flex h-12 items-center rounded-2xl border border-black/[0.08] bg-[#f7f4ef] px-4 text-sm font-medium text-black/58">
                     <span className="min-w-0 truncate">{productCategoryLabel}</span>
                   </div>
+                  <input
+                    list="catalog-suppliers"
+                    value={productForm.supplier}
+                    onChange={(event) =>
+                      setProductForm((current) => ({
+                        ...current,
+                        supplier: event.target.value,
+                      }))
+                    }
+                    placeholder="Tedarikçi"
+                    className="h-12 rounded-2xl border border-black/[0.08] bg-[#f7f4ef] px-4 text-sm outline-none focus:border-black/25"
+                  />
+                  <datalist id="catalog-suppliers">
+                    {supplierOptions.map((supplier) => (
+                      <option key={supplier} value={supplier} />
+                    ))}
+                  </datalist>
                   <div className="grid grid-cols-3 gap-2">
                     <input
                       value={productForm.purchasePrice}
@@ -946,17 +972,6 @@ export default function CatalogAdminPage() {
                     accept="image/*"
                     onChange={(event) => handleProductImage(event.target.files?.[0])}
                     className="text-sm text-black/45 file:mr-3 file:rounded-full file:border-0 file:bg-black file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
-                  />
-                  <input
-                    value={productForm.description}
-                    onChange={(event) =>
-                      setProductForm((current) => ({
-                        ...current,
-                        description: event.target.value,
-                      }))
-                    }
-                    placeholder="Ürün notu"
-                    className="h-12 rounded-2xl border border-black/[0.08] bg-[#f7f4ef] px-4 text-sm outline-none focus:border-black/25"
                   />
                   <label className="flex h-11 items-center justify-between rounded-2xl bg-black/[0.035] px-4 text-sm font-semibold text-black/55">
                     Katalogda aktif

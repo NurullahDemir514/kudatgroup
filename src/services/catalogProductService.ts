@@ -27,7 +27,7 @@ export type AdminCatalogProduct = {
   price: number;
   compareAtPrice?: number;
   stock: number;
-  description?: string;
+  supplier?: string;
   order: number;
   isActive: boolean;
 };
@@ -51,7 +51,7 @@ export async function getAdminCatalogProducts(): Promise<AdminCatalogProduct[]> 
         compareAtPrice:
           typeof data.compareAtPrice === "number" ? data.compareAtPrice : undefined,
         stock: typeof data.stock === "number" ? data.stock : 0,
-        description: data.description,
+        supplier: data.supplier,
         order: typeof data.order === "number" ? data.order : 0,
         isActive: data.isActive !== false,
       };

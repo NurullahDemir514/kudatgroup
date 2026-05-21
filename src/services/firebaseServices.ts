@@ -6,6 +6,7 @@ import {
   addDoc, 
   updateDoc, 
   deleteDoc, 
+  deleteField,
   query, 
   where, 
   orderBy, 
@@ -225,6 +226,7 @@ export class ProductService {
 
   async create(data: any) {
     try {
+      delete data.description;
       const docRef = await addDoc(collection(db, this.collectionName), {
         ...data,
         createdAt: Timestamp.now(),
@@ -239,9 +241,11 @@ export class ProductService {
 
   async update(id: string, data: any) {
     try {
+      delete data.description;
       const docRef = doc(db, this.collectionName, id);
       await updateDoc(docRef, {
         ...data,
+        description: deleteField(),
         updatedAt: Timestamp.now()
       });
       return { id, ...data };

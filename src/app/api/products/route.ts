@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
                 wholesalePrice: product.purchasePrice || 0,
                 salePrice: product.price || 0,
                 stock: product.stock || 0,
-                description: product.description || '',
+                supplier: product.supplier || '',
                 source: 'catalog',
                 catalogId: product.id,
             }));
@@ -54,6 +54,7 @@ export async function POST(request: NextRequest) {
         if (data.price !== undefined) {
             delete data.price;
         }
+        delete data.description;
 
         // Zorunlu alanları kontrol et
         if (!data.name || !data.salePrice || !data.category) {

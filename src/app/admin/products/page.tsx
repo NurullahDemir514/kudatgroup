@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { IProduct } from "@/models/Product";
+import { useToast } from "@/providers/toast-provider";
 
 type CatalogCategory = {
     id: string;
@@ -17,15 +18,22 @@ type CatalogProduct = {
     imageSrc?: string;
     purchasePrice?: number;
     price: number;
+    compareAtPrice?: number;
     stock: number;
-    description?: string;
+    supplier?: string;
     isActive?: boolean;
 };
 
 type AdminProductListItem = IProduct & {
     source?: "legacy" | "catalog";
     catalogId?: string;
+    catalogCategoryId?: string;
+    catalogCode?: string;
+    compareAtPrice?: number;
+    isActive?: boolean;
 };
+
+type CatalogManageMode = "menu" | "edit" | "stock" | "discount";
 
 const buildCategoryPath = (
     categoryId: string,
@@ -51,15 +59,18 @@ const mapCatalogProduct = (
     id: `catalog:${product.id}`,
     _id: `catalog:${product.id}`,
     name: product.name,
-    description: product.description || product.code || "",
     wholesalePrice: product.purchasePrice || 0,
     salePrice: product.price || 0,
+    compareAtPrice: product.compareAtPrice,
     stock: product.stock || 0,
     category: buildCategoryPath(product.categoryId, categoriesById),
     image: product.imageSrc,
-    supplier: "Katalog",
+    supplier: product.supplier || "",
     source: "catalog",
     catalogId: product.id,
+    catalogCategoryId: product.categoryId,
+    catalogCode: product.code,
+    isActive: product.isActive !== false,
 });
 
 // Scrollbar gizleme CSS'i
@@ -73,7 +84,52 @@ const scrollbarHideStyles = `
 }
 `;
 
+function CatalogManageOption({
+    title,
+    description,
+    onClick,
+}: {
+    title: string;
+    description: string;
+    onClick: () => void;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className="flex min-h-14 items-center justify-between gap-4 rounded-2xl bg-white px-4 py-3 text-left shadow-sm transition active:scale-[0.99]"
+        >
+            <span className="min-w-0">
+                <span className="block text-sm font-semibold text-black">{title}</span>
+                <span className="mt-0.5 block truncate text-xs font-medium text-black/42">
+                    {description}
+                </span>
+            </span>
+            <span className="text-lg text-black/28">›</span>
+        </button>
+    );
+}
+
+function CatalogManageField({
+    label,
+    helper,
+    children,
+}: {
+    label: string;
+    helper?: string;
+    children: React.ReactNode;
+}) {
+    return (
+        <label className="grid gap-2">
+            <span className="px-0.5 text-[12px] font-semibold leading-none text-black/56">{label}</span>
+            {children}
+            {helper ? <span className="px-0.5 text-[11px] font-medium leading-4 text-black/36">{helper}</span> : null}
+        </label>
+    );
+}
+
 export default function ProductsPage() {
+    const { showToast } = useToast();
     // State tanımlamaları
     const [products, setProducts] = useState<AdminProductListItem[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
@@ -85,7 +141,6 @@ export default function ProductsPage() {
     const [editingProduct, setEditingProduct] = useState<AdminProductListItem | null>(null);
     const [formData, setFormData] = useState({
         name: "",
-        description: "",
         wholesalePrice: "",
         salePrice: "",
         stock: "",
@@ -101,6 +156,31 @@ export default function ProductsPage() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [showImageModal, setShowImageModal] = useState(false);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
+    const [managedProduct, setManagedProduct] = useState<AdminProductListItem | null>(null);
+    const [catalogManageMode, setCatalogManageMode] = useState<CatalogManageMode>("menu");
+    const [manageForm, setManageForm] = useState({
+        name: "",
+        code: "",
+        purchasePrice: "",
+        salePrice: "",
+        compareAtPrice: "",
+        discountRate: "",
+        stock: "",
+        supplier: "",
+    });
+    const [catalogActionSubmitting, setCatalogActionSubmitting] = useState(false);
+
+    useEffect(() => {
+        if (error) {
+            showToast({ message: error, tone: "error" });
+        }
+    }, [error, showToast]);
+
+    useEffect(() => {
+        if (formError) {
+            showToast({ message: formError, tone: "error" });
+        }
+    }, [formError, showToast]);
 
     // Ürünleri API'den getir
     useEffect(() => {
@@ -185,35 +265,15 @@ export default function ProductsPage() {
         setNewCategoryName(e.target.value);
     };
 
-    // Yeni ürün ekleme formunu göster
-    const handleShowAddForm = () => {
-        setFormData({
-            name: "",
-            description: "",
-            wholesalePrice: "",
-            salePrice: "",
-            stock: "",
-            category: "",
-            image: "",
-            supplier: "",
-        });
-        setNewCategoryName("");
-        setEditingProduct(null);
-        setFormError(null);
-        setShowForm(true);
-        setImagePreview(null);
-    };
-
     // Düzenleme formunu göster
     const handleShowEditForm = (product: AdminProductListItem) => {
         if (product.source === "catalog") {
-            window.location.href = "/admin/catalog";
+            openCatalogManagement(product);
             return;
         }
 
         setFormData({
             name: product.name,
-            description: product.description || "",
             wholesalePrice: product.wholesalePrice?.toString() || "",
             salePrice: product.salePrice.toString(),
             stock: (product.stock ?? 0).toString(),
@@ -319,11 +379,6 @@ export default function ProductsPage() {
                 };
             }
 
-            // Açıklama alanı boş ise varsayılan bir değer ata
-            if (!finalFormData.description) {
-                finalFormData.description = '';
-            }
-
             // Form validasyonu
             if (!finalFormData.name || !finalFormData.salePrice || !finalFormData.category) {
                 setFormError("Ürün adı, satış fiyatı ve kategori alanları zorunludur");
@@ -390,7 +445,8 @@ export default function ProductsPage() {
     // Bir ürünü sil
     const handleDeleteProduct = async (id: string) => {
         if (id.startsWith("catalog:")) {
-            window.location.href = "/admin/catalog";
+            const product = products.find((item) => (item.id || item._id) === id);
+            if (product) openCatalogManagement(product);
             return;
         }
 
@@ -409,11 +465,282 @@ export default function ProductsPage() {
                 // Ürünü UI'dan kaldır
                 setProducts((prev) => prev.filter((product) => (product.id || product._id) !== id));
             } else {
-                alert(result.error || "Ürün silinirken bir hata oluştu");
+                setError(result.error || "Ürün silinirken bir hata oluştu");
             }
         } catch (err) {
-            alert("Sunucu ile bağlantı kurulamadı");
+            setError("Sunucu ile bağlantı kurulamadı");
             console.error(err);
+        }
+    };
+
+    const openCatalogManagement = (product: AdminProductListItem) => {
+        setManagedProduct(product);
+        setCatalogManageMode("menu");
+        setManageForm({
+            name: product.name || "",
+            code: product.catalogCode || "",
+            purchasePrice: String(product.wholesalePrice || ""),
+            salePrice: String(product.salePrice || ""),
+            compareAtPrice: String(product.salePrice || ""),
+            discountRate: "",
+            stock: String(product.stock ?? 0),
+            supplier: product.supplier || "",
+        });
+    };
+
+    const openDiscountManagement = () => {
+        if (!managedProduct) return;
+
+        setManageForm((current) => ({
+            ...current,
+            compareAtPrice: String(managedProduct.salePrice || ""),
+            salePrice: "",
+            discountRate: "",
+        }));
+        setCatalogManageMode("discount");
+    };
+
+    const closeCatalogManagement = () => {
+        setManagedProduct(null);
+        setCatalogManageMode("menu");
+    };
+
+    const readPositiveNumber = (value: string) => {
+        const normalized = value.trim().replace(",", ".");
+        const numberValue = Number(normalized);
+        return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : 0;
+    };
+
+    const formatFormNumber = (value: number, fractionDigits = 2) => {
+        if (!Number.isFinite(value) || value <= 0) return "";
+        return value
+            .toFixed(fractionDigits)
+            .replace(/\.?0+$/, "");
+    };
+
+    const handleDiscountBasePriceChange = (value: string) => {
+        const currentPrice = readPositiveNumber(value);
+        const newPrice = readPositiveNumber(manageForm.salePrice);
+        const rate =
+            currentPrice > 0 && newPrice > 0 && newPrice < currentPrice
+                ? formatFormNumber((1 - newPrice / currentPrice) * 100, 1)
+                : "";
+
+        setManageForm((current) => ({
+            ...current,
+            compareAtPrice: value,
+            discountRate: rate,
+        }));
+    };
+
+    const handleDiscountSalePriceChange = (value: string) => {
+        const currentPrice = readPositiveNumber(manageForm.compareAtPrice);
+        const newPrice = readPositiveNumber(value);
+        const rate =
+            currentPrice > 0 && newPrice > 0 && newPrice < currentPrice
+                ? formatFormNumber((1 - newPrice / currentPrice) * 100, 1)
+                : "";
+
+        setManageForm((current) => ({
+            ...current,
+            salePrice: value,
+            discountRate: rate,
+        }));
+    };
+
+    const handleDiscountRateChange = (value: string) => {
+        const currentPrice = readPositiveNumber(manageForm.compareAtPrice);
+        const rate = Math.min(readPositiveNumber(value), 100);
+        const nextSalePrice =
+            currentPrice > 0 && rate > 0 && rate < 100
+                ? formatFormNumber(currentPrice * (1 - rate / 100), 2)
+                : "";
+
+        setManageForm((current) => ({
+            ...current,
+            discountRate: value,
+            salePrice: nextSalePrice || current.salePrice,
+        }));
+    };
+
+    const updateCatalogProduct = async (
+        product: AdminProductListItem,
+        updates: Partial<{
+            name: string;
+            code: string;
+            purchasePrice: number;
+            salePrice: number;
+            compareAtPrice: number;
+            stock: number;
+            supplier: string;
+            isActive: boolean;
+        }>
+    ) => {
+        if (!product.catalogId || !product.catalogCategoryId) return false;
+
+        setCatalogActionSubmitting(true);
+        setError(null);
+
+        try {
+            const nextName = updates.name ?? product.name;
+            const nextCode = updates.code ?? product.catalogCode ?? product.catalogId;
+            const nextPurchasePrice = updates.purchasePrice ?? product.wholesalePrice ?? 0;
+            const nextSalePrice = updates.salePrice ?? product.salePrice ?? 0;
+            const nextCompareAtPrice = updates.compareAtPrice ?? product.compareAtPrice ?? 0;
+            const nextStock = updates.stock ?? product.stock ?? 0;
+            const nextSupplier = updates.supplier ?? product.supplier ?? "";
+            const nextIsActive = updates.isActive ?? product.isActive !== false;
+
+            const response = await fetch("/api/admin/catalog", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    action: "update-product",
+                    id: product.catalogId,
+                    product: {
+                        name: nextName,
+                        code: nextCode,
+                        categoryId: product.catalogCategoryId,
+                        imageSrc: product.image || "",
+                        purchasePrice: nextPurchasePrice,
+                        price: nextSalePrice,
+                        compareAtPrice: nextCompareAtPrice,
+                        stock: nextStock,
+                        supplier: nextSupplier,
+                        isActive: nextIsActive,
+                    },
+                }),
+            });
+            const result = await response.json().catch(() => null);
+            if (!response.ok || !result.success) {
+                throw new Error(result?.error || "Ürün güncellenemedi");
+            }
+
+            setProducts((current) =>
+                current.map((item) =>
+                    item.catalogId === product.catalogId
+                        ? {
+                              ...item,
+                              name: nextName,
+                              wholesalePrice: nextPurchasePrice,
+                              salePrice: nextSalePrice,
+                              compareAtPrice: nextCompareAtPrice || undefined,
+                              stock: nextStock,
+                              supplier: nextSupplier,
+                              catalogCode: nextCode,
+                              isActive: nextIsActive,
+                          }
+                        : item
+                )
+            );
+            setManagedProduct((current) =>
+                current?.catalogId === product.catalogId
+                    ? {
+                          ...current,
+                          name: nextName,
+                          wholesalePrice: nextPurchasePrice,
+                          salePrice: nextSalePrice,
+                          compareAtPrice: nextCompareAtPrice || undefined,
+                          stock: nextStock,
+                          supplier: nextSupplier,
+                          catalogCode: nextCode,
+                          isActive: nextIsActive,
+                      } as AdminProductListItem
+                    : current
+            );
+            return true;
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Ürün güncellenemedi");
+            return false;
+        } finally {
+            setCatalogActionSubmitting(false);
+        }
+    };
+
+    const submitCatalogManagement = async () => {
+        if (!managedProduct) return;
+        let isSaved = false;
+        let successMessage = "Ürün güncellendi.";
+
+        if (catalogManageMode === "stock") {
+            isSaved = await updateCatalogProduct(managedProduct, {
+                stock: Math.max(Math.floor(readPositiveNumber(manageForm.stock)), 0),
+            });
+            successMessage = "Stok güncellendi.";
+        } else if (catalogManageMode === "discount") {
+            const currentPrice = readPositiveNumber(manageForm.compareAtPrice);
+            const typedNewPrice = readPositiveNumber(manageForm.salePrice);
+            const discountRate = Math.min(readPositiveNumber(manageForm.discountRate), 100);
+
+            if (!currentPrice) {
+                setError("Şu anki fiyat zorunludur.");
+                return;
+            }
+
+            const nextSalePrice =
+                typedNewPrice || (discountRate ? currentPrice * (1 - discountRate / 100) : 0);
+
+            if (!nextSalePrice || nextSalePrice >= currentPrice) {
+                setError("Yeni fiyat şu anki fiyattan düşük olmalıdır.");
+                return;
+            }
+
+            isSaved = await updateCatalogProduct(managedProduct, {
+                salePrice: Number(nextSalePrice.toFixed(2)),
+                compareAtPrice: currentPrice,
+            });
+            successMessage = "İndirim güncellendi.";
+        } else {
+            const nextName = manageForm.name.trim();
+            const nextCode = manageForm.code.trim() || managedProduct.catalogCode || managedProduct.catalogId || "";
+            if (!nextName || !nextCode) {
+                setError("Ürün adı ve kodu zorunludur.");
+                return;
+            }
+
+            isSaved = await updateCatalogProduct(managedProduct, {
+                name: nextName,
+                code: nextCode,
+                supplier: manageForm.supplier.trim(),
+            });
+        }
+
+        if (isSaved) {
+            closeCatalogManagement();
+            showToast(successMessage);
+        }
+    };
+
+    const deleteCatalogProduct = async (product: AdminProductListItem) => {
+        if (!product.catalogId) return;
+        if (!window.confirm("Bu katalog ürününü silmek istediğinize emin misiniz?")) return;
+
+        setCatalogActionSubmitting(true);
+        setError(null);
+
+        try {
+            const response = await fetch("/api/admin/catalog", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    action: "delete-product",
+                    id: product.catalogId,
+                }),
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || "Ürün silinemedi");
+            }
+
+            setProducts((current) =>
+                current.filter((item) => item.catalogId !== product.catalogId)
+            );
+            setManagedProduct(null);
+            showToast("Ürün silindi.");
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Ürün silinemedi");
+        } finally {
+            setCatalogActionSubmitting(false);
         }
     };
 
@@ -421,7 +748,7 @@ export default function ProductsPage() {
     const filteredProducts = products.filter((product) => {
         const matchesSearch = searchTerm
             ? product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (product.description ? product.description.toLowerCase().includes(searchTerm.toLowerCase()) : false)
+            (product.supplier ? product.supplier.toLowerCase().includes(searchTerm.toLowerCase()) : false)
             : true;
 
         const matchesCategory = selectedCategory
@@ -455,37 +782,56 @@ export default function ProductsPage() {
         setSelectedImage(null);
     };
 
+    const discountCurrentPrice = readPositiveNumber(manageForm.compareAtPrice);
+    const discountTypedNewPrice = readPositiveNumber(manageForm.salePrice);
+    const discountRate = Math.min(readPositiveNumber(manageForm.discountRate), 100);
+    const discountCalculatedPrice =
+        discountTypedNewPrice ||
+        (discountCurrentPrice > 0 && discountRate > 0
+            ? discountCurrentPrice * (1 - discountRate / 100)
+            : 0);
+    const discountSaving =
+        discountCurrentPrice > 0 && discountCalculatedPrice > 0
+            ? Math.max(discountCurrentPrice - discountCalculatedPrice, 0)
+            : 0;
+    const discountPercent =
+        discountCurrentPrice > 0 && discountCalculatedPrice > 0
+            ? Math.round((1 - discountCalculatedPrice / discountCurrentPrice) * 100)
+            : 0;
+
     return (
-        <div className="space-y-4 sm:space-y-6">
+        <div className="space-y-5 text-[#171411]">
             {/* Global CSS style tag */}
             <style jsx global>{scrollbarHideStyles}</style>
 
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-0">
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Ürün Listesi</h1>
-                <button
-                    onClick={handleShowAddForm}
-                    className="rounded-md bg-gradient-to-r from-blue-600 to-blue-700 px-3 sm:px-4 py-1.5 sm:py-2 text-sm text-white transition-all hover:from-blue-700 hover:to-blue-800 hover:shadow-lg shadow-sm"
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/38">
+                        Stok ve fiyat takibi
+                    </p>
+                    <h1 className="mt-1 text-[28px] font-semibold tracking-[-0.04em] text-black">
+                        Ürünler
+                    </h1>
+                </div>
+                <a
+                    href="/admin/catalog"
+                    className="inline-flex h-10 items-center justify-center rounded-full bg-black px-4 text-sm font-semibold text-white transition active:scale-[0.98]"
                 >
-                    <div className="flex items-center space-x-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                        </svg>
-                        <span>Yeni Ürün Ekle</span>
-                    </div>
-                </button>
+                    Katalogda ürün ekle
+                </a>
             </div>
 
             {/* Arama ve filtreleme */}
-            <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:space-x-4 sm:space-y-0">
+            <div className="grid gap-3 rounded-[28px] border border-black/[0.08] bg-white/70 p-3 shadow-[0_18px_55px_rgba(30,24,17,0.06)] sm:grid-cols-[1fr_260px]">
                 <div className="relative flex-1">
                     <input
                         type="text"
-                        placeholder="Ürün adı veya açıklama ile ara..."
-                        className="w-full rounded-md border border-gray-300 bg-white px-4 py-2 pl-10 text-sm sm:text-base text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder-gray-400"
+                        placeholder="Ürün adı, kod veya açıklama ara"
+                        className="h-12 w-full rounded-2xl border border-black/[0.08] bg-[#f8f6f2] px-4 pl-11 text-sm font-medium text-black outline-none transition placeholder:text-black/32 focus:border-black/24"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
-                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                    <div className="absolute inset-y-0 left-0 flex items-center pl-4 text-black/35">
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
                             className="h-4 w-4 sm:h-5 sm:w-5"
@@ -503,9 +849,9 @@ export default function ProductsPage() {
                     </div>
                 </div>
 
-                <div className="w-full sm:w-64">
+                <div className="w-full">
                     <select
-                        className="w-full rounded-md border border-gray-300 bg-white px-4 py-2 text-sm sm:text-base text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="h-12 w-full rounded-2xl border border-black/[0.08] bg-[#f8f6f2] px-4 text-sm font-semibold text-black/72 outline-none transition focus:border-black/24"
                         value={selectedCategory || ""}
                         onChange={(e) => setSelectedCategory(e.target.value || null)}
                     >
@@ -537,12 +883,6 @@ export default function ProductsPage() {
                             </button>
                         </div>
 
-                        {formError && (
-                            <div className="mb-4 rounded-md bg-red-50 p-3 text-xs sm:text-sm text-red-700 border border-red-200">
-                                {formError}
-                            </div>
-                        )}
-
                         <div className="flex-1 overflow-y-auto scrollbar-hide pr-2">
                             <form onSubmit={handleSubmitForm}>
                                 <div className="mb-4">
@@ -558,21 +898,6 @@ export default function ProductsPage() {
                                         className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-xs sm:text-sm text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                         placeholder="Ürün adı"
                                     />
-                                </div>
-
-                                <div className="mb-4">
-                                    <label htmlFor="description" className="mb-1 block text-xs sm:text-sm font-medium text-gray-700">
-                                        Açıklama <span className="text-xs text-gray-500">(Opsiyonel)</span>
-                                    </label>
-                                    <textarea
-                                        id="description"
-                                        name="description"
-                                        value={formData.description}
-                                        onChange={handleInputChange}
-                                        rows={3}
-                                        className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-xs sm:text-sm text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                        placeholder="Ürün açıklaması"
-                                    ></textarea>
                                 </div>
 
                                 {/* Resim yükleme alanı */}
@@ -757,90 +1082,88 @@ export default function ProductsPage() {
                 </div>
             )}
 
-            {/* Hata mesajı */}
-            {error && (
-                <div className="rounded-md bg-red-50 p-3 sm:p-4 text-xs sm:text-sm text-red-700 border border-red-200">
-                    {error}
-                </div>
-            )}
-
             {/* Yükleniyor göstergesi */}
             {loading ? (
                 <div className="flex justify-center py-6 sm:py-8">
-                    <div className="h-8 w-8 sm:h-10 sm:w-10 animate-spin rounded-full border-b-2 border-t-2 border-blue-600"></div>
+                    <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-t-2 border-black"></div>
                 </div>
             ) : (
                 <>
                     {/* Ürün tablosu */}
                     {products.length === 0 ? (
-                            <div className="rounded-md bg-gray-50 p-3 sm:p-4 text-xs sm:text-sm text-gray-600 border border-gray-200">
-                            Henüz kayıtlı ürün bulunmuyor.
+                        <div className="rounded-[28px] border border-black/[0.08] bg-white/70 p-8 text-center">
+                            <p className="text-sm font-semibold text-black/55">
+                                Henüz kayıtlı ürün bulunmuyor.
+                            </p>
+                            <a
+                                href="/admin/catalog"
+                                className="mt-4 inline-flex h-10 items-center justify-center rounded-full bg-black px-4 text-sm font-semibold text-white"
+                            >
+                                Katalogda ürün ekle
+                            </a>
                         </div>
                     ) : (
-                                <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-                                    <table className="min-w-full divide-y divide-gray-200">
-                                        <thead className="bg-gray-50">
-                                            <tr className="text-xs sm:text-sm font-medium uppercase tracking-wider text-gray-600">
-                                                <th scope="col" className="px-3 sm:px-6 py-3 text-left">
+                        <div className="overflow-x-auto rounded-[28px] border border-black/[0.08] bg-white/80 shadow-[0_18px_55px_rgba(30,24,17,0.06)]">
+                            <table className="min-w-full divide-y divide-black/[0.08]">
+                                <thead className="bg-[#f8f6f2]">
+                                    <tr className="text-[11px] font-bold uppercase tracking-[0.14em] text-black/46">
+                                        <th scope="col" className="px-5 py-4 text-left">
                                             Ürün
                                         </th>
-                                                <th scope="col" className="px-3 sm:px-6 py-3 text-left hidden sm:table-cell">
+                                        <th scope="col" className="hidden px-5 py-4 text-left sm:table-cell">
                                             Kategori
                                         </th>
-                                                <th scope="col" className="px-3 sm:px-6 py-3 text-left">
+                                        <th scope="col" className="px-5 py-4 text-left">
                                                     Fiyat
                                         </th>
-                                                <th scope="col" className="px-3 sm:px-6 py-3 text-left hidden sm:table-cell">
+                                        <th scope="col" className="hidden px-5 py-4 text-left sm:table-cell">
                                             Stok
                                         </th>
-                                                <th scope="col" className="px-3 sm:px-6 py-3 text-left hidden sm:table-cell">
+                                        <th scope="col" className="hidden px-5 py-4 text-left sm:table-cell">
                                                     Tedarikçi
                                                 </th>
-                                                <th scope="col" className="px-3 sm:px-6 py-3 text-left hidden sm:table-cell">
-                                                    Eklenme
-                                                </th>
-                                                <th scope="col" className="px-3 sm:px-6 py-3 text-right">
+                                        <th scope="col" className="px-5 py-4 text-right">
                                                     İşlem
                                         </th>
                                     </tr>
                                 </thead>
-                                        <tbody className="divide-y divide-gray-200 bg-white">
+                                <tbody className="divide-y divide-black/[0.08] bg-white">
                                     {filteredProducts.map((product) => (
-                                        <tr key={product.id || product._id} className="hover:bg-blue-50 transition-colors">
-                                            <td className="px-3 sm:px-6 py-3 sm:py-4">
+                                        <tr key={product.id || product._id} className="transition-colors hover:bg-[#faf8f4]">
+                                            <td className="px-5 py-4">
                                                 <div className="flex items-center">
                                                     {product.image ? (
-                                                        <div className="h-10 w-10 sm:h-14 sm:w-14 flex-shrink-0 mr-2 sm:mr-3">
+                                                        <div className="mr-3 h-14 w-14 flex-shrink-0">
                                                             <img
                                                                 src={product.image}
                                                                 alt={product.name}
-                                                                className="h-full w-full rounded-md border border-gray-200 object-cover cursor-pointer"
+                                                                className="h-full w-full cursor-pointer rounded-2xl border border-black/[0.08] object-cover"
                                                                 onClick={(e) => openImageModal(product.image || '', e)}
                                                             />
                                                         </div>
                                                     ) : (
-                                                            <div className="h-10 w-10 sm:h-14 sm:w-14 flex-shrink-0 rounded-md border border-gray-200 bg-gray-100 mr-2 sm:mr-3 flex items-center justify-center">
-                                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <div className="mr-3 flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl border border-black/[0.08] bg-[#f8f6f2]">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-black/28" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                                             </svg>
                                                         </div>
                                                     )}
-                                                    <div>
-                                                        <div className="text-xs sm:text-sm font-medium text-gray-800 truncate max-w-[120px] sm:max-w-[200px]">
+                                                    <div className="min-w-0">
+                                                        <div className="max-w-[220px] truncate text-sm font-semibold text-black">
                                                             {product.name}
                                                         </div>
-                                                        <div className="hidden max-w-[200px] items-center gap-2 text-xs text-gray-600 sm:flex">
+                                                        <div className="mt-1 hidden max-w-[260px] items-center gap-2 text-xs text-black/45 sm:flex">
                                                             {product.source === "catalog" && (
                                                                 <span className="rounded-full bg-black px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white">
                                                                     Katalog
                                                                 </span>
                                                             )}
-                                                            <span className="truncate">{product.description}</span>
+                                                            <span className="truncate">{product.catalogCode || product.supplier || product.category}</span>
                                                         </div>
-                                                        <div className="text-xs text-gray-500 sm:hidden">
+                                                        <div className="text-xs text-black/48 sm:hidden">
                                                             {product.category}
                                                         </div>
-                                                        <div className="text-xs sm:hidden flex items-center text-gray-500">
+                                                        <div className="flex items-center text-xs text-black/48 sm:hidden">
                                                             Stok: <span className={`ml-1 ${(product.stock ?? 0) > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                                                                 {(product.stock ?? 0) > 0 ? product.stock : '0'}
                                                             </span>
@@ -848,17 +1171,17 @@ export default function ProductsPage() {
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="whitespace-nowrap px-3 sm:px-6 py-3 sm:py-4 hidden sm:table-cell">
-                                                <div className="rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-800 border border-gray-200 inline-block">
+                                            <td className="hidden whitespace-nowrap px-5 py-4 sm:table-cell">
+                                                <div className="inline-block rounded-full border border-black/[0.08] bg-[#f8f6f2] px-3 py-1 text-xs font-semibold text-black/65">
                                                     {product.category}
                                                 </div>
                                             </td>
-                                            <td className="whitespace-nowrap px-3 sm:px-6 py-3 sm:py-4">
-                                                <div className="text-xs sm:text-sm font-medium text-gray-800">{formatCurrency(product.salePrice)}</div>
+                                            <td className="whitespace-nowrap px-5 py-4">
+                                                <div className="text-sm font-semibold text-black">{formatCurrency(product.salePrice)}</div>
                                             </td>
-                                            <td className="whitespace-nowrap px-3 sm:px-6 py-3 sm:py-4 hidden sm:table-cell">
+                                            <td className="hidden whitespace-nowrap px-5 py-4 sm:table-cell">
                                                 <div
-                                                    className={`text-xs sm:text-sm font-medium ${(product.stock ?? 0) > 10
+                                                    className={`text-sm font-semibold ${(product.stock ?? 0) > 10
                                                         ? "text-emerald-600"
                                                         : (product.stock ?? 0) > 0
                                                             ? "text-amber-600"
@@ -867,42 +1190,33 @@ export default function ProductsPage() {
                                                 >
                                                     {(product.stock ?? 0) > 0 ? product.stock :
                                                         <span className="flex items-center">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:h-4 sm:w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="mr-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                                                             </svg>
                                                             0
                                                         </span>}
                                                 </div>
                                             </td>
-                                            <td className="whitespace-nowrap px-3 sm:px-6 py-3 sm:py-4 hidden sm:table-cell">
-                                                <div className="text-xs sm:text-sm text-gray-600">
+                                            <td className="hidden whitespace-nowrap px-5 py-4 sm:table-cell">
+                                                <div className="text-sm font-medium text-black/52">
                                                     {product.supplier || "-"}
                                                 </div>
                                             </td>
-                                            <td className="whitespace-nowrap px-3 sm:px-6 py-3 sm:py-4 hidden sm:table-cell">
-                                                <div className="text-xs sm:text-sm text-gray-600">
-                                                    {product.createdAt && typeof product.createdAt === 'string'
-                                                        ? new Date(product.createdAt).toLocaleDateString("tr-TR")
-                                                        : typeof product.createdAt === 'object' && product.createdAt instanceof Date
-                                                            ? product.createdAt.toLocaleDateString("tr-TR")
-                                                            : "-"}
-                                                </div>
-                                            </td>
-                                            <td className="whitespace-nowrap px-3 sm:px-6 py-3 sm:py-4 text-right text-xs sm:text-sm font-medium">
+                                            <td className="whitespace-nowrap px-5 py-4 text-right text-sm font-medium">
                                                 {product.source === "catalog" ? (
                                                     <button
                                                         onClick={() => {
-                                                            window.location.href = "/admin/catalog";
+                                                            openCatalogManagement(product);
                                                         }}
-                                                        className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-800 transition-colors hover:border-black hover:bg-black hover:text-white"
+                                                        className="rounded-full border border-black/[0.10] px-3 py-1.5 text-xs font-semibold text-black transition-colors hover:border-black hover:bg-black hover:text-white"
                                                     >
-                                                        Katalogda yönet
+                                                        Yönet
                                                     </button>
                                                 ) : (
                                                     <>
                                                         <button
                                                             onClick={() => handleShowEditForm(product)}
-                                                            className="text-blue-600 hover:text-blue-800 transition-colors mr-2 sm:mr-3"
+                                                            className="mr-3 text-black transition-colors hover:text-black/60"
                                                         >
                                                             <span className="hidden sm:inline">Düzenle</span>
                                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline sm:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -911,7 +1225,7 @@ export default function ProductsPage() {
                                                         </button>
                                                         <button
                                                             onClick={() => handleDeleteProduct((product.id || product._id) as string)}
-                                                            className="text-gray-500 hover:text-red-600 transition-colors"
+                                                            className="text-black/45 transition-colors hover:text-red-600"
                                                         >
                                                             <span className="hidden sm:inline">Sil</span>
                                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline sm:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -957,6 +1271,246 @@ export default function ProductsPage() {
                     </div>
                 </div>
             )}
+
+            {managedProduct && (
+                <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/20 p-4 backdrop-blur-[2px] sm:items-center">
+                    <button
+                        type="button"
+                        aria-label="Ürün yönetimini kapat"
+                        className="absolute inset-0"
+                        onClick={closeCatalogManagement}
+                    />
+                    <div className="relative w-full max-w-md rounded-[28px] border border-black/[0.08] bg-white p-5 shadow-[0_26px_80px_rgba(17,24,39,0.18)]">
+                        <div className="flex items-start justify-between gap-4">
+                            <div className="min-w-0">
+                                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-black/36">
+                                    Katalog ürünü
+                                </p>
+                                <h2 className="mt-1 truncate text-xl font-semibold tracking-[-0.03em] text-black">
+                                    {managedProduct.name}
+                                </h2>
+                                <p className="mt-1 text-sm font-medium text-black/48">
+                                    Stok: {managedProduct.stock ?? 0} · {formatCurrency(managedProduct.salePrice)}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={closeCatalogManagement}
+                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/[0.05] text-lg leading-none text-black/55"
+                            >
+                                ×
+                            </button>
+                        </div>
+
+                        {catalogManageMode === "menu" ? (
+                            <div className="mt-5 grid gap-2">
+                                <CatalogManageOption
+                                    title="Düzenle"
+                                    description="Ürün adı, kodu ve tedarikçi"
+                                    onClick={() => setCatalogManageMode("edit")}
+                                />
+                                <CatalogManageOption
+                                    title="Stok yönet"
+                                    description="Stok adedini manuel güncelle"
+                                    onClick={() => setCatalogManageMode("stock")}
+                                />
+                                <CatalogManageOption
+                                    title="İndirim oluştur"
+                                    description="Yeni fiyat veya oran ile indirim gir"
+                                    onClick={openDiscountManagement}
+                                />
+                                <button
+                                    type="button"
+                                    disabled={catalogActionSubmitting}
+                                    onClick={async () => {
+                                        const isSaved = await updateCatalogProduct(managedProduct, {
+                                            isActive: managedProduct.isActive === false,
+                                        });
+                                        if (isSaved) {
+                                            closeCatalogManagement();
+                                            showToast(
+                                                managedProduct.isActive === false
+                                                    ? "Ürün katalogda gösteriliyor."
+                                                    : "Ürün katalogdan gizlendi."
+                                            );
+                                        }
+                                    }}
+                                    className="flex h-14 items-center justify-between rounded-2xl bg-white px-4 text-sm font-semibold text-black shadow-sm disabled:opacity-50"
+                                >
+                                    {managedProduct.isActive === false
+                                        ? "Katalogda göster"
+                                        : "Katalogdan gizle"}
+                                    <span className="text-black/35">
+                                        {managedProduct.isActive === false ? "Aktif" : "Pasif"}
+                                    </span>
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled={catalogActionSubmitting}
+                                    onClick={() => deleteCatalogProduct(managedProduct)}
+                                    className="flex h-14 items-center justify-between rounded-2xl border border-red-500/20 bg-red-50 px-4 text-sm font-semibold text-red-600 disabled:opacity-50"
+                                >
+                                    Ürünü sil
+                                    <span>Sil</span>
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="mt-5 grid gap-3">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <h3 className="text-[18px] font-semibold tracking-[-0.03em] text-black">
+                                            {catalogManageMode === "edit"
+                                                ? "Ürün bilgileri"
+                                                : catalogManageMode === "stock"
+                                                  ? "Stok yönet"
+                                                  : "İndirim oluştur"}
+                                        </h3>
+                                        <p className="mt-1 text-sm font-medium leading-5 text-black/48">
+                                            {catalogManageMode === "edit"
+                                                ? "Katalogda görünen temel ürün bilgilerini düzenleyin."
+                                                : catalogManageMode === "stock"
+                                                  ? "Güncel stok adedini doğrudan yazın."
+                                                  : "Eski fiyatı baz alın. Yeni fiyatı elle yazabilir ya da oran girerek otomatik hesaplatabilirsiniz."}
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setCatalogManageMode("menu")}
+                                        className="shrink-0 rounded-full border border-black/[0.08] bg-[#f5f6f8] px-3 py-1.5 text-xs font-semibold text-black/58 transition hover:bg-black hover:text-white"
+                                    >
+                                        İşlemlere dön
+                                    </button>
+                                </div>
+                                {catalogManageMode === "edit" ? (
+                                    <div className="grid gap-3 rounded-3xl bg-[#f5f6f8] p-3">
+                                        <CatalogManageField label="Ürün adı">
+                                            <input
+                                                value={manageForm.name}
+                                                onChange={(event) =>
+                                                    setManageForm((current) => ({ ...current, name: event.target.value }))
+                                                }
+                                                className="h-12 rounded-2xl border border-black/[0.08] bg-white px-4 text-sm font-semibold text-black outline-none focus:border-black/24"
+                                                placeholder="Ürün adı"
+                                            />
+                                        </CatalogManageField>
+                                        <CatalogManageField label="Ürün kodu">
+                                            <input
+                                                value={manageForm.code}
+                                                onChange={(event) =>
+                                                    setManageForm((current) => ({ ...current, code: event.target.value }))
+                                                }
+                                                className="h-12 rounded-2xl border border-black/[0.08] bg-white px-4 text-sm font-medium text-black outline-none focus:border-black/24"
+                                                placeholder="Ürün kodu"
+                                            />
+                                        </CatalogManageField>
+                                        <CatalogManageField label="Tedarikçi">
+                                            <input
+                                                value={manageForm.supplier}
+                                                onChange={(event) =>
+                                                    setManageForm((current) => ({ ...current, supplier: event.target.value }))
+                                                }
+                                                className="h-12 rounded-2xl border border-black/[0.08] bg-white px-4 text-sm font-medium text-black outline-none focus:border-black/24"
+                                                placeholder="Tedarikçi adı"
+                                            />
+                                        </CatalogManageField>
+                                    </div>
+                                ) : catalogManageMode === "stock" ? (
+                                    <div className="grid gap-3 rounded-3xl bg-[#f5f6f8] p-3">
+                                        <CatalogManageField label="Güncel stok" helper="Artır/azalt yerine net stok adedini yazın.">
+                                            <input
+                                                value={manageForm.stock}
+                                                onChange={(event) =>
+                                                    setManageForm((current) => ({ ...current, stock: event.target.value }))
+                                                }
+                                                inputMode="numeric"
+                                                className="h-14 rounded-2xl border border-black/[0.08] bg-white px-4 text-lg font-semibold text-black outline-none focus:border-black/24"
+                                                placeholder="Stok"
+                                            />
+                                        </CatalogManageField>
+                                        <div className="rounded-2xl bg-white p-3 text-sm font-medium text-black/52">
+                                            Mevcut kayıt: <span className="font-semibold text-black">{managedProduct.stock ?? 0} adet</span>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="grid gap-3 rounded-3xl bg-[#f5f6f8] p-3">
+                                            <CatalogManageField label="Şu anki fiyat" helper="İndirim etiketi için gösterilecek eski fiyat.">
+                                                <input
+                                                    value={manageForm.compareAtPrice}
+                                                    onChange={(event) => handleDiscountBasePriceChange(event.target.value)}
+                                                    inputMode="decimal"
+                                                    className="h-12 rounded-2xl border border-black/[0.08] bg-white px-4 text-sm font-semibold text-black outline-none focus:border-black/24"
+                                                    placeholder="Örn. 150"
+                                                />
+                                            </CatalogManageField>
+
+                                            <div className="grid gap-4 sm:grid-cols-2">
+                                                <CatalogManageField label="Yeni fiyat">
+                                                    <input
+                                                        value={manageForm.salePrice}
+                                                        onChange={(event) => handleDiscountSalePriceChange(event.target.value)}
+                                                        inputMode="decimal"
+                                                        className="h-12 rounded-2xl border border-black/[0.08] bg-white px-4 text-sm font-semibold text-black outline-none focus:border-black/24"
+                                                        placeholder="Örn. 120"
+                                                    />
+                                                </CatalogManageField>
+                                                <CatalogManageField label="İndirim oranı">
+                                                    <div className="relative">
+                                                        <input
+                                                            value={manageForm.discountRate}
+                                                            onChange={(event) => handleDiscountRateChange(event.target.value)}
+                                                            inputMode="decimal"
+                                                            className="h-12 w-full rounded-2xl border border-black/[0.08] bg-white px-4 pr-10 text-sm font-semibold text-black outline-none focus:border-black/24"
+                                                            placeholder="Örn. 20"
+                                                        />
+                                                        <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm font-semibold text-black/36">
+                                                            %
+                                                        </span>
+                                                    </div>
+                                                </CatalogManageField>
+                                            </div>
+                                        </div>
+
+                                        <div className="rounded-3xl border border-black/[0.06] bg-black/[0.035] p-4">
+                                            <div className="flex items-center justify-between gap-4">
+                                                <div>
+                                                    <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-black/35">
+                                                        Yeni katalog fiyatı
+                                                    </p>
+                                                    <p className="mt-1 text-2xl font-semibold tracking-[-0.04em] text-black">
+                                                        {discountCalculatedPrice > 0
+                                                            ? formatCurrency(discountCalculatedPrice)
+                                                            : "Henüz hesaplanmadı"}
+                                                    </p>
+                                                </div>
+                                                {discountSaving > 0 ? (
+                                                    <div className="rounded-2xl bg-white px-3 py-2 text-right shadow-sm">
+                                                        <p className="text-xs font-semibold text-black/42">
+                                                            %{discountPercent}
+                                                        </p>
+                                                        <p className="text-sm font-semibold text-emerald-700">
+                                                            {formatCurrency(discountSaving)}
+                                                        </p>
+                                                    </div>
+                                                ) : null}
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                                <button
+                                    type="button"
+                                    disabled={catalogActionSubmitting}
+                                    onClick={submitCatalogManagement}
+                                    className="flex h-12 items-center justify-center rounded-2xl bg-black px-4 text-sm font-semibold text-white shadow-sm disabled:opacity-50"
+                                >
+                                    Kaydet
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 } 

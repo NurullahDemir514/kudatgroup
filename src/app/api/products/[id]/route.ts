@@ -46,6 +46,7 @@ export async function PUT(
         if (data.price !== undefined) {
             delete data.price;
         }
+        delete data.description;
 
         // Zorunlu alanları kontrol et
         if (!data.name || !data.salePrice || !data.category) {
@@ -116,6 +117,7 @@ export async function PATCH(
         if (data.price !== undefined) {
             delete data.price;
         }
+        delete data.description;
 
         // Sayısal değerleri sayıya dönüştür
         if (data.wholesalePrice !== undefined) data.wholesalePrice = Number(data.wholesalePrice);
