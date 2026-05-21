@@ -21,6 +21,11 @@ type FirestoreCatalogCategory = Omit<CatalogCategoryRecord, "id">;
 
 const collectionName = "catalog_categories";
 
+const withoutUndefined = <T extends Record<string, unknown>>(value: T) =>
+  Object.fromEntries(
+    Object.entries(value).filter(([, fieldValue]) => fieldValue !== undefined)
+  ) as T;
+
 export type AdminCatalogCategory = {
   id: string;
   title: string;
@@ -108,12 +113,12 @@ export async function createAdminCatalogCategory(
     suffix += 1;
   }
 
-  await setDoc(doc(db, collectionName, id), {
+  await setDoc(doc(db, collectionName, id), withoutUndefined({
     ...category,
     slug: id,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
-  });
+  }));
 
   return { id, ...category, slug: id };
 }
@@ -122,10 +127,10 @@ export async function updateAdminCatalogCategory(
   id: string,
   category: Partial<Omit<AdminCatalogCategory, "id">>
 ) {
-  await updateDoc(doc(db, collectionName, id), {
+  await updateDoc(doc(db, collectionName, id), withoutUndefined({
     ...category,
     updatedAt: serverTimestamp(),
-  });
+  }));
 
   return { id, ...category };
 }

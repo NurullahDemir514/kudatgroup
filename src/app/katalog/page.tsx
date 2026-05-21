@@ -1,13 +1,27 @@
-export default function KatalogPage() {
+import { CategoryBrowser } from "@/components/catalog/CategoryBrowser";
+import { getCatalogTree } from "@/services/catalogCategoryService";
+import { getAdminCatalogProducts } from "@/services/catalogProductService";
+
+export default async function KatalogPage() {
+  const [categories, products] = await Promise.all([
+    getCatalogTree(),
+    getAdminCatalogProducts(),
+  ]);
+
   return (
-    <main className="min-h-screen bg-white text-black">
-      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-6">
-        <p className="text-xs uppercase tracking-[0.24em] text-black/45">Kudat</p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight">Katalog</h1>
-        <p className="mt-4 text-sm leading-6 text-black/55">
-          Katalog tasarımı sıfırlandı. Yeni deneyimi buradan kuracağız.
-        </p>
-      </div>
-    </main>
+    <CategoryBrowser
+      categories={categories}
+      products={products.map((product) => ({
+        id: product.id,
+        name: product.name,
+        code: product.code,
+        categoryId: product.categoryId,
+        imageSrc: product.imageSrc || "/katalog/gold-necklace.png",
+        price: product.price,
+        compareAtPrice: product.compareAtPrice,
+        stock: product.stock,
+        isActive: product.isActive,
+      }))}
+    />
   );
 }

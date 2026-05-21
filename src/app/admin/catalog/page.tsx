@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FiMoreHorizontal } from "react-icons/fi";
 
 type Category = {
   id: string;
@@ -19,6 +20,7 @@ type Product = {
   code: string;
   categoryId: string;
   imageSrc?: string;
+  purchasePrice?: number;
   price: number;
   compareAtPrice?: number;
   stock: number;
@@ -40,12 +42,18 @@ type ProductForm = {
   code: string;
   categoryId: string;
   imageSrc: string;
+  purchasePrice: string;
   price: string;
-  compareAtPrice: string;
   stock: string;
   description: string;
   isActive: boolean;
 };
+
+type EditorMode = "category" | "product" | null;
+type DeleteTarget =
+  | { type: "category"; item: Category }
+  | { type: "product"; item: Product }
+  | null;
 
 const emptyCategoryForm: CategoryForm = {
   title: "",
@@ -60,8 +68,8 @@ const emptyProductForm: ProductForm = {
   code: "",
   categoryId: "",
   imageSrc: "",
+  purchasePrice: "",
   price: "",
-  compareAtPrice: "",
   stock: "",
   description: "",
   isActive: true,
@@ -83,6 +91,12 @@ const formatPrice = (value: number) =>
     maximumFractionDigits: 0,
   }).format(value || 0);
 
+function childrenOf(categories: Category[], parentId: string | null) {
+  return categories
+    .filter((category) => category.parentId === parentId)
+    .sort((first, second) => first.order - second.order);
+}
+
 function categoryPath(categories: Category[], categoryId: string | null) {
   if (!categoryId) return "Ana kategori";
 
@@ -99,46 +113,63 @@ function categoryPath(categories: Category[], categoryId: string | null) {
   return parts.join(" / ") || "Ana kategori";
 }
 
-function childrenOf(categories: Category[], parentId: string | null) {
-  return categories
-    .filter((category) => category.parentId === parentId)
-    .sort((first, second) => first.order - second.order);
+function categoryImage(category: Category, index: number) {
+  return category.imageSrc || fallbackImages[index % fallbackImages.length];
 }
 
 export default function CatalogAdminPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
-  const [selectedProductId, setSelectedProductId] = useState<string>("");
-  const [editingCategoryId, setEditingCategoryId] = useState<string>("");
-  const [activePanel, setActivePanel] = useState<"category" | "product">(
-    "product"
-  );
-  const [categoryForm, setCategoryForm] =
-    useState<CategoryForm>(emptyCategoryForm);
+  const [selectedCategoryId, setSelectedCategoryId] = useState("");
+  const [editingCategoryId, setEditingCategoryId] = useState("");
+  const [editingProductId, setEditingProductId] = useState("");
+  const [editorMode, setEditorMode] = useState<EditorMode>(null);
+  const [categoryForm, setCategoryForm] = useState<CategoryForm>(emptyCategoryForm);
   const [productForm, setProductForm] = useState<ProductForm>(emptyProductForm);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [openActionMenu, setOpenActionMenu] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
+  const [imagePreview, setImagePreview] = useState<{
+    src: string;
+    title: string;
+  } | null>(null);
   const categoryImageRef = useRef<HTMLInputElement>(null);
   const productImageRef = useRef<HTMLInputElement>(null);
 
+  const rootCategories = useMemo(() => childrenOf(categories, null), [categories]);
   const selectedCategory =
     categories.find((category) => category.id === selectedCategoryId) ?? null;
-  const selectedProduct =
-    products.find((product) => product.id === selectedProductId) ?? null;
-  const rootCategories = useMemo(() => childrenOf(categories, null), [categories]);
+  const visibleCategories = useMemo(
+    () => childrenOf(categories, selectedCategory?.id ?? null),
+    [categories, selectedCategory]
+  );
   const categoryProducts = useMemo(
     () =>
       products
-        .filter((product) =>
-          selectedCategoryId ? product.categoryId === selectedCategoryId : true
-        )
+        .filter((product) => product.categoryId === selectedCategoryId)
         .sort((first, second) => first.order - second.order),
     [products, selectedCategoryId]
   );
+  const isProductLevel = Boolean(selectedCategory && visibleCategories.length === 0);
   const activeProducts = products.filter((product) => product.isActive).length;
+  const pageTitle = selectedCategory?.title ?? "Koleksiyonlar";
+  const selectedCategoryPath = selectedCategory
+    ? categoryPath(categories, selectedCategory.id)
+    : "";
+  const productCategoryLabel = categoryPath(
+    categories,
+    productForm.categoryId || selectedCategoryId || null
+  );
+  const visibleProductCount = isProductLevel
+    ? categoryProducts.length
+    : selectedCategory
+      ? products.filter((product) =>
+          visibleCategories.some((category) => category.id === product.categoryId)
+        ).length
+      : products.length;
 
   const loadCatalog = async () => {
     setIsLoading(true);
@@ -157,11 +188,13 @@ export default function CatalogAdminPage() {
 
       setCategories(nextCategories);
       setProducts(nextProducts);
-      setSelectedCategoryId((current) => current || nextCategories[0]?.id || "");
-    } catch (loadError) {
-      setError(
-        loadError instanceof Error ? loadError.message : "Katalog yüklenemedi"
+      setSelectedCategoryId((current) =>
+        current && nextCategories.some((category) => category.id === current)
+          ? current
+          : ""
       );
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Katalog yüklenemedi");
     } finally {
       setIsLoading(false);
     }
@@ -170,6 +203,17 @@ export default function CatalogAdminPage() {
   useEffect(() => {
     loadCatalog();
   }, []);
+
+  useEffect(() => {
+    if (!error && !message) return;
+
+    const timeout = window.setTimeout(() => {
+      setError("");
+      setMessage("");
+    }, 3600);
+
+    return () => window.clearTimeout(timeout);
+  }, [error, message]);
 
   const requestCatalog = async (body: unknown) => {
     setIsSaving(true);
@@ -191,20 +235,38 @@ export default function CatalogAdminPage() {
       await loadCatalog();
       return result.data ?? true;
     } catch (saveError) {
-      setError(
-        saveError instanceof Error ? saveError.message : "İşlem tamamlanamadı"
-      );
+      setError(saveError instanceof Error ? saveError.message : "İşlem tamamlanamadı");
       return null;
     } finally {
       setIsSaving(false);
     }
   };
 
-  const editCategory = (category: Category) => {
-    setSelectedCategoryId(category.id);
-    setSelectedProductId("");
+  const closeEditor = () => {
+    setOpenActionMenu("");
+    setEditorMode(null);
+    setEditingCategoryId("");
+    setEditingProductId("");
+    if (categoryImageRef.current) categoryImageRef.current.value = "";
+    if (productImageRef.current) productImageRef.current.value = "";
+  };
+
+  const openNewCategory = (parentId = selectedCategoryId || "root") => {
+    setEditingProductId("");
+    setEditingCategoryId("");
+    setCategoryForm({ ...emptyCategoryForm, parentId });
+    setEditorMode("category");
+    if (categoryImageRef.current) categoryImageRef.current.value = "";
+  };
+
+  const categoryTargetLabel =
+    categoryForm.parentId === "root"
+      ? "Ana koleksiyonlar"
+      : categoryPath(categories, categoryForm.parentId);
+
+  const openEditCategory = (category: Category) => {
+    setEditingProductId("");
     setEditingCategoryId(category.id);
-    setActivePanel("category");
     setCategoryForm({
       title: category.title,
       parentId: category.parentId ?? "root",
@@ -212,125 +274,153 @@ export default function CatalogAdminPage() {
       imageSrc: category.imageSrc ?? "",
       isActive: category.isActive,
     });
+    setEditorMode("category");
   };
 
-  const resetCategoryForm = (parentId = selectedCategoryId || "root") => {
-    setSelectedProductId("");
+  const openNewProduct = (categoryId = selectedCategoryId) => {
     setEditingCategoryId("");
-    setActivePanel("category");
-    setCategoryForm({ ...emptyCategoryForm, parentId });
-    if (categoryImageRef.current) categoryImageRef.current.value = "";
+    setEditingProductId("");
+    setProductForm({ ...emptyProductForm, categoryId });
+    setEditorMode("product");
+    if (productImageRef.current) productImageRef.current.value = "";
   };
 
-  const saveCategory = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    const payload = {
-      title: categoryForm.title,
-      parentId:
-        categoryForm.parentId === "root" ? null : categoryForm.parentId || null,
-      description: categoryForm.description,
-      imageSrc: categoryForm.imageSrc,
-      isActive: categoryForm.isActive,
-      order: categories.length,
-    };
-
-    const body =
-      editingCategoryId
-        ? { action: "update-category", id: editingCategoryId, category: payload }
-        : { action: "create-category", category: payload };
-
-    const saved = await requestCatalog(body);
-    if (!saved) return;
-
-    setSelectedCategoryId(saved.id || editingCategoryId || selectedCategoryId);
-    resetCategoryForm(saved.id || selectedCategoryId || "root");
-    setMessage("Kategori kaydedildi.");
-  };
-
-  const deleteCategory = async (category: Category) => {
-    const deleted = await requestCatalog({
-      action: "delete-category",
-      id: category.id,
-    });
-    if (!deleted) return;
-
-    setSelectedCategoryId("");
-    setEditingCategoryId("");
-    resetCategoryForm("root");
-    setMessage("Kategori silindi.");
-  };
-
-  const editProduct = (product: Product) => {
-    setSelectedProductId(product.id);
+  const openEditProduct = (product: Product) => {
     setSelectedCategoryId(product.categoryId);
     setEditingCategoryId("");
-    setActivePanel("product");
+    setEditingProductId(product.id);
     setProductForm({
       name: product.name,
       code: product.code,
       categoryId: product.categoryId,
       imageSrc: product.imageSrc ?? "",
+      purchasePrice: String(product.purchasePrice || ""),
       price: String(product.price || ""),
-      compareAtPrice: String(product.compareAtPrice || ""),
       stock: String(product.stock || ""),
       description: product.description ?? "",
       isActive: product.isActive,
     });
+    setEditorMode("product");
   };
 
-  const resetProductForm = (categoryId = selectedCategoryId) => {
-    setSelectedProductId("");
-    setEditingCategoryId("");
-    setActivePanel("product");
-    setProductForm({ ...emptyProductForm, categoryId });
-    if (productImageRef.current) productImageRef.current.value = "";
+  const saveCategory = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const title = categoryForm.title.trim();
+    if (!title) {
+      setError("Kategori adı boş olamaz.");
+      return;
+    }
+
+    const payload = {
+      title,
+      parentId: categoryForm.parentId === "root" ? null : categoryForm.parentId || null,
+      description: categoryForm.description.trim(),
+      imageSrc: categoryForm.imageSrc.trim(),
+      isActive: categoryForm.isActive,
+      order: categories.length,
+    };
+
+    const body = editingCategoryId
+      ? { action: "update-category", id: editingCategoryId, category: payload }
+      : { action: "create-category", category: payload };
+
+    const saved = await requestCatalog(body);
+    if (!saved) return;
+
+    if (!editingCategoryId && saved.id) {
+      setSelectedCategoryId(saved.id);
+    }
+    setMessage("Kategori kaydedildi.");
+    closeEditor();
   };
+
+  const deleteCategory = async (category: Category) => {
+    setOpenActionMenu("");
+    setDeleteTarget({ type: "category", item: category });
+  };
+
+  const deleteProduct = async (product: Product) => {
+    setOpenActionMenu("");
+    setDeleteTarget({ type: "product", item: product });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+
+    if (deleteTarget.type === "category") {
+      const category = deleteTarget.item;
+      const deleted = await requestCatalog({ action: "delete-category", id: category.id });
+      if (!deleted) return;
+
+      setSelectedCategoryId(category.parentId ?? "");
+      setMessage("Kategori silindi.");
+      setDeleteTarget(null);
+      closeEditor();
+      return;
+    }
+
+    const product = deleteTarget.item;
+    const deleted = await requestCatalog({ action: "delete-product", id: product.id });
+    if (!deleted) return;
+
+    setSelectedCategoryId(product.categoryId);
+    setMessage("Ürün silindi.");
+    setDeleteTarget(null);
+    closeEditor();
+  };
+
+  const deleteWarning =
+    deleteTarget?.type === "category"
+      ? (() => {
+          const category = deleteTarget.item;
+          const childCount = childrenOf(categories, category.id).length;
+          const productCount = products.filter(
+            (product) => product.categoryId === category.id
+          ).length;
+
+          if (!childCount && !productCount) return "";
+          return "Bu kategoriye bağlı alt kayıtlar varsa silme işlemi engellenebilir.";
+        })()
+      : "";
 
   const saveProduct = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+    const name = productForm.name.trim();
+    const categoryId = productForm.categoryId || selectedCategoryId;
+    if (!name) {
+      setError("Ürün adı boş olamaz.");
+      return;
+    }
+    if (!categoryId) {
+      setError("Ürün için kategori seçin.");
+      return;
+    }
+
     const payload = {
       ...productForm,
-      categoryId: productForm.categoryId || selectedCategoryId,
-      price: Number(productForm.price),
-      compareAtPrice: Number(productForm.compareAtPrice),
-      stock: Number(productForm.stock),
+      name,
+      code: productForm.code.trim(),
+      categoryId,
+      imageSrc: productForm.imageSrc.trim(),
+      description: productForm.description.trim(),
+      purchasePrice: Number(productForm.purchasePrice) || 0,
+      price: Number(productForm.price) || 0,
+      stock: Number(productForm.stock) || 0,
       order: products.length,
     };
 
-    const body = selectedProductId
-      ? { action: "update-product", id: selectedProductId, product: payload }
+    const body = editingProductId
+      ? { action: "update-product", id: editingProductId, product: payload }
       : { action: "create-product", product: payload };
 
     const saved = await requestCatalog(body);
     if (!saved) return;
 
-    resetProductForm(payload.categoryId);
+    setSelectedCategoryId(categoryId);
     setMessage("Ürün kaydedildi.");
-  };
-
-  const deleteProduct = async (product: Product) => {
-    const deleted = await requestCatalog({
-      action: "delete-product",
-      id: product.id,
-    });
-    if (!deleted) return;
-
-    resetProductForm(product.categoryId);
-    setMessage("Ürün silindi.");
-  };
-
-  const handleCategoryImage = async (file?: File) => {
-    if (!file || !file.type.startsWith("image/")) return;
-    const imageSrc = await uploadImage(file, "catalog/categories");
-    if (imageSrc) setCategoryForm((current) => ({ ...current, imageSrc }));
-  };
-
-  const handleProductImage = async (file?: File) => {
-    if (!file || !file.type.startsWith("image/")) return;
-    const imageSrc = await uploadImage(file, "catalog/products");
-    if (imageSrc) setProductForm((current) => ({ ...current, imageSrc }));
+    closeEditor();
   };
 
   const uploadImage = async (file: File, folder: string) => {
@@ -352,575 +442,717 @@ export default function CatalogAdminPage() {
 
       return String(result.url);
     } catch (uploadError) {
-      setError(
-        uploadError instanceof Error ? uploadError.message : "Görsel yüklenemedi"
-      );
+      setError(uploadError instanceof Error ? uploadError.message : "Görsel yüklenemedi");
       return "";
     }
   };
 
+  const handleCategoryImage = async (file?: File) => {
+    if (!file || !file.type.startsWith("image/")) return;
+    const imageSrc = await uploadImage(file, "catalog/categories");
+    if (imageSrc) setCategoryForm((current) => ({ ...current, imageSrc }));
+  };
+
+  const handleProductImage = async (file?: File) => {
+    if (!file || !file.type.startsWith("image/")) return;
+    const imageSrc = await uploadImage(file, "catalog/products");
+    if (imageSrc) setProductForm((current) => ({ ...current, imageSrc }));
+  };
+
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3">
-      <section className="flex shrink-0 flex-col gap-3 rounded-[28px] bg-white/62 px-4 py-3 shadow-sm ring-1 ring-black/6 lg:flex-row lg:items-center lg:justify-between">
-        <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/35">
-            Katalog Yönetimi
-          </p>
-          <h1 className="mt-1 truncate text-2xl font-semibold tracking-[-0.05em] text-black">
-            Kategori ve ürünler
-          </h1>
-        </div>
+    <div className="h-full overflow-y-auto bg-[#f8f6f2] text-black">
+      <style jsx global>{`
+        .scrollbar-hidden {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
 
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <span className="rounded-full bg-[#f7f4ef] px-3 py-1.5 text-xs font-semibold text-black/54">
-            {rootCategories.length} ana
-          </span>
-          <span className="rounded-full bg-[#f7f4ef] px-3 py-1.5 text-xs font-semibold text-black/54">
-            {categories.length} kategori
-          </span>
-          <span className="rounded-full bg-[#f7f4ef] px-3 py-1.5 text-xs font-semibold text-black/54">
-            {activeProducts} aktif ürün
-          </span>
-          <button
-            type="button"
-            onClick={() => resetCategoryForm("root")}
-            className="rounded-full border border-black/10 px-4 py-2 text-sm font-semibold text-black"
+        .scrollbar-hidden::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
+      <section className="mx-auto flex min-h-full w-full max-w-2xl flex-col px-5 py-3 sm:px-8 sm:py-6">
+        <div className={isProductLevel ? "mt-2 sm:mt-3" : "mt-1 sm:mt-2"}>
+          <div
+            className={
+              selectedCategory
+                ? "mb-4 flex min-h-6 items-center justify-between gap-3"
+                : "mb-4 flex min-h-6 items-center justify-center"
+            }
           >
-            Kategori ekle
-          </button>
-          <button
-            type="button"
-            onClick={() => resetProductForm(selectedCategoryId)}
-            className="rounded-full bg-black px-4 py-2 text-sm font-semibold text-white"
-          >
-            Ürün ekle
-          </button>
-        </div>
-      </section>
-
-      {error || message ? (
-        <div className="shrink-0">
-          {error ? (
-            <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
-              {error}
-            </p>
-          ) : null}
-          {message ? (
-            <p className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-              {message}
-            </p>
-          ) : null}
-        </div>
-      ) : null}
-
-      <section className="grid min-h-0 flex-1 gap-3 xl:grid-cols-[340px_minmax(0,1fr)_380px]">
-        <aside className="min-h-0 overflow-hidden rounded-[28px] bg-white/76 p-3 shadow-sm ring-1 ring-black/6">
-          <div className="flex items-center justify-between gap-3 px-1 pb-4">
-            <div>
-              <h2 className="text-base font-semibold tracking-[-0.04em]">
-                Kategoriler
-              </h2>
-            </div>
-            <button
-              type="button"
-              onClick={() => resetCategoryForm("root")}
-              className="rounded-full bg-black px-4 py-2 text-sm font-semibold text-white"
-            >
-              Yeni
-            </button>
+            {selectedCategory ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategoryId(selectedCategory.parentId ?? "")}
+                  className="text-[12px] font-semibold uppercase tracking-[0.14em] text-black/36 transition active:text-black/70"
+                >
+                  Ana sayfa / {selectedCategoryPath || pageTitle}
+                </button>
+                <span className="shrink-0 text-xs font-medium text-black/38">
+                  {visibleProductCount} ürün
+                </span>
+              </>
+            ) : (
+              <p className="text-center text-[12px] font-semibold uppercase tracking-[0.24em] text-black/38">
+                Koleksiyonlar
+              </p>
+            )}
           </div>
 
-          <div className="h-[calc(100%-52px)] space-y-2 overflow-auto pr-1">
-            {isLoading ? (
-              <div className="rounded-3xl bg-[#f7f4ef] p-8 text-center text-sm text-black/42">
-                Katalog yükleniyor...
-              </div>
-            ) : rootCategories.length ? (
-              rootCategories.map((root, rootIndex) => {
-                const children = childrenOf(categories, root.id);
-                const image = root.imageSrc || fallbackImages[rootIndex % fallbackImages.length];
-                const isSelected = selectedCategoryId === root.id;
+        <main>
+          {isLoading ? (
+            <div className="rounded-[28px] bg-white/70 px-5 py-10 text-center text-[15px] font-medium text-black/42">
+              Katalog yükleniyor...
+            </div>
+          ) : visibleCategories.length ? (
+            <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 sm:gap-x-4">
+              <article className="group min-w-0">
+                <button
+                  type="button"
+                  onClick={() => openNewCategory(selectedCategoryId || "root")}
+                  className="block w-full text-left transition duration-200 active:opacity-70"
+                >
+                  <span className="flex aspect-[4/5] items-center justify-center rounded-[20px] border border-dashed border-black/16 bg-white/44 transition group-active:scale-[0.99]">
+                    <span className="flex flex-col items-center gap-2.5 text-black/42">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black text-[23px] font-light leading-none text-white">
+                        +
+                      </span>
+                      <span className="text-[12px] font-semibold tracking-[-0.02em]">
+                        Kategori ekle
+                      </span>
+                    </span>
+                  </span>
+                  <span className="mt-2.5 block min-w-0 text-center opacity-0">
+                    <span className="block truncate text-[13px] font-medium leading-[17px] tracking-[-0.03em]">
+                      Kategori ekle
+                    </span>
+                  </span>
+                </button>
+              </article>
+              {visibleCategories.map((category, index) => {
+                const childCount = childrenOf(categories, category.id).length;
+                const productCount = products.filter(
+                  (product) => product.categoryId === category.id
+                ).length;
 
                 return (
-                  <div key={root.id}>
+                  <article key={category.id} className="group relative min-w-0">
                     <button
                       type="button"
                       onClick={() => {
-                        setSelectedCategoryId(root.id);
-                        setSelectedProductId("");
+                        setOpenActionMenu("");
+                        setSelectedCategoryId(category.id);
                       }}
-                      className={`grid w-full grid-cols-[58px_1fr_auto] items-center gap-3 rounded-[24px] p-2 text-left transition ${
-                        isSelected
-                          ? "bg-black text-white"
-                          : "bg-[#f7f4ef] text-black hover:bg-[#f0ebe4]"
-                      }`}
+                      className="block w-full text-left transition duration-200 active:opacity-70"
                     >
-                      <span className="h-[58px] overflow-hidden rounded-[18px] bg-black/5">
-                        <img src={image} alt="" className="h-full w-full object-cover" />
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-semibold">
-                          {root.title}
+                      <span className="relative block aspect-[4/5] overflow-hidden rounded-[20px] bg-black/[0.035]">
+                        <img
+                          src={categoryImage(category, index)}
+                          alt=""
+                          className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+                        />
+                        <span className="absolute left-2.5 top-2.5 rounded-full bg-white/92 px-2 py-0.5 text-[9px] font-semibold text-black shadow-sm backdrop-blur">
+                          {childCount ? `${childCount} alt` : `${productCount} ürün`}
                         </span>
-                        <span
-                          className={`mt-1 block text-xs ${
-                            isSelected ? "text-white/48" : "text-black/38"
-                          }`}
-                        >
-                          {children.length} alt kategori
-                        </span>
-                      </span>
-                      <span className="text-lg opacity-40">›</span>
-                    </button>
-
-                    {children.length && isSelected ? (
-                      <div className="ml-6 mt-2 space-y-1 border-l border-black/10 pl-3">
-                        {children.map((child) => {
-                          const childProducts = products.filter(
-                            (product) => product.categoryId === child.id
-                          ).length;
-
-                          return (
-                            <button
-                              key={child.id}
-                              type="button"
-                              onClick={() => {
-                                setSelectedCategoryId(child.id);
-                                setSelectedProductId("");
-                              }}
-                              className={`flex w-full items-center justify-between rounded-2xl px-3 py-2.5 text-left text-sm transition ${
-                                selectedCategoryId === child.id
-                                  ? "bg-black text-white"
-                                  : "text-black/62 hover:bg-[#f7f4ef] hover:text-black"
-                              }`}
-                            >
-                              <span className="truncate">{child.title}</span>
-                              <span className="text-xs opacity-45">
-                                {childProducts}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              })
-            ) : (
-              <div className="rounded-3xl bg-[#f7f4ef] p-8 text-center text-sm text-black/42">
-                İlk ana kategoriyi ekleyin.
-              </div>
-            )}
-          </div>
-        </aside>
-
-        <main className="min-h-0 space-y-3 overflow-hidden">
-          <div className="rounded-[28px] bg-white/76 p-4 shadow-sm ring-1 ring-black/6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/35">
-                  Seçili kategori
-                </p>
-                <h2 className="mt-1 text-2xl font-semibold tracking-[-0.05em]">
-                  {selectedCategory?.title ?? "Kategori seçin"}
-                </h2>
-                <p className="mt-1 text-sm text-black/45">
-                  {categoryPath(categories, selectedCategoryId)}
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {selectedCategory ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => editCategory(selectedCategory)}
-                      className="rounded-full border border-black/10 px-4 py-2 text-sm font-semibold"
-                    >
-                      Düzenle
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => resetCategoryForm(selectedCategory.id)}
-                      className="rounded-full bg-black px-4 py-2 text-sm font-semibold text-white"
-                    >
-                      Alt kategori ekle
-                    </button>
-                  </>
-                ) : null}
-              </div>
-            </div>
-          </div>
-
-          <div className="min-h-0 overflow-hidden rounded-[28px] bg-white/76 shadow-sm ring-1 ring-black/6">
-            <div className="flex items-center justify-between gap-3 p-4">
-              <div>
-                <h3 className="text-lg font-semibold tracking-[-0.04em]">
-                  Ürünler
-                </h3>
-                <p className="mt-1 text-sm text-black/42">
-                  {selectedCategory
-                    ? `${selectedCategory.title} ürünleri`
-                    : "Tüm ürünler"}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => resetProductForm(selectedCategoryId)}
-                className="rounded-full bg-black px-4 py-2 text-sm font-semibold text-white"
-              >
-                Ürün ekle
-              </button>
-            </div>
-
-            <div className="max-h-[calc(100vh-295px)] divide-y divide-black/7 overflow-auto">
-              {categoryProducts.length ? (
-                categoryProducts.map((product) => {
-                  const hasDiscount =
-                    typeof product.compareAtPrice === "number" &&
-                    product.compareAtPrice > product.price;
-
-                  return (
-                    <button
-                      key={product.id}
-                      type="button"
-                      onClick={() => editProduct(product)}
-                      className={`grid w-full grid-cols-[72px_1fr_auto] items-center gap-4 p-4 text-left transition hover:bg-[#f7f4ef] ${
-                        selectedProductId === product.id ? "bg-[#f7f4ef]" : ""
-                      }`}
-                    >
-                      <span className="h-[72px] overflow-hidden rounded-[20px] bg-black/[0.04]">
-                        {product.imageSrc ? (
-                          <img
-                            src={product.imageSrc}
-                            alt=""
-                            className="h-full w-full object-cover"
-                          />
+                        {!category.isActive ? (
+                          <span className="absolute bottom-2.5 right-2.5 rounded-full bg-black/70 px-2 py-0.5 text-[9px] font-medium text-white backdrop-blur">
+                            Pasif
+                          </span>
                         ) : null}
                       </span>
-                      <span className="min-w-0">
-                        <span className="flex items-center gap-2">
-                          <span className="truncate text-sm font-semibold">
-                            {product.name}
-                          </span>
-                          {!product.isActive ? (
-                            <span className="rounded-full bg-black/6 px-2 py-0.5 text-[10px] font-semibold text-black/42">
-                              Pasif
-                            </span>
-                          ) : null}
-                        </span>
-                        <span className="mt-1 block text-xs text-black/42">
-                          {product.code} · {product.stock} stok
-                        </span>
-                        <span className="mt-2 flex items-center gap-2">
-                          <span className="text-sm font-semibold">
-                            {formatPrice(product.price)}
-                          </span>
-                          {hasDiscount ? (
-                            <span className="text-xs text-black/32 line-through">
-                              {formatPrice(product.compareAtPrice!)}
-                            </span>
-                          ) : null}
+                      <span className="mt-2.5 block min-w-0 text-center">
+                        <span className="block truncate text-[13px] font-medium leading-[17px] tracking-[-0.03em] text-black">
+                          {category.title}
                         </span>
                       </span>
-                      <span className="text-lg text-black/28">›</span>
                     </button>
-                  );
-                })
+                    <div className="absolute right-2.5 top-2.5 z-10">
+                      <button
+                        type="button"
+                        aria-label={`${category.title} işlemleri`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setOpenActionMenu((current) =>
+                            current === `category-${category.id}`
+                              ? ""
+                              : `category-${category.id}`
+                          );
+                        }}
+                        className="flex h-9 w-9 items-center justify-center rounded-full bg-white/94 text-black shadow-sm backdrop-blur transition active:scale-[0.96]"
+                      >
+                        <FiMoreHorizontal size={18} />
+                      </button>
+                      {openActionMenu === `category-${category.id}` ? (
+                        <div className="absolute right-0 top-11 z-20 w-32 overflow-hidden rounded-2xl bg-white text-left shadow-[0_18px_45px_rgba(0,0,0,0.18)] ring-1 ring-black/[0.06]">
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setOpenActionMenu("");
+                              openEditCategory(category);
+                            }}
+                            className="block h-10 w-full px-4 text-left text-[12px] font-semibold text-black/72 transition hover:bg-black/[0.035]"
+                          >
+                            Düzenle
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setOpenActionMenu("");
+                              deleteCategory(category);
+                            }}
+                            className="block h-10 w-full px-4 text-left text-[12px] font-semibold text-red-500 transition hover:bg-red-50"
+                          >
+                            Sil
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : isProductLevel ? (
+            <div>
+              <div className="mb-5 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => openNewProduct(selectedCategoryId)}
+                  className="h-9 rounded-full bg-black px-4 text-[12px] font-semibold text-white"
+                >
+                  Ürün ekle
+                </button>
+              </div>
+              {categoryProducts.length ? (
+                <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 sm:gap-x-4">
+                  {categoryProducts.map((product) => {
+                    const hasDiscount =
+                      typeof product.compareAtPrice === "number" &&
+                      product.compareAtPrice > product.price;
+
+                    return (
+                      <article key={product.id} className="group min-w-0">
+                        <div className="relative aspect-[4/5] overflow-hidden rounded-[20px] bg-black/[0.04]">
+                          {product.imageSrc ? (
+                            <button
+                              type="button"
+                              aria-label={`${product.name} görselini büyüt`}
+                              onClick={() => {
+                                setOpenActionMenu("");
+                                setImagePreview({
+                                  src: product.imageSrc!,
+                                  title: product.name,
+                                });
+                              }}
+                              className="block h-full w-full"
+                            >
+                              <img
+                                src={product.imageSrc}
+                                alt={product.name}
+                                className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.035]"
+                              />
+                            </button>
+                          ) : null}
+                          <div className="absolute inset-x-3 top-3 flex items-start justify-between gap-2">
+                            {!product.isActive ? (
+                              <span className="rounded-full bg-white/92 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-black shadow-sm backdrop-blur">
+                                Pasif
+                              </span>
+                            ) : hasDiscount ? (
+                              <span className="rounded-full bg-white/92 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-black shadow-sm backdrop-blur">
+                                İndirim
+                              </span>
+                            ) : (
+                              <span />
+                            )}
+                            <div className="relative">
+                              <button
+                                type="button"
+                                aria-label={`${product.name} işlemleri`}
+                                onClick={() =>
+                                  setOpenActionMenu((current) =>
+                                    current === `product-${product.id}`
+                                      ? ""
+                                      : `product-${product.id}`
+                                  )
+                                }
+                                className="flex h-9 w-9 items-center justify-center rounded-full bg-white/94 text-black shadow-sm backdrop-blur transition active:scale-[0.96]"
+                              >
+                                <FiMoreHorizontal size={18} />
+                              </button>
+                              {openActionMenu === `product-${product.id}` ? (
+                                <div className="absolute right-0 top-11 z-20 w-32 overflow-hidden rounded-2xl bg-white shadow-[0_18px_45px_rgba(0,0,0,0.18)] ring-1 ring-black/[0.06]">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenActionMenu("");
+                                      openEditProduct(product);
+                                    }}
+                                    className="block h-10 w-full px-4 text-left text-[12px] font-semibold text-black/72 transition hover:bg-black/[0.035]"
+                                  >
+                                    Düzenle
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenActionMenu("");
+                                      deleteProduct(product);
+                                    }}
+                                    className="block h-10 w-full px-4 text-left text-[12px] font-semibold text-red-500 transition hover:bg-red-50"
+                                  >
+                                    Sil
+                                  </button>
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+                          <div className="absolute inset-x-3 bottom-3 flex justify-end">
+                            <span className="rounded-full bg-black/70 px-2.5 py-1 text-[10px] font-medium text-white backdrop-blur">
+                              {product.stock} stok
+                            </span>
+                          </div>
+                        </div>
+                        <div className="pt-2">
+                          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
+                            <p className="line-clamp-2 text-[13px] font-medium leading-[17px] tracking-[-0.02em] text-black">
+                              {product.name}
+                            </p>
+                            {hasDiscount ? (
+                              <span className="pt-0.5 text-[10px] font-medium leading-none text-black/28 line-through">
+                                {formatPrice(product.compareAtPrice!)}
+                              </span>
+                            ) : null}
+                          </div>
+                          <div className="mt-0 flex items-end justify-between gap-2">
+                            <span className="truncate text-[10px] font-medium uppercase tracking-[0.1em] text-black/34">
+                              {product.code}
+                            </span>
+                            <span className="shrink-0 text-[14px] font-semibold leading-none tracking-[-0.03em] text-black">
+                              {formatPrice(product.price)}
+                            </span>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
               ) : (
-                <div className="p-10 text-center text-sm text-black/42">
-                  Bu kategoride henüz ürün yok.
+                <div className="rounded-[28px] bg-white/70 px-5 py-10 text-center">
+                  <p className="text-[15px] font-medium text-black/48">
+                    Bu kategoride henüz ürün yok.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => openNewProduct(selectedCategoryId)}
+                    className="mt-4 h-11 rounded-full bg-black px-5 text-[13px] font-semibold text-white"
+                  >
+                    İlk ürünü ekle
+                  </button>
                 </div>
               )}
             </div>
-          </div>
-        </main>
-
-        <aside className="min-h-0 overflow-auto rounded-[28px] bg-white/76 p-4 shadow-sm ring-1 ring-black/6">
-          {activePanel === "category" ? (
-          <form
-            onSubmit={saveCategory}
-            className="min-h-0"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="text-lg font-semibold tracking-[-0.04em]">
-                  Kategori formu
-                </h3>
-                <p className="mt-1 text-sm text-black/42">
-                  Ana kategori veya alt kategori ekleyin.
-                </p>
-              </div>
-              <label className="flex items-center gap-2 text-xs font-semibold text-black/45">
-                <input
-                  type="checkbox"
-                  checked={categoryForm.isActive}
-                  onChange={(event) =>
-                    setCategoryForm((current) => ({
-                      ...current,
-                      isActive: event.target.checked,
-                    }))
-                  }
-                />
-                Aktif
-              </label>
-            </div>
-
-            <div className="mt-5 grid gap-3">
-              <input
-                value={categoryForm.title}
-                onChange={(event) =>
-                  setCategoryForm((current) => ({
-                    ...current,
-                    title: event.target.value,
-                  }))
-                }
-                placeholder="Kategori adı"
-                className="h-12 rounded-2xl border border-black/8 bg-[#f7f4ef] px-4 text-sm outline-none focus:border-black/25"
-              />
-              <select
-                value={categoryForm.parentId}
-                onChange={(event) =>
-                  setCategoryForm((current) => ({
-                    ...current,
-                    parentId: event.target.value,
-                  }))
-                }
-                className="h-12 rounded-2xl border border-black/8 bg-[#f7f4ef] px-4 text-sm outline-none focus:border-black/25"
-              >
-                <option value="root">Ana kategori</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {categoryPath(categories, category.id)}
-                  </option>
-                ))}
-              </select>
-              <input
-                value={categoryForm.description}
-                onChange={(event) =>
-                  setCategoryForm((current) => ({
-                    ...current,
-                    description: event.target.value,
-                  }))
-                }
-                placeholder="Kısa açıklama"
-                className="h-12 rounded-2xl border border-black/8 bg-[#f7f4ef] px-4 text-sm outline-none focus:border-black/25"
-              />
-              <input
-                value={categoryForm.imageSrc}
-                onChange={(event) =>
-                  setCategoryForm((current) => ({
-                    ...current,
-                    imageSrc: event.target.value,
-                  }))
-                }
-                placeholder="Görsel bağlantısı"
-                className="h-12 rounded-2xl border border-black/8 bg-[#f7f4ef] px-4 text-sm outline-none focus:border-black/25"
-              />
-              <input
-                ref={categoryImageRef}
-                type="file"
-                accept="image/*"
-                onChange={(event) => handleCategoryImage(event.target.files?.[0])}
-                className="text-sm text-black/45 file:mr-3 file:rounded-full file:border-0 file:bg-black file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
-              />
-              {categoryForm.imageSrc ? (
-                <img
-                  src={categoryForm.imageSrc}
-                  alt=""
-                  className="h-32 rounded-[24px] object-cover"
-                />
-              ) : null}
-            </div>
-
-            <div className="mt-5 flex gap-2">
-              <button
-                type="submit"
-                disabled={isSaving}
-                className="h-12 flex-1 rounded-full bg-black px-5 text-sm font-semibold text-white disabled:bg-black/35"
-              >
-                Kaydet
-              </button>
-              {editingCategoryId && selectedCategory?.id === editingCategoryId ? (
-                <button
-                  type="button"
-                  disabled={isSaving}
-                  onClick={() => deleteCategory(selectedCategory)}
-                  className="h-12 rounded-full px-4 text-sm font-semibold text-red-600"
-                >
-                  Sil
-                </button>
-              ) : null}
-            </div>
-          </form>
           ) : (
-
-          <form
-            onSubmit={saveProduct}
-            className="min-h-0"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="text-lg font-semibold tracking-[-0.04em]">
-                  Ürün formu
-                </h3>
-                <p className="mt-1 text-sm text-black/42">
-                  Fiyat, stok ve indirim bilgilerini girin.
-                </p>
-              </div>
-              <label className="flex items-center gap-2 text-xs font-semibold text-black/45">
-                <input
-                  type="checkbox"
-                  checked={productForm.isActive}
-                  onChange={(event) =>
-                    setProductForm((current) => ({
-                      ...current,
-                      isActive: event.target.checked,
-                    }))
-                  }
-                />
-                Aktif
-              </label>
-            </div>
-
-            <div className="mt-5 grid gap-3">
-              <input
-                value={productForm.name}
-                onChange={(event) =>
-                  setProductForm((current) => ({
-                    ...current,
-                    name: event.target.value,
-                  }))
-                }
-                placeholder="Ürün adı"
-                className="h-12 rounded-2xl border border-black/8 bg-[#f7f4ef] px-4 text-sm outline-none focus:border-black/25"
-              />
-              <input
-                value={productForm.code}
-                onChange={(event) =>
-                  setProductForm((current) => ({
-                    ...current,
-                    code: event.target.value,
-                  }))
-                }
-                placeholder="Model kodu"
-                className="h-12 rounded-2xl border border-black/8 bg-[#f7f4ef] px-4 text-sm outline-none focus:border-black/25"
-              />
-              <select
-                value={productForm.categoryId || selectedCategoryId}
-                onChange={(event) =>
-                  setProductForm((current) => ({
-                    ...current,
-                    categoryId: event.target.value,
-                  }))
-                }
-                className="h-12 rounded-2xl border border-black/8 bg-[#f7f4ef] px-4 text-sm outline-none focus:border-black/25"
-              >
-                <option value="">Kategori seçin</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {categoryPath(categories, category.id)}
-                  </option>
-                ))}
-              </select>
-              <div className="grid grid-cols-3 gap-2">
-                <input
-                  value={productForm.price}
-                  onChange={(event) =>
-                    setProductForm((current) => ({
-                      ...current,
-                      price: event.target.value,
-                    }))
-                  }
-                  inputMode="decimal"
-                  placeholder="Fiyat"
-                  className="h-12 rounded-2xl border border-black/8 bg-[#f7f4ef] px-4 text-sm outline-none focus:border-black/25"
-                />
-                <input
-                  value={productForm.compareAtPrice}
-                  onChange={(event) =>
-                    setProductForm((current) => ({
-                      ...current,
-                      compareAtPrice: event.target.value,
-                    }))
-                  }
-                  inputMode="decimal"
-                  placeholder="Eski fiyat"
-                  className="h-12 rounded-2xl border border-black/8 bg-[#f7f4ef] px-4 text-sm outline-none focus:border-black/25"
-                />
-                <input
-                  value={productForm.stock}
-                  onChange={(event) =>
-                    setProductForm((current) => ({
-                      ...current,
-                      stock: event.target.value,
-                    }))
-                  }
-                  inputMode="numeric"
-                  placeholder="Stok"
-                  className="h-12 rounded-2xl border border-black/8 bg-[#f7f4ef] px-4 text-sm outline-none focus:border-black/25"
-                />
-              </div>
-              <input
-                value={productForm.imageSrc}
-                onChange={(event) =>
-                  setProductForm((current) => ({
-                    ...current,
-                    imageSrc: event.target.value,
-                  }))
-                }
-                placeholder="Görsel bağlantısı"
-                className="h-12 rounded-2xl border border-black/8 bg-[#f7f4ef] px-4 text-sm outline-none focus:border-black/25"
-              />
-              <input
-                ref={productImageRef}
-                type="file"
-                accept="image/*"
-                onChange={(event) => handleProductImage(event.target.files?.[0])}
-                className="text-sm text-black/45 file:mr-3 file:rounded-full file:border-0 file:bg-black file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
-              />
-              <input
-                value={productForm.description}
-                onChange={(event) =>
-                  setProductForm((current) => ({
-                    ...current,
-                    description: event.target.value,
-                  }))
-                }
-                placeholder="Ürün notu"
-                className="h-12 rounded-2xl border border-black/8 bg-[#f7f4ef] px-4 text-sm outline-none focus:border-black/25"
-              />
-              {productForm.imageSrc ? (
-                <img
-                  src={productForm.imageSrc}
-                  alt=""
-                  className="h-36 rounded-[24px] object-cover"
-                />
-              ) : null}
-            </div>
-
-            <div className="mt-5 flex gap-2">
+            <div className="rounded-[28px] bg-white/70 px-5 py-10 text-center">
+              <p className="text-[15px] font-medium text-black/48">
+                İlk kategoriyi ekleyin.
+              </p>
               <button
-                type="submit"
-                disabled={isSaving}
-                className="h-12 flex-1 rounded-full bg-black px-5 text-sm font-semibold text-white disabled:bg-black/35"
+                type="button"
+                onClick={() => openNewCategory("root")}
+                className="mt-4 h-11 rounded-full bg-black px-5 text-[13px] font-semibold text-white"
               >
-                {selectedProduct ? "Ürünü güncelle" : "Ürünü kaydet"}
+                Kategori ekle
               </button>
-              {selectedProduct ? (
+            </div>
+          )}
+        </main>
+        </div>
+      </section>
+
+      {editorMode ? (
+        <div className="fixed inset-0 z-40">
+          <button
+            type="button"
+            aria-label="Formu kapat"
+            className="absolute inset-0 bg-black/20 backdrop-blur-[2px]"
+            onClick={closeEditor}
+          />
+          <div className="scrollbar-hidden absolute inset-x-0 bottom-0 mx-auto max-h-[86vh] max-w-2xl overflow-y-auto rounded-t-[30px] bg-[#fbfaf7] px-5 pb-6 pt-3 shadow-2xl ring-1 ring-black/[0.08]">
+            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-black/12" />
+            {editorMode === "category" ? (
+              <form onSubmit={saveCategory}>
+                <EditorHeader
+                  title={editingCategoryId ? "Kategoriyi düzenle" : "Kategori ekle"}
+                  subtitle="Müşteri katalog ağacındaki kategori bilgisini yönetin."
+                  onClose={closeEditor}
+                />
+                <div className="mt-5 grid gap-3">
+                  <input
+                    value={categoryForm.title}
+                    onChange={(event) =>
+                      setCategoryForm((current) => ({ ...current, title: event.target.value }))
+                    }
+                    placeholder="Kategori adı"
+                    className="h-12 rounded-2xl border border-black/[0.08] bg-[#f7f4ef] px-4 text-sm outline-none focus:border-black/25"
+                  />
+                  <div className="flex h-12 items-center rounded-2xl border border-black/[0.08] bg-[#f7f4ef] px-4 text-sm font-medium text-black/58">
+                    <span className="min-w-0 truncate">
+                      {editingCategoryId
+                        ? categoryPath(
+                            categories,
+                            categoryForm.parentId === "root"
+                              ? null
+                              : categoryForm.parentId
+                          )
+                        : categoryTargetLabel}
+                    </span>
+                  </div>
+                  <input
+                    value={categoryForm.imageSrc}
+                    onChange={(event) =>
+                      setCategoryForm((current) => ({
+                        ...current,
+                        imageSrc: event.target.value,
+                      }))
+                    }
+                    placeholder="Görsel bağlantısı"
+                    className="h-12 rounded-2xl border border-black/[0.08] bg-[#f7f4ef] px-4 text-sm outline-none focus:border-black/25"
+                  />
+                  <input
+                    ref={categoryImageRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={(event) => handleCategoryImage(event.target.files?.[0])}
+                    className="text-sm text-black/45 file:mr-3 file:rounded-full file:border-0 file:bg-black file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
+                  />
+                  <label className="flex h-11 items-center justify-between rounded-2xl bg-black/[0.035] px-4 text-sm font-semibold text-black/55">
+                    Katalogda aktif
+                    <input
+                      type="checkbox"
+                      checked={categoryForm.isActive}
+                      onChange={(event) =>
+                        setCategoryForm((current) => ({
+                          ...current,
+                          isActive: event.target.checked,
+                        }))
+                      }
+                    />
+                  </label>
+                  {categoryForm.imageSrc ? (
+                    <img
+                      src={categoryForm.imageSrc}
+                      alt=""
+                      className="h-36 rounded-[24px] object-cover"
+                    />
+                  ) : null}
+                </div>
+                <EditorActions
+                  isSaving={isSaving}
+                  primaryLabel="Kaydet"
+                  dangerLabel={editingCategoryId ? "Sil" : undefined}
+                  onDanger={
+                    editingCategoryId
+                      ? () => {
+                          const category = categories.find(
+                            (candidate) => candidate.id === editingCategoryId
+                          );
+                          if (category) deleteCategory(category);
+                        }
+                      : undefined
+                  }
+                />
+              </form>
+            ) : (
+              <form onSubmit={saveProduct}>
+                <EditorHeader
+                  title={editingProductId ? "Ürünü düzenle" : "Ürün ekle"}
+                  subtitle="Ürün kartındaki fiyat, stok ve görsel bilgilerini yönetin."
+                  onClose={closeEditor}
+                />
+                <div className="mt-5 grid gap-3">
+                  <input
+                    value={productForm.name}
+                    onChange={(event) =>
+                      setProductForm((current) => ({ ...current, name: event.target.value }))
+                    }
+                    placeholder="Ürün adı"
+                    className="h-12 rounded-2xl border border-black/[0.08] bg-[#f7f4ef] px-4 text-sm outline-none focus:border-black/25"
+                  />
+                  <input
+                    value={productForm.code}
+                    onChange={(event) =>
+                      setProductForm((current) => ({ ...current, code: event.target.value }))
+                    }
+                    placeholder="Model kodu"
+                    className="h-12 rounded-2xl border border-black/[0.08] bg-[#f7f4ef] px-4 text-sm outline-none focus:border-black/25"
+                  />
+                  <div className="flex h-12 items-center rounded-2xl border border-black/[0.08] bg-[#f7f4ef] px-4 text-sm font-medium text-black/58">
+                    <span className="min-w-0 truncate">{productCategoryLabel}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <input
+                      value={productForm.purchasePrice}
+                      onChange={(event) =>
+                        setProductForm((current) => ({
+                          ...current,
+                          purchasePrice: event.target.value,
+                        }))
+                      }
+                      inputMode="decimal"
+                      placeholder="Alış fiyatı"
+                      className="h-12 min-w-0 rounded-2xl border border-black/[0.08] bg-[#f7f4ef] px-3 text-sm outline-none focus:border-black/25"
+                    />
+                    <input
+                      value={productForm.price}
+                      onChange={(event) =>
+                        setProductForm((current) => ({
+                          ...current,
+                          price: event.target.value,
+                        }))
+                      }
+                      inputMode="decimal"
+                      placeholder="Satış fiyatı"
+                      className="h-12 min-w-0 rounded-2xl border border-black/[0.08] bg-[#f7f4ef] px-3 text-sm outline-none focus:border-black/25"
+                    />
+                    <input
+                      value={productForm.stock}
+                      onChange={(event) =>
+                        setProductForm((current) => ({
+                          ...current,
+                          stock: event.target.value,
+                        }))
+                      }
+                      inputMode="numeric"
+                      placeholder="Stok"
+                      className="h-12 min-w-0 rounded-2xl border border-black/[0.08] bg-[#f7f4ef] px-3 text-sm outline-none focus:border-black/25"
+                    />
+                  </div>
+                  <input
+                    value={productForm.imageSrc}
+                    onChange={(event) =>
+                      setProductForm((current) => ({
+                        ...current,
+                        imageSrc: event.target.value,
+                      }))
+                    }
+                    placeholder="Görsel bağlantısı"
+                    className="h-12 rounded-2xl border border-black/[0.08] bg-[#f7f4ef] px-4 text-sm outline-none focus:border-black/25"
+                  />
+                  <input
+                    ref={productImageRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={(event) => handleProductImage(event.target.files?.[0])}
+                    className="text-sm text-black/45 file:mr-3 file:rounded-full file:border-0 file:bg-black file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
+                  />
+                  <input
+                    value={productForm.description}
+                    onChange={(event) =>
+                      setProductForm((current) => ({
+                        ...current,
+                        description: event.target.value,
+                      }))
+                    }
+                    placeholder="Ürün notu"
+                    className="h-12 rounded-2xl border border-black/[0.08] bg-[#f7f4ef] px-4 text-sm outline-none focus:border-black/25"
+                  />
+                  <label className="flex h-11 items-center justify-between rounded-2xl bg-black/[0.035] px-4 text-sm font-semibold text-black/55">
+                    Katalogda aktif
+                    <input
+                      type="checkbox"
+                      checked={productForm.isActive}
+                      onChange={(event) =>
+                        setProductForm((current) => ({
+                          ...current,
+                          isActive: event.target.checked,
+                        }))
+                      }
+                    />
+                  </label>
+                  {productForm.imageSrc ? (
+                    <img
+                      src={productForm.imageSrc}
+                      alt=""
+                      className="h-40 rounded-[24px] object-cover"
+                    />
+                  ) : null}
+                </div>
+                <EditorActions
+                  isSaving={isSaving}
+                  primaryLabel={editingProductId ? "Ürünü güncelle" : "Ürünü kaydet"}
+                  dangerLabel={editingProductId ? "Sil" : undefined}
+                  onDanger={
+                    editingProductId
+                      ? () => {
+                          const product = products.find(
+                            (candidate) => candidate.id === editingProductId
+                          );
+                          if (product) deleteProduct(product);
+                        }
+                      : undefined
+                  }
+                />
+              </form>
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      {deleteTarget ? (
+        <div className="fixed inset-0 z-50">
+          <button
+            type="button"
+            aria-label="Silme onayını kapat"
+            className="absolute inset-0 bg-black/24 backdrop-blur-[2px]"
+            onClick={() => setDeleteTarget(null)}
+          />
+          <div className="absolute inset-x-4 bottom-4 mx-auto max-w-md rounded-[28px] bg-[#fbfaf7] p-5 shadow-2xl ring-1 ring-black/[0.08]">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-red-500">
+              Silme onayı
+            </p>
+            <h3 className="mt-2 text-[22px] font-semibold leading-7 tracking-[-0.04em] text-black">
+              {deleteTarget.type === "category"
+                ? deleteTarget.item.title
+                : deleteTarget.item.name}
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-black/52">
+              Bu kayıt silinecek. Bu işlem geri alınamaz.
+            </p>
+            {deleteWarning ? (
+              <p className="mt-3 rounded-2xl bg-red-50 px-4 py-3 text-sm font-medium leading-5 text-red-600">
+                {deleteWarning}
+              </p>
+            ) : null}
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                className="h-12 rounded-full bg-black/[0.04] text-sm font-semibold text-black/58"
+              >
+                Vazgeç
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                disabled={isSaving}
+                className="h-12 rounded-full bg-red-500 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {isSaving ? "Siliniyor..." : "Sil"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {imagePreview ? (
+        <div className="fixed inset-0 z-50">
+          <button
+            type="button"
+            aria-label="Görsel önizlemeyi kapat"
+            className="absolute inset-0 bg-black/72 backdrop-blur-md"
+            onClick={() => setImagePreview(null)}
+          />
+          <div className="absolute inset-x-4 top-1/2 mx-auto max-w-4xl -translate-y-1/2">
+            <div className="relative overflow-hidden rounded-[28px] bg-black shadow-2xl">
+              <img
+                src={imagePreview.src}
+                alt={imagePreview.title}
+                className="max-h-[82vh] w-full object-contain"
+              />
+              <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-4 bg-gradient-to-b from-black/56 to-transparent p-4">
+                <p className="min-w-0 truncate text-sm font-semibold text-white">
+                  {imagePreview.title}
+                </p>
                 <button
                   type="button"
-                  disabled={isSaving}
-                  onClick={() => deleteProduct(selectedProduct)}
-                  className="h-12 rounded-full px-4 text-sm font-semibold text-red-600"
+                  aria-label="Kapat"
+                  onClick={() => setImagePreview(null)}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/92 text-[20px] font-medium text-black shadow-sm backdrop-blur"
                 >
-                  Sil
+                  ×
                 </button>
-              ) : null}
+              </div>
             </div>
-          </form>
-          )}
-        </aside>
-      </section>
+          </div>
+        </div>
+      ) : null}
+
+      {error || message ? (
+        <div className="fixed bottom-5 right-5 z-50 w-[min(360px,calc(100vw-40px))]">
+          <div
+            className={
+              error
+                ? "rounded-2xl border border-red-200/70 bg-white px-4 py-3 text-sm font-semibold text-red-600 shadow-[0_18px_45px_rgba(0,0,0,0.14)]"
+                : "rounded-2xl border border-black/[0.06] bg-black px-4 py-3 text-sm font-semibold text-white shadow-[0_18px_45px_rgba(0,0,0,0.18)]"
+            }
+          >
+            {error || message}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function EditorHeader({
+  title,
+  subtitle,
+  onClose,
+}: {
+  title: string;
+  subtitle: string;
+  onClose: () => void;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <div>
+        <h2 className="text-[22px] font-semibold tracking-[-0.04em]">{title}</h2>
+        <p className="mt-1 text-sm leading-5 text-black/42">{subtitle}</p>
+      </div>
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Kapat"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/[0.04] text-[20px] font-medium text-black/48"
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
+function EditorActions({
+  isSaving,
+  primaryLabel,
+  dangerLabel,
+  onDanger,
+}: {
+  isSaving: boolean;
+  primaryLabel: string;
+  dangerLabel?: string;
+  onDanger?: () => void;
+}) {
+  return (
+    <div className="mt-5 flex gap-2">
+      <button
+        type="submit"
+        disabled={isSaving}
+        className="h-12 flex-1 rounded-full bg-black px-5 text-sm font-semibold text-white disabled:bg-black/35"
+      >
+        {primaryLabel}
+      </button>
+      {dangerLabel && onDanger ? (
+        <button
+          type="button"
+          disabled={isSaving}
+          onClick={onDanger}
+          className="h-12 rounded-full px-4 text-sm font-semibold text-red-600 disabled:text-red-300"
+        >
+          {dangerLabel}
+        </button>
+      ) : null}
     </div>
   );
 }

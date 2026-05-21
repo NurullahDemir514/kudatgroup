@@ -3,6 +3,65 @@
 import { useState, useEffect, useRef } from "react";
 import { IProduct } from "@/models/Product";
 
+type CatalogCategory = {
+    id: string;
+    title: string;
+    parentId: string | null;
+};
+
+type CatalogProduct = {
+    id: string;
+    name: string;
+    code?: string;
+    categoryId: string;
+    imageSrc?: string;
+    purchasePrice?: number;
+    price: number;
+    stock: number;
+    description?: string;
+    isActive?: boolean;
+};
+
+type AdminProductListItem = IProduct & {
+    source?: "legacy" | "catalog";
+    catalogId?: string;
+};
+
+const buildCategoryPath = (
+    categoryId: string,
+    categoriesById: Map<string, CatalogCategory>
+) => {
+    const titles: string[] = [];
+    const visited = new Set<string>();
+    let current = categoriesById.get(categoryId);
+
+    while (current && !visited.has(current.id)) {
+        visited.add(current.id);
+        titles.unshift(current.title);
+        current = current.parentId ? categoriesById.get(current.parentId) : undefined;
+    }
+
+    return titles.join(" / ") || "Katalog";
+};
+
+const mapCatalogProduct = (
+    product: CatalogProduct,
+    categoriesById: Map<string, CatalogCategory>
+): AdminProductListItem => ({
+    id: `catalog:${product.id}`,
+    _id: `catalog:${product.id}`,
+    name: product.name,
+    description: product.description || product.code || "",
+    wholesalePrice: product.purchasePrice || 0,
+    salePrice: product.price || 0,
+    stock: product.stock || 0,
+    category: buildCategoryPath(product.categoryId, categoriesById),
+    image: product.imageSrc,
+    supplier: "Katalog",
+    source: "catalog",
+    catalogId: product.id,
+});
+
 // Scrollbar gizleme CSS'i
 const scrollbarHideStyles = `
 .scrollbar-hide::-webkit-scrollbar {
@@ -16,14 +75,14 @@ const scrollbarHideStyles = `
 
 export default function ProductsPage() {
     // State tanımlamaları
-    const [products, setProducts] = useState<IProduct[]>([]);
+    const [products, setProducts] = useState<AdminProductListItem[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [categories, setCategories] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [showForm, setShowForm] = useState(false);
-    const [editingProduct, setEditingProduct] = useState<IProduct | null>(null);
+    const [editingProduct, setEditingProduct] = useState<AdminProductListItem | null>(null);
     const [formData, setFormData] = useState({
         name: "",
         description: "",
@@ -48,13 +107,34 @@ export default function ProductsPage() {
         const fetchProducts = async () => {
             try {
                 setLoading(true);
-                const response = await fetch("/api/products");
-                const result = await response.json();
+                const [legacyResponse, catalogResponse] = await Promise.all([
+                    fetch("/api/products"),
+                    fetch("/api/admin/catalog"),
+                ]);
+                const legacyResult = await legacyResponse.json();
+                const catalogResult = await catalogResponse.json();
 
-                if (result.success) {
-                    setProducts(result.data);
+                if (legacyResult.success) {
+                    const legacyProducts = (legacyResult.data as IProduct[]).map((product) => ({
+                        ...product,
+                        source: "legacy" as const,
+                    }));
+                    const catalogCategories = (catalogResult.success
+                        ? catalogResult.data?.categories || []
+                        : []) as CatalogCategory[];
+                    const catalogProducts = (catalogResult.success
+                        ? catalogResult.data?.products || []
+                        : []) as CatalogProduct[];
+                    const categoriesById = new Map(
+                        catalogCategories.map((category) => [category.id, category])
+                    );
+                    const mappedCatalogProducts = catalogProducts.map((product) =>
+                        mapCatalogProduct(product, categoriesById)
+                    );
+
+                    setProducts([...legacyProducts, ...mappedCatalogProducts]);
                 } else {
-                    setError(result.error || "Ürünler yüklenirken bir hata oluştu");
+                    setError(legacyResult.error || "Ürünler yüklenirken bir hata oluştu");
                 }
             } catch (err) {
                 setError("Sunucu ile bağlantı kurulamadı");
@@ -75,7 +155,14 @@ export default function ProductsPage() {
                 const result = await response.json();
 
                 if (result.success) {
-                    setCategories(result.data);
+                    const productCategories = products
+                        .map((product) => product.category)
+                        .filter(Boolean);
+                    setCategories(
+                        Array.from(new Set([...result.data, ...productCategories])).sort((a, b) =>
+                            a.localeCompare(b, "tr-TR")
+                        )
+                    );
                 }
             } catch (err) {
                 console.error("Kategoriler yüklenirken hata:", err);
@@ -118,13 +205,18 @@ export default function ProductsPage() {
     };
 
     // Düzenleme formunu göster
-    const handleShowEditForm = (product: IProduct) => {
+    const handleShowEditForm = (product: AdminProductListItem) => {
+        if (product.source === "catalog") {
+            window.location.href = "/admin/catalog";
+            return;
+        }
+
         setFormData({
             name: product.name,
             description: product.description || "",
             wholesalePrice: product.wholesalePrice?.toString() || "",
             salePrice: product.salePrice.toString(),
-            stock: product.stock.toString(),
+            stock: (product.stock ?? 0).toString(),
             category: product.category,
             image: product.image || "",
             supplier: product.supplier || "",
@@ -276,12 +368,12 @@ export default function ProductsPage() {
                     // Ürünü güncelle
                     setProducts((prev) =>
                         prev.map((p) =>
-                            p._id === editingProduct._id ? result.data : p
+                            p._id === editingProduct._id ? { ...result.data, source: "legacy" } : p
                         )
                     );
                 } else {
                     // Yeni ürün ekle
-                    setProducts((prev) => [...prev, result.data]);
+                    setProducts((prev) => [...prev, { ...result.data, source: "legacy" }]);
                 }
                 handleCloseForm();
             } else {
@@ -297,6 +389,11 @@ export default function ProductsPage() {
 
     // Bir ürünü sil
     const handleDeleteProduct = async (id: string) => {
+        if (id.startsWith("catalog:")) {
+            window.location.href = "/admin/catalog";
+            return;
+        }
+
         if (!window.confirm("Bu ürünü silmek istediğinize emin misiniz?")) {
             return;
         }
@@ -732,15 +829,20 @@ export default function ProductsPage() {
                                                         <div className="text-xs sm:text-sm font-medium text-gray-800 truncate max-w-[120px] sm:max-w-[200px]">
                                                             {product.name}
                                                         </div>
-                                                        <div className="text-xs text-gray-600 hidden sm:block truncate max-w-[200px]">
-                                                            {product.description}
+                                                        <div className="hidden max-w-[200px] items-center gap-2 text-xs text-gray-600 sm:flex">
+                                                            {product.source === "catalog" && (
+                                                                <span className="rounded-full bg-black px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white">
+                                                                    Katalog
+                                                                </span>
+                                                            )}
+                                                            <span className="truncate">{product.description}</span>
                                                         </div>
                                                         <div className="text-xs text-gray-500 sm:hidden">
                                                             {product.category}
                                                         </div>
                                                         <div className="text-xs sm:hidden flex items-center text-gray-500">
-                                                            Stok: <span className={`ml-1 ${product.stock > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                                                                {product.stock > 0 ? product.stock : '0'}
+                                                            Stok: <span className={`ml-1 ${(product.stock ?? 0) > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                                                {(product.stock ?? 0) > 0 ? product.stock : '0'}
                                                             </span>
                                                         </div>
                                                     </div>
@@ -756,14 +858,14 @@ export default function ProductsPage() {
                                             </td>
                                             <td className="whitespace-nowrap px-3 sm:px-6 py-3 sm:py-4 hidden sm:table-cell">
                                                 <div
-                                                    className={`text-xs sm:text-sm font-medium ${product.stock > 10
+                                                    className={`text-xs sm:text-sm font-medium ${(product.stock ?? 0) > 10
                                                         ? "text-emerald-600"
-                                                        : product.stock > 0
+                                                        : (product.stock ?? 0) > 0
                                                             ? "text-amber-600"
                                                             : "text-red-600 font-bold"
                                                         }`}
                                                 >
-                                                    {product.stock > 0 ? product.stock :
+                                                    {(product.stock ?? 0) > 0 ? product.stock :
                                                         <span className="flex items-center">
                                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:h-4 sm:w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -787,24 +889,37 @@ export default function ProductsPage() {
                                                 </div>
                                             </td>
                                             <td className="whitespace-nowrap px-3 sm:px-6 py-3 sm:py-4 text-right text-xs sm:text-sm font-medium">
-                                                <button
-                                                    onClick={() => handleShowEditForm(product)}
-                                                    className="text-blue-600 hover:text-blue-800 transition-colors mr-2 sm:mr-3"
-                                                >
-                                                    <span className="hidden sm:inline">Düzenle</span>
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline sm:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                                    </svg>
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeleteProduct((product.id || product._id) as string)}
-                                                    className="text-gray-500 hover:text-red-600 transition-colors"
-                                                >
-                                                    <span className="hidden sm:inline">Sil</span>
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline sm:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                    </svg>
-                                                </button>
+                                                {product.source === "catalog" ? (
+                                                    <button
+                                                        onClick={() => {
+                                                            window.location.href = "/admin/catalog";
+                                                        }}
+                                                        className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-800 transition-colors hover:border-black hover:bg-black hover:text-white"
+                                                    >
+                                                        Katalogda yönet
+                                                    </button>
+                                                ) : (
+                                                    <>
+                                                        <button
+                                                            onClick={() => handleShowEditForm(product)}
+                                                            className="text-blue-600 hover:text-blue-800 transition-colors mr-2 sm:mr-3"
+                                                        >
+                                                            <span className="hidden sm:inline">Düzenle</span>
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline sm:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                            </svg>
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteProduct((product.id || product._id) as string)}
+                                                            className="text-gray-500 hover:text-red-600 transition-colors"
+                                                        >
+                                                            <span className="hidden sm:inline">Sil</span>
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline sm:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                            </svg>
+                                                        </button>
+                                                    </>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}

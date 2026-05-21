@@ -138,6 +138,7 @@ function ProductCard({
   onChangeQuantity: (productId: string, quantity: number) => void;
 }) {
   const hasQuantity = quantity > 0;
+  const [isImageExpanded, setIsImageExpanded] = useState(false);
   const hasDiscount =
     typeof product.compareAtPrice === "number" && product.compareAtPrice > product.price;
   const discountRate = hasDiscount
@@ -154,11 +155,19 @@ function ProductCard({
   return (
     <article className="group min-w-0">
       <div className="relative aspect-[4/5] overflow-hidden rounded-[24px] bg-black/[0.04]">
-        <img
-          src={product.imageSrc}
-          alt={product.name}
-          className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.035]"
-        />
+        <button
+          type="button"
+          aria-label={`${product.name} görselini büyüt`}
+          aria-pressed={isImageExpanded}
+          onClick={() => setIsImageExpanded(true)}
+          className="block h-full w-full overflow-hidden"
+        >
+          <img
+            src={product.imageSrc}
+            alt={product.name}
+            className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.035]"
+          />
+        </button>
         <div className="absolute inset-x-3 top-3 flex items-start justify-between gap-2">
           {hasDiscount ? (
             <span className="rounded-full bg-white/92 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-black shadow-sm backdrop-blur">
@@ -262,6 +271,38 @@ function ProductCard({
           </span>
         </div>
       </div>
+      {isImageExpanded ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <button
+            type="button"
+            aria-label="Görseli kapat"
+            className="absolute inset-0 cursor-default bg-transparent"
+            onClick={() => setIsImageExpanded(false)}
+          />
+          <div className="relative z-10">
+            <button
+              type="button"
+              aria-label="Görseli kapat"
+              onClick={() => setIsImageExpanded(false)}
+              className="absolute right-2 top-2 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/92 text-[20px] font-medium text-black shadow-sm backdrop-blur"
+            >
+              ×
+            </button>
+            <button
+              type="button"
+              aria-label={`${product.name} görselini kapat`}
+              onClick={() => setIsImageExpanded(false)}
+              className="block"
+            >
+              <img
+                src={product.imageSrc}
+                alt={product.name}
+                className="max-h-[86vh] max-w-[min(92vw,760px)] rounded-[24px] object-contain shadow-[0_24px_80px_rgba(0,0,0,0.22)]"
+              />
+            </button>
+          </div>
+        </div>
+      ) : null}
     </article>
   );
 }

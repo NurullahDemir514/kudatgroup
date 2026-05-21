@@ -1,10 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { productService } from '@/services/firebaseServices';
+import { getAdminCatalogProducts } from '@/services/catalogProductService';
 
 // Tüm ürünleri getir
-export async function GET(request: NextRequest) {
+export async function GET() {
     try {
-        const products = await productService.getAll();
+        const [legacyProducts, catalogProducts] = await Promise.all([
+            productService.getAll(),
+            getAdminCatalogProducts(),
+        ]);
+        const mappedCatalogProducts = catalogProducts
+            .filter((product) => product.isActive !== false)
+            .map((product) => ({
+                id: product.id,
+                name: product.name,
+                code: product.code,
+                category: product.categoryId,
+                image: product.imageSrc || '',
+                wholesalePrice: product.purchasePrice || 0,
+                salePrice: product.price || 0,
+                stock: product.stock || 0,
+                description: product.description || '',
+                source: 'catalog',
+                catalogId: product.id,
+            }));
+        const products = mappedCatalogProducts.length
+            ? mappedCatalogProducts
+            : legacyProducts;
 
         return NextResponse.json({ success: true, data: products });
     } catch (error) {

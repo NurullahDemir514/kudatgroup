@@ -12,12 +12,18 @@ import { db } from "@/lib/firebase";
 
 const collectionName = "catalog_products";
 
+const withoutUndefined = <T extends Record<string, unknown>>(value: T) =>
+  Object.fromEntries(
+    Object.entries(value).filter(([, fieldValue]) => fieldValue !== undefined)
+  ) as T;
+
 export type AdminCatalogProduct = {
   id: string;
   name: string;
   code: string;
   categoryId: string;
   imageSrc?: string;
+  purchasePrice?: number;
   price: number;
   compareAtPrice?: number;
   stock: number;
@@ -39,6 +45,8 @@ export async function getAdminCatalogProducts(): Promise<AdminCatalogProduct[]> 
         code: data.code ?? "",
         categoryId: data.categoryId ?? "",
         imageSrc: data.imageSrc,
+        purchasePrice:
+          typeof data.purchasePrice === "number" ? data.purchasePrice : undefined,
         price: typeof data.price === "number" ? data.price : 0,
         compareAtPrice:
           typeof data.compareAtPrice === "number" ? data.compareAtPrice : undefined,
@@ -54,11 +62,11 @@ export async function getAdminCatalogProducts(): Promise<AdminCatalogProduct[]> 
 export async function createAdminCatalogProduct(
   product: Omit<AdminCatalogProduct, "id">
 ) {
-  const docRef = await addDoc(collection(db, collectionName), {
+  const docRef = await addDoc(collection(db, collectionName), withoutUndefined({
     ...product,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
-  });
+  }));
 
   return { id: docRef.id, ...product };
 }
@@ -67,10 +75,10 @@ export async function updateAdminCatalogProduct(
   id: string,
   product: Partial<Omit<AdminCatalogProduct, "id">>
 ) {
-  await updateDoc(doc(db, collectionName, id), {
+  await updateDoc(doc(db, collectionName, id), withoutUndefined({
     ...product,
     updatedAt: serverTimestamp(),
-  });
+  }));
 
   return { id, ...product };
 }

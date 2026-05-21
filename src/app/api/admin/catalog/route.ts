@@ -71,6 +71,7 @@ function cleanProduct(
   if (!code) throw new Error("Ürün kodu zorunludur");
   if (!categoryId) throw new Error("Kategori seçimi zorunludur");
 
+  const purchasePrice = numberOrZero(product.purchasePrice);
   const price = numberOrZero(product.price);
   const compareAtPrice = numberOrZero(product.compareAtPrice);
 
@@ -79,6 +80,7 @@ function cleanProduct(
     code,
     categoryId,
     imageSrc: String(product.imageSrc ?? "").trim() || undefined,
+    purchasePrice: purchasePrice || undefined,
     price,
     compareAtPrice: compareAtPrice > price ? compareAtPrice : undefined,
     stock: Math.floor(numberOrZero(product.stock)),
