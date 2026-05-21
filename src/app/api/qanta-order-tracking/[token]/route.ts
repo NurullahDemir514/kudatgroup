@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 const defaultEndpoint =
   "https://us-central1-qanta-de0b9.cloudfunctions.net/getKudatWholesaleOrderTracking";
+const defaultBusinessId = "tvuoVQFqrE5kweIXP0jn";
 
 function cleanText(value: unknown) {
   return String(value ?? "").trim();
@@ -23,8 +24,13 @@ export async function GET(
   }
 
   try {
+    const businessId = process.env.QANTA_BUSINESS_ID || defaultBusinessId;
+    const searchParams = new URLSearchParams({
+      token: cleanToken,
+      businessId,
+    });
     const response = await fetch(
-      `${endpoint}?token=${encodeURIComponent(cleanToken)}`,
+      `${endpoint}?${searchParams.toString()}`,
       { headers: { Accept: "application/json" }, cache: "no-store" }
     );
     const data = await response.json().catch(() => ({}));
