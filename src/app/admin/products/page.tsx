@@ -108,7 +108,7 @@ export default function ProductsPage() {
             try {
                 setLoading(true);
                 const [legacyResponse, catalogResponse] = await Promise.all([
-                    fetch("/api/products"),
+                    fetch("/api/products?source=legacy"),
                     fetch("/api/admin/catalog"),
                 ]);
                 const legacyResult = await legacyResponse.json();

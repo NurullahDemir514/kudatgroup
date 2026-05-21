@@ -3,8 +3,14 @@ import { productService } from '@/services/firebaseServices';
 import { getAdminCatalogProducts } from '@/services/catalogProductService';
 
 // Tüm ürünleri getir
-export async function GET() {
+export async function GET(request: NextRequest) {
     try {
+        const source = request.nextUrl.searchParams.get('source');
+        if (source === 'legacy') {
+            const legacyProducts = await productService.getAll();
+            return NextResponse.json({ success: true, data: legacyProducts });
+        }
+
         const [legacyProducts, catalogProducts] = await Promise.all([
             productService.getAll(),
             getAdminCatalogProducts(),
