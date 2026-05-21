@@ -5,11 +5,15 @@ const defaultEndpoint =
 const defaultBusinessId = "tvuoVQFqrE5kweIXP0jn";
 
 function publicBaseUrl(request: NextRequest) {
-  const configured = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  const configured =
+    process.env.NEXT_PUBLIC_SITE_URL || process.env.KUDAT_PUBLIC_SITE_URL;
   if (configured) {
     return configured.startsWith("http") ? configured : `https://${configured}`;
   }
-  return request.nextUrl.origin;
+  if (request.nextUrl.hostname === "localhost") {
+    return request.nextUrl.origin;
+  }
+  return "https://kudatgroup.com";
 }
 
 type KudatOrderItem = {
