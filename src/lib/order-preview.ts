@@ -30,10 +30,18 @@ export type CustomerInfo = {
   note: string;
 };
 
+export type SubmittedOrderStatus =
+  | "new"
+  | "reviewed"
+  | "pending"
+  | "approved"
+  | "completed"
+  | "cancelled";
+
 export type SubmittedOrder = {
   id: string;
   createdAt: string;
-  status: "new" | "reviewed";
+  status: SubmittedOrderStatus;
   trackingToken?: string;
   trackingUrl?: string;
   categoryTitle: string;

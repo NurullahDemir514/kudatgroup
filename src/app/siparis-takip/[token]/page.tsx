@@ -3,6 +3,7 @@ import { formatPrice } from "@/lib/order-preview";
 
 type TrackingItem = {
   name: string;
+  imageUrl?: string;
   quantity: number;
   unitPrice: number;
   total: number;
@@ -152,15 +153,26 @@ export default async function OrderTrackingPage({
                     key={`${item.name}-${index}`}
                     className="flex items-center justify-between gap-4 border-t border-black/6 pt-3 text-[14px]"
                   >
-                    <div>
-                      <p className="font-semibold tracking-[-0.02em]">
-                        {item.name}
-                      </p>
-                      <p className="mt-1 text-black/42">
-                        {item.quantity} adet x {formatPrice(item.unitPrice)}
-                      </p>
+                    <div className="flex min-w-0 items-center gap-3">
+                      {item.imageUrl ? (
+                        <img
+                          src={item.imageUrl}
+                          alt={item.name}
+                          className="h-14 w-14 shrink-0 rounded-[16px] object-cover"
+                        />
+                      ) : (
+                        <div className="h-14 w-14 shrink-0 rounded-[16px] bg-black/[0.04]" />
+                      )}
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold tracking-[-0.02em]">
+                          {item.name}
+                        </p>
+                        <p className="mt-1 text-black/42">
+                          {item.quantity} adet x {formatPrice(item.unitPrice)}
+                        </p>
+                      </div>
                     </div>
-                    <p className="font-semibold">{formatPrice(item.total)}</p>
+                    <p className="shrink-0 font-semibold">{formatPrice(item.total)}</p>
                   </div>
                 ))}
               </div>

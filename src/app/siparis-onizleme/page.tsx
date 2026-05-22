@@ -276,7 +276,7 @@ export default function OrderPreviewPage() {
 
       saveCustomerToCache(customer);
       const trackingUrl = result?.data?.trackingUrl || (order.trackingToken ? `/siparis-takip/${order.trackingToken}` : "");
-      saveSubmittedOrder(order);
+      saveSubmittedOrder({ ...order, trackingUrl });
       window.sessionStorage.removeItem(orderPreviewStorageKey);
       window.localStorage.removeItem(cartStorageKey);
       setCreatedOrderId(order.id);

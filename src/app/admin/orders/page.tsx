@@ -6,7 +6,74 @@ import {
   formatPrice,
   submittedOrdersStorageKey,
   type SubmittedOrder,
+  type SubmittedOrderStatus,
 } from "@/lib/order-preview";
+
+type TrackingItem = {
+  name: string;
+  imageUrl?: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+};
+
+type TrackingOrder = {
+  id: string;
+  status: SubmittedOrderStatus;
+  totalAmount: number;
+  itemCount: number;
+  items: TrackingItem[];
+  updatedAt?: string | null;
+};
+
+type OrderViewModel = SubmittedOrder & {
+  qanta?: TrackingOrder;
+  qantaStatus: SubmittedOrderStatus;
+};
+
+const statusMeta: Record<
+  SubmittedOrderStatus,
+  { label: string; tone: string; helper: string }
+> = {
+  new: {
+    label: "Yeni",
+    tone: "bg-black text-white",
+    helper: "Qanta’ya gönderildi, işlem bekliyor.",
+  },
+  reviewed: {
+    label: "İncelendi",
+    tone: "bg-black text-white",
+    helper: "Admin tarafından incelendi.",
+  },
+  pending: {
+    label: "Sipariş alındı",
+    tone: "bg-black text-white",
+    helper: "Qanta’da işlem bekliyor.",
+  },
+  approved: {
+    label: "Hazırlanıyor",
+    tone: "bg-[#C46A1D] text-white",
+    helper: "Qanta’da onaylandı.",
+  },
+  completed: {
+    label: "Tamamlandı",
+    tone: "bg-[#267A4F] text-white",
+    helper: "Qanta’da satış tamamlandı.",
+  },
+  cancelled: {
+    label: "İptal",
+    tone: "bg-[#B3261E] text-white",
+    helper: "Sipariş iptal edildi.",
+  },
+};
+
+const filters: Array<{ value: "all" | SubmittedOrderStatus; label: string }> = [
+  { value: "all", label: "Tümü" },
+  { value: "pending", label: "İşlem bekleyen" },
+  { value: "approved", label: "Hazırlanan" },
+  { value: "completed", label: "Tamamlanan" },
+  { value: "cancelled", label: "İptal" },
+];
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("tr-TR", {
@@ -15,23 +82,74 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
+function orderTrackingPath(order: SubmittedOrder) {
+  if (order.trackingUrl) return order.trackingUrl;
+  if (!order.trackingToken) return "";
+  return `/siparis-takip/${encodeURIComponent(order.trackingToken)}`;
+}
+
+async function fetchTrackingOrder(token: string): Promise<TrackingOrder | null> {
+  const response = await fetch(
+    `/api/qanta-order-tracking/${encodeURIComponent(token)}`,
+    { cache: "no-store" }
+  );
+  const data = await response.json().catch(() => null);
+  if (!response.ok || data?.success !== true) return null;
+  return data.data as TrackingOrder;
+}
+
 export default function AdminOrdersPage() {
-  const [orders, setOrders] = useState<SubmittedOrder[]>([]);
+  const [orders, setOrders] = useState<OrderViewModel[]>([]);
+  const [activeFilter, setActiveFilter] = useState<
+    "all" | SubmittedOrderStatus
+  >("all");
 
   useEffect(() => {
-    try {
-      const savedOrders = window.localStorage.getItem(submittedOrdersStorageKey);
-      setOrders(savedOrders ? (JSON.parse(savedOrders) as SubmittedOrder[]) : []);
-    } catch {
-      window.localStorage.removeItem(submittedOrdersStorageKey);
-      setOrders([]);
+    let cancelled = false;
+
+    async function loadOrders() {
+      try {
+        const savedOrders = window.localStorage.getItem(submittedOrdersStorageKey);
+        const localOrders = savedOrders
+          ? (JSON.parse(savedOrders) as SubmittedOrder[])
+          : [];
+        const enriched = await Promise.all(
+          localOrders.map(async (order) => {
+            const qanta = order.trackingToken
+              ? await fetchTrackingOrder(order.trackingToken)
+              : null;
+            return {
+              ...order,
+              qanta: qanta ?? undefined,
+              qantaStatus: qanta?.status ?? order.status,
+            };
+          })
+        );
+        if (!cancelled) setOrders(enriched);
+      } catch {
+        window.localStorage.removeItem(submittedOrdersStorageKey);
+        if (!cancelled) setOrders([]);
+      }
     }
+
+    void loadOrders();
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  const visibleOrders = useMemo(() => {
+    if (activeFilter === "all") return orders;
+    return orders.filter((order) => order.qantaStatus === activeFilter);
+  }, [activeFilter, orders]);
 
   const totals = useMemo(
     () => ({
       count: orders.length,
-      amount: orders.reduce((sum, order) => sum + order.totalAmount, 0),
+      amount: orders.reduce(
+        (sum, order) => sum + (order.qanta?.totalAmount ?? order.totalAmount),
+        0
+      ),
     }),
     [orders]
   );
@@ -50,7 +168,9 @@ export default function AdminOrdersPage() {
         <div className="flex gap-3 text-sm">
           <div className="rounded-2xl bg-white/70 px-4 py-3 ring-1 ring-black/5">
             <p className="text-black/40">Toplam</p>
-            <p className="mt-1 font-semibold text-black">{totals.count} sipariş</p>
+            <p className="mt-1 font-semibold text-black">
+              {totals.count} sipariş
+            </p>
           </div>
           <div className="rounded-2xl bg-white/70 px-4 py-3 ring-1 ring-black/5">
             <p className="text-black/40">Tutar</p>
@@ -61,81 +181,153 @@ export default function AdminOrdersPage() {
         </div>
       </div>
 
-      <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {orders.map((order) => (
-          <article
-            key={order.id}
-            className="flex min-h-[300px] flex-col rounded-[26px] bg-white/82 p-5 ring-1 ring-black/6"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-black/35">
-                  {order.id}
-                </p>
-                <h2 className="mt-2 truncate text-xl font-semibold tracking-[-0.035em]">
-                  {order.customer.fullName || "İsimsiz müşteri"}
-                </h2>
-                <p className="mt-1 line-clamp-2 text-sm leading-5 text-black/45">
-                  {order.customer.phone || "Telefon yok"}
-                  {order.customer.district ? ` · ${order.customer.district}` : ""}
-                </p>
-              </div>
-              <div className="shrink-0 text-right">
-                <p className="text-sm font-semibold">{formatPrice(order.totalAmount)}</p>
-                <p className="mt-1 text-xs text-black/38">{order.totalQuantity} adet</p>
-              </div>
-            </div>
+      <div className="mt-7 flex gap-2 overflow-x-auto pb-1">
+        {filters.map((filter) => {
+          const selected = activeFilter === filter.value;
+          return (
+            <button
+              key={filter.value}
+              type="button"
+              onClick={() => setActiveFilter(filter.value)}
+              className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
+                selected
+                  ? "bg-black text-white"
+                  : "bg-white/70 text-black/48 ring-1 ring-black/6"
+              }`}
+            >
+              {filter.label}
+            </button>
+          );
+        })}
+      </div>
 
-            <p className="mt-4 text-xs font-medium text-black/35">
-              {formatDate(order.createdAt)}
-            </p>
+      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {visibleOrders.map((order) => {
+          const status = statusMeta[order.qantaStatus] ?? statusMeta.pending;
+          const items = order.qanta?.items.length ? order.qanta.items : order.items;
+          const totalAmount = order.qanta?.totalAmount ?? order.totalAmount;
+          const totalQuantity = order.qanta?.itemCount ?? order.totalQuantity;
+          const trackingPath = orderTrackingPath(order);
+          const address = formatCustomerAddress(order.customer);
 
-            <div className="mt-4 grid gap-2.5">
-              {order.items.map((item) => (
-                <div
-                  key={item.id}
-                  className="grid grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl bg-black/[0.025] p-2 text-sm"
-                >
-                  <img
-                    src={item.imageSrc}
-                    alt={item.name}
-                    className="aspect-square rounded-xl bg-black/[0.04] object-cover"
-                  />
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold tracking-[-0.02em] text-black/78">
-                      {item.name}
+          return (
+            <article
+              key={order.id}
+              className="flex min-h-[330px] flex-col rounded-[26px] bg-white/84 p-5 ring-1 ring-black/6"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="truncate text-xs font-semibold uppercase tracking-[0.16em] text-black/35">
+                      {order.id}
                     </p>
-                    <p className="mt-0.5 truncate text-xs font-medium text-black/38">
-                      {item.quantity} adet · {item.code || "Kodsuz"} · {formatPrice(item.price)}
-                    </p>
+                    <span
+                      className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${status.tone}`}
+                    >
+                      {status.label}
+                    </span>
                   </div>
-                  <p className="shrink-0 text-right text-sm font-semibold">
-                    {formatPrice(item.price * item.quantity)}
+                  <h2 className="mt-2 truncate text-xl font-semibold tracking-[-0.035em]">
+                    {order.customer.storeName || order.customer.fullName || "İsimsiz müşteri"}
+                  </h2>
+                  <p className="mt-1 line-clamp-1 text-sm leading-5 text-black/45">
+                    {order.customer.phone || "Telefon yok"}
+                    {order.customer.district ? ` · ${order.customer.district}` : ""}
                   </p>
                 </div>
-              ))}
-            </div>
-
-            {(formatCustomerAddress(order.customer) || order.customer.note) && (
-              <div className="mt-auto grid gap-2 border-t border-black/8 pt-4 text-sm leading-6 text-black/52">
-                {formatCustomerAddress(order.customer) ? (
-                  <p className="line-clamp-2">{formatCustomerAddress(order.customer)}</p>
-                ) : null}
-                {order.customer.note ? (
-                  <p className="line-clamp-2">Not: {order.customer.note}</p>
-                ) : null}
+                <div className="shrink-0 text-right">
+                  <p className="text-sm font-semibold">{formatPrice(totalAmount)}</p>
+                  <p className="mt-1 text-xs text-black/38">{totalQuantity} adet</p>
+                </div>
               </div>
-            )}
-          </article>
-        ))}
 
-        {!orders.length ? (
-          <div className="md:col-span-2 xl:col-span-3 py-16 text-center">
+              <p className="mt-4 text-xs font-medium text-black/36">
+                {status.helper}
+              </p>
+              <p className="mt-2 text-xs font-medium text-black/35">
+                {formatDate(order.qanta?.updatedAt ?? order.createdAt)}
+              </p>
+
+              <div className="mt-4 grid gap-2.5">
+                {items.slice(0, 3).map((item, index) => {
+                  const imageSrc =
+                    "imageSrc" in item ? item.imageSrc : item.imageUrl ?? "";
+                  const price = "price" in item ? item.price : item.unitPrice;
+                  const itemTotal =
+                    "total" in item ? item.total : item.price * item.quantity;
+                  return (
+                    <div
+                      key={`${item.name}-${index}`}
+                      className="grid grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl bg-black/[0.025] p-2 text-sm"
+                    >
+                      {imageSrc ? (
+                        <img
+                          src={imageSrc}
+                          alt={item.name}
+                          className="aspect-square rounded-xl bg-black/[0.04] object-cover"
+                        />
+                      ) : (
+                        <div className="aspect-square rounded-xl bg-black/[0.04]" />
+                      )}
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold tracking-[-0.02em] text-black/78">
+                          {item.name}
+                        </p>
+                        <p className="mt-0.5 truncate text-xs font-medium text-black/38">
+                          {item.quantity} adet · {formatPrice(price)}
+                        </p>
+                      </div>
+                      <p className="shrink-0 text-right text-sm font-semibold">
+                        {formatPrice(itemTotal)}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-auto border-t border-black/8 pt-4">
+                <div className="flex flex-wrap gap-2">
+                  {address ? (
+                    <span className="rounded-full bg-black/[0.04] px-3 py-1.5 text-xs font-semibold text-black/48">
+                      Adres var
+                    </span>
+                  ) : null}
+                  {order.customer.note ? (
+                    <span className="rounded-full bg-black/[0.04] px-3 py-1.5 text-xs font-semibold text-black/48">
+                      Not var
+                    </span>
+                  ) : null}
+                </div>
+                <div className="mt-4 flex gap-2">
+                  {trackingPath ? (
+                    <a
+                      href={trackingPath}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex h-10 flex-1 items-center justify-center rounded-full bg-black text-sm font-semibold text-white"
+                    >
+                      Takip ekranı
+                    </a>
+                  ) : null}
+                  <a
+                    href="/admin"
+                    className="flex h-10 flex-1 items-center justify-center rounded-full bg-white text-sm font-semibold text-black/62 ring-1 ring-black/8"
+                  >
+                    Qanta’da yönet
+                  </a>
+                </div>
+              </div>
+            </article>
+          );
+        })}
+
+        {!visibleOrders.length ? (
+          <div className="py-16 text-center md:col-span-2 xl:col-span-3">
             <p className="text-lg font-semibold tracking-[-0.03em]">
-              Henüz sipariş yok
+              Sipariş bulunamadı
             </p>
             <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-black/45">
-              Katalog tarafında oluşturulan siparişler burada listelenecek.
+              Bu filtrede gösterilecek sipariş yok.
             </p>
           </div>
         ) : null}
