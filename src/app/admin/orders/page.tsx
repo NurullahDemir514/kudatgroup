@@ -100,6 +100,7 @@ async function fetchTrackingOrder(token: string): Promise<TrackingOrder | null> 
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<OrderViewModel[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<
     "all" | SubmittedOrderStatus
   >("all");
@@ -129,6 +130,8 @@ export default function AdminOrdersPage() {
       } catch {
         window.localStorage.removeItem(submittedOrdersStorageKey);
         if (!cancelled) setOrders([]);
+      } finally {
+        if (!cancelled) setIsLoading(false);
       }
     }
 
@@ -202,7 +205,42 @@ export default function AdminOrdersPage() {
       </div>
 
       <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {visibleOrders.map((order) => {
+        {isLoading
+          ? Array.from({ length: 6 }).map((_, index) => (
+              <div
+                key={index}
+                className="min-h-[330px] rounded-[26px] bg-white/70 p-5 ring-1 ring-black/6"
+                aria-hidden="true"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="h-3 w-32 rounded-full bg-black/[0.06]" />
+                    <div className="mt-4 h-6 w-44 rounded-full bg-black/[0.07]" />
+                    <div className="mt-3 h-4 w-36 rounded-full bg-black/[0.05]" />
+                  </div>
+                  <div className="h-5 w-16 rounded-full bg-black/[0.07]" />
+                </div>
+                <div className="mt-8 grid gap-2.5">
+                  {Array.from({ length: 2 }).map((__, itemIndex) => (
+                    <div
+                      key={itemIndex}
+                      className="grid grid-cols-[44px_minmax(0,1fr)_64px] items-center gap-3 rounded-2xl bg-black/[0.025] p-2"
+                    >
+                      <div className="aspect-square rounded-xl bg-black/[0.06]" />
+                      <div>
+                        <div className="h-4 w-28 rounded-full bg-black/[0.06]" />
+                        <div className="mt-2 h-3 w-20 rounded-full bg-black/[0.04]" />
+                      </div>
+                      <div className="h-4 rounded-full bg-black/[0.06]" />
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-8 h-10 rounded-full bg-black/[0.06]" />
+              </div>
+            ))
+          : null}
+
+        {!isLoading && visibleOrders.map((order) => {
           const status = statusMeta[order.qantaStatus] ?? statusMeta.pending;
           const items = order.qanta?.items.length ? order.qanta.items : order.items;
           const totalAmount = order.qanta?.totalAmount ?? order.totalAmount;
@@ -321,7 +359,7 @@ export default function AdminOrdersPage() {
           );
         })}
 
-        {!visibleOrders.length ? (
+        {!isLoading && !visibleOrders.length ? (
           <div className="py-16 text-center md:col-span-2 xl:col-span-3">
             <p className="text-lg font-semibold tracking-[-0.03em]">
               Sipariş bulunamadı

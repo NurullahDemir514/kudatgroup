@@ -10,18 +10,34 @@ function adjustmentDocumentId(value: string) {
   return createHash("sha256").update(value).digest("hex");
 }
 
+function configuredSecrets() {
+  return [
+    process.env.QANTA_INTEGRATION_SECRET,
+    ...(process.env.QANTA_INTEGRATION_SECRETS ?? "").split(","),
+  ]
+    .map((value) => cleanText(value))
+    .filter(Boolean);
+}
+
+function errorStatus(error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+  if (message.startsWith("Yetersiz stok")) return 409;
+  if (message.startsWith("Ürün bulunamadı")) return 404;
+  return 400;
+}
+
 export async function POST(request: NextRequest) {
-  const integrationSecret = process.env.QANTA_INTEGRATION_SECRET;
+  const integrationSecrets = configuredSecrets();
   const providedSecret = cleanText(request.headers.get("x-qanta-integration-secret"));
 
-  if (!integrationSecret) {
+  if (!integrationSecrets.length) {
     return NextResponse.json(
       { success: false, error: "Qanta bağlantı anahtarı eksik." },
       { status: 500 }
     );
   }
 
-  if (!providedSecret || providedSecret !== integrationSecret) {
+  if (!providedSecret || !integrationSecrets.includes(providedSecret)) {
     return NextResponse.json(
       { success: false, error: "Yetkisiz stok hareketi." },
       { status: 403 }
@@ -56,7 +72,7 @@ export async function POST(request: NextRequest) {
         success: false,
         error: error instanceof Error ? error.message : "Stok güncellenemedi.",
       },
-      { status: 400 }
+      { status: errorStatus(error) }
     );
   }
 }

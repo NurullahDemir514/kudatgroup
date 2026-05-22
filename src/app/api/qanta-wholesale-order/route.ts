@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const defaultEndpoint =
-  "https://us-central1-qanta-de0b9.cloudfunctions.net/createKudatWholesaleOrder";
+  "https://us-central1-qanta-de0b9.cloudfunctions.net/createExternalCatalogWholesaleOrder";
 const defaultBusinessId = "tvuoVQFqrE5kweIXP0jn";
 
 function publicBaseUrl(request: NextRequest) {
@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         businessId,
+        source: "kudat",
         externalOrderId: cleanText(body.id),
         trackingToken,
         trackingUrl,
