@@ -19,6 +19,7 @@ type TrackingOrder = {
   items: TrackingItem[];
   orderDate?: string | null;
   updatedAt?: string | null;
+  receiptPdfUrl?: string;
 };
 
 const statusCopy: Record<string, { label: string; description: string }> = {
@@ -32,7 +33,7 @@ const statusCopy: Record<string, { label: string; description: string }> = {
   },
   completed: {
     label: "Tamamlandı",
-    description: "Siparişiniz tamamlandı. Detaylar için bizimle iletişime geçebilirsiniz.",
+    description: "Siparişiniz tamamlandı. Satış belgenizi aşağıdan indirebilirsiniz.",
   },
   cancelled: {
     label: "İptal edildi",
@@ -74,6 +75,7 @@ export default async function OrderTrackingPage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
+  const receiptUrl = `/api/qanta-order-receipt/${encodeURIComponent(token)}`;
   const order = await getOrder(token);
   const status = order ? statusCopy[order.status] ?? statusCopy.pending : null;
   const updatedAt = formatDate(order?.updatedAt ?? order?.orderDate);
@@ -177,6 +179,27 @@ export default async function OrderTrackingPage({
                 ))}
               </div>
             </div>
+
+            {order.status === "completed" && order.receiptPdfUrl ? (
+              <a
+                href={receiptUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-4 flex items-center justify-between rounded-[24px] border border-black/8 bg-black px-5 py-4 text-white shadow-[0_18px_50px_rgba(0,0,0,0.08)]"
+              >
+                <span>
+                  <span className="block text-[12px] font-semibold uppercase tracking-[0.18em] text-white/48">
+                    Satış belgesi
+                  </span>
+                  <span className="mt-1 block text-[18px] font-semibold tracking-[-0.04em]">
+                    PDF olarak indir
+                  </span>
+                </span>
+                <span className="rounded-full bg-white px-4 py-2 text-[13px] font-semibold text-black">
+                  Aç
+                </span>
+              </a>
+            ) : null}
 
             <Link
               href="/"

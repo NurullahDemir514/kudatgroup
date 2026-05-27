@@ -20,6 +20,7 @@ import {
 type FirestoreCatalogCategory = Omit<CatalogCategoryRecord, "id">;
 
 const collectionName = "catalog_categories";
+const reservedCategoryDocumentIds = new Set(["marketing-home-content"]);
 
 const withoutUndefined = <T extends Record<string, unknown>>(value: T) =>
   Object.fromEntries(
@@ -41,6 +42,7 @@ const toCatalogCategoryRecord = (
   id: string,
   data: Partial<FirestoreCatalogCategory>
 ): CatalogCategoryRecord | null => {
+  if (reservedCategoryDocumentIds.has(id)) return null;
   if (!data.title || typeof data.title !== "string") return null;
 
   return {
@@ -85,6 +87,7 @@ export async function getAdminCatalogCategories(): Promise<AdminCatalogCategory[
   const categories: AdminCatalogCategory[] = [];
 
   snapshot.docs.forEach((document) => {
+      if (reservedCategoryDocumentIds.has(document.id)) return;
       const data = document.data() as Partial<FirestoreCatalogCategory> & {
         slug?: string;
       };

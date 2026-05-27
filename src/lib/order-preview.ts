@@ -2,6 +2,7 @@ export const orderPreviewStorageKey = "kudat.order-preview.v1";
 export const cartStorageKey = "kudat.cart.v1";
 export const customerCacheStorageKey = "kudat.customer-cache.v1";
 export const submittedOrdersStorageKey = "kudat.submitted-orders.v1";
+export const latestSubmittedOrderStorageKey = "kudat.latest-submitted-order.v1";
 
 export type OrderPreviewItem = {
   id: string;

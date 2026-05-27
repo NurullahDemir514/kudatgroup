@@ -11,6 +11,7 @@ import {
   orderPreviewStorageKey,
   orderTotal,
   formatCustomerAddress,
+  latestSubmittedOrderStorageKey,
   submittedOrdersStorageKey,
   type CustomerInfo,
   type OrderPreviewDraft,
@@ -30,6 +31,11 @@ const emptyCustomer: CustomerInfo = {
 };
 
 type CustomerCache = Record<string, CustomerInfo>;
+
+type LatestSubmittedOrderPreview = {
+  id: string;
+  trackingUrl: string | null;
+};
 
 function normalizePhone(value: string) {
   const digits = value.replace(/\D/g, "");
@@ -91,6 +97,26 @@ function saveSubmittedOrder(order: SubmittedOrder) {
   } catch {
     window.localStorage.setItem(submittedOrdersStorageKey, JSON.stringify([order]));
   }
+}
+
+function readLatestSubmittedOrderPreview(): LatestSubmittedOrderPreview | null {
+  try {
+    const saved = window.sessionStorage.getItem(latestSubmittedOrderStorageKey);
+    if (!saved) return null;
+    const parsed = JSON.parse(saved) as Partial<LatestSubmittedOrderPreview>;
+    if (!parsed.id) return null;
+    return {
+      id: parsed.id,
+      trackingUrl: parsed.trackingUrl ?? null,
+    };
+  } catch {
+    window.sessionStorage.removeItem(latestSubmittedOrderStorageKey);
+    return null;
+  }
+}
+
+function saveLatestSubmittedOrderPreview(order: LatestSubmittedOrderPreview) {
+  window.sessionStorage.setItem(latestSubmittedOrderStorageKey, JSON.stringify(order));
 }
 
 function createTrackingToken() {
@@ -199,7 +225,14 @@ export default function OrderPreviewPage() {
     const savedDraft =
       window.sessionStorage.getItem(orderPreviewStorageKey) ??
       window.localStorage.getItem(cartStorageKey);
-    if (!savedDraft) return;
+    if (!savedDraft) {
+      const latestOrder = readLatestSubmittedOrderPreview();
+      if (latestOrder) {
+        setCreatedOrderId(latestOrder.id);
+        setCreatedTrackingUrl(latestOrder.trackingUrl);
+      }
+      return;
+    }
 
     try {
       const parsed = JSON.parse(savedDraft) as OrderPreviewDraft;
@@ -277,6 +310,10 @@ export default function OrderPreviewPage() {
       saveCustomerToCache(customer);
       const trackingUrl = result?.data?.trackingUrl || (order.trackingToken ? `/siparis-takip/${order.trackingToken}` : "");
       saveSubmittedOrder({ ...order, trackingUrl });
+      saveLatestSubmittedOrderPreview({
+        id: order.id,
+        trackingUrl: trackingUrl || null,
+      });
       window.sessionStorage.removeItem(orderPreviewStorageKey);
       window.localStorage.removeItem(cartStorageKey);
       setCreatedOrderId(order.id);
