@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 const defaultEndpoint =
   "https://us-central1-qanta-de0b9.cloudfunctions.net/createExternalCatalogWholesaleOrder";
@@ -84,12 +86,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const trackingTokenResult = data.trackingToken || trackingToken;
+    const trackingUrlResult = data.trackingUrl || trackingUrl;
+    await addDoc(collection(db, "kudat_orders"), {
+      externalId: cleanText(body.id),
+      qantaOrderId: cleanText(data.id),
+      status: "new",
+      trackingToken: trackingTokenResult,
+      trackingUrl: trackingUrlResult,
+      categoryTitle: cleanText(body.categoryTitle),
+      customer: body.customer ?? {},
+      items: items.map((item) => ({
+        id: cleanText(item.id),
+        name: cleanText(item.name),
+        code: cleanText(item.code),
+        imageSrc: cleanText(item.imageSrc),
+        price: Number(item.price) || 0,
+        quantity: Number(item.quantity) || 0,
+      })),
+      totalQuantity: items.reduce<number>(
+        (total, item) => total + (Number(item.quantity) || 0),
+        0
+      ),
+      totalAmount: Number(data.totalAmount) || 0,
+      createdAt: cleanText(body.createdAt) || new Date().toISOString(),
+      syncedAt: serverTimestamp(),
+    });
+
     return NextResponse.json({
       success: true,
       data: {
         ...data,
-        trackingToken: data.trackingToken || trackingToken,
-        trackingUrl: data.trackingUrl || trackingUrl,
+        trackingToken: trackingTokenResult,
+        trackingUrl: trackingUrlResult,
       },
     });
   } catch (error) {

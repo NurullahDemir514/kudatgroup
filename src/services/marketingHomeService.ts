@@ -57,32 +57,9 @@ export const defaultMarketingHomeContent: MarketingHomeContent = {
   primaryCtaHref: "/katalog",
   secondaryCtaLabel: "Sipariş önizleme",
   secondaryCtaHref: "/siparis-onizleme",
-  heroImages: [
-    "/catalog/categories/category-01-steel-family.png",
-    "/catalog/categories/category-06-vip-series.png",
-    "/katalog/pearl-earrings.png",
-  ],
+  heroImages: [],
   collectionsEyebrow: "Koleksiyonlar",
-  collections: [
-    {
-      title: "Çelik Ürünler",
-      text: "Günlük satışa uygun, dayanıklı ve güçlü kategori seçkisi.",
-      image: "/catalog/categories/category-01-steel-family.png",
-      href: "/katalog",
-    },
-    {
-      title: "Bijuteri Ürünleri",
-      text: "Mağaza vitrini için hızlı dönen tamamlayıcı modeller.",
-      image: "/catalog/categories/category-05-ysx.png",
-      href: "/katalog",
-    },
-    {
-      title: "VIP Seri",
-      text: "Daha seçkin sunumlar için ayrıştırılmış özel koleksiyon.",
-      image: "/catalog/categories/category-06-vip-series.png",
-      href: "/katalog",
-    },
-  ],
+  collections: [],
   reasonsEyebrow: "Neden Kudat?",
   reasonsTitle: "Toptan satış için sade, hızlı ve takip edilebilir katalog.",
   reasons: [
@@ -96,26 +73,7 @@ export const defaultMarketingHomeContent: MarketingHomeContent = {
   featuredLinkLabel: "Tüm kataloğa geç",
   featuredLinkHref: "/katalog",
   featuredProductIds: [],
-  featuredProducts: [
-    {
-      name: "Gold Kolye",
-      category: "Sezon seçkisi",
-      image: "/katalog/gold-necklace.png",
-      href: "/katalog",
-    },
-    {
-      name: "Rose Bileklik",
-      category: "Yeni gelenler",
-      image: "/katalog/rose-gold-bracelet.png",
-      href: "/katalog",
-    },
-    {
-      name: "İnci Küpe",
-      category: "Vitrin ürünleri",
-      image: "/katalog/pearl-earrings.png",
-      href: "/katalog",
-    },
-  ],
+  featuredProducts: [],
   processEyebrow: "Toptan Alım Akışı",
   processTitle: "Sipariş talebini birkaç adımda netleştirin.",
   processSteps: [

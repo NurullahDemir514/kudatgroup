@@ -75,15 +75,6 @@ const emptyProductForm: ProductForm = {
   isActive: true,
 };
 
-const fallbackImages = [
-  "/catalog/categories/category-01-steel-family.png",
-  "/catalog/categories/category-05-ysx.png",
-  "/katalog/gold-necklace.png",
-  "/katalog/rose-gold-bracelet.png",
-  "/katalog/pearl-earrings.png",
-  "/catalog/categories/category-06-vip-series.png",
-];
-
 const formatPrice = (value: number) =>
   new Intl.NumberFormat("tr-TR", {
     style: "currency",
@@ -111,10 +102,6 @@ function categoryPath(categories: Category[], categoryId: string | null) {
   }
 
   return parts.join(" / ") || "Ana kategori";
-}
-
-function categoryImage(category: Category, index: number) {
-  return category.imageSrc || fallbackImages[index % fallbackImages.length];
 }
 
 export default function CatalogAdminPage() {
@@ -539,7 +526,7 @@ export default function CatalogAdminPage() {
                   </span>
                 </button>
               </article>
-              {visibleCategories.map((category, index) => {
+              {visibleCategories.map((category) => {
                 const childCount = childrenOf(categories, category.id).length;
                 const productCount = products.filter(
                   (product) => product.categoryId === category.id
@@ -556,11 +543,13 @@ export default function CatalogAdminPage() {
                       className="block w-full text-left transition duration-200 active:opacity-70"
                     >
                       <span className="relative block aspect-[4/5] overflow-hidden rounded-[20px] bg-black/[0.035]">
-                        <img
-                          src={categoryImage(category, index)}
-                          alt=""
-                          className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
-                        />
+                        {category.imageSrc ? (
+                          <img
+                            src={category.imageSrc}
+                            alt=""
+                            className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+                          />
+                        ) : null}
                         <span className="absolute left-2.5 top-2.5 rounded-full bg-white/92 px-2 py-0.5 text-[9px] font-semibold text-black shadow-sm backdrop-blur">
                           {childCount ? `${childCount} alt` : `${productCount} ürün`}
                         </span>

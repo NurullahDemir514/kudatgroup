@@ -98,6 +98,30 @@ async function fetchTrackingOrder(token: string): Promise<TrackingOrder | null> 
   return data.data as TrackingOrder;
 }
 
+async function fetchSavedOrders(): Promise<SubmittedOrder[]> {
+  const response = await fetch("/api/kudat-orders", { cache: "no-store" });
+  const data = await response.json().catch(() => null);
+  if (!response.ok || data?.success !== true || !Array.isArray(data.data)) {
+    return [];
+  }
+  return data.data as SubmittedOrder[];
+}
+
+function mergeOrders(
+  savedOrders: SubmittedOrder[],
+  localOrders: SubmittedOrder[]
+) {
+  const byId = new Map<string, SubmittedOrder>();
+  for (const order of [...savedOrders, ...localOrders]) {
+    if (!order.id || byId.has(order.id)) continue;
+    byId.set(order.id, order);
+  }
+  return Array.from(byId.values()).sort(
+    (first, second) =>
+      new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime()
+  );
+}
+
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<OrderViewModel[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -114,8 +138,10 @@ export default function AdminOrdersPage() {
         const localOrders = savedOrders
           ? (JSON.parse(savedOrders) as SubmittedOrder[])
           : [];
+        const serverOrders = await fetchSavedOrders();
+        const orders = mergeOrders(serverOrders, localOrders);
         const enriched = await Promise.all(
-          localOrders.map(async (order) => {
+          orders.map(async (order) => {
             const qanta = order.trackingToken
               ? await fetchTrackingOrder(order.trackingToken)
               : null;

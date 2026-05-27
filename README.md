@@ -40,21 +40,12 @@ Modern teknolojilerle geliştirilmiş güvenli bir admin paneli.
    NEXTAUTH_URL=http://localhost:3000
    ```
 
-4. Veritabanını başlangıç verileri ile doldur:
-   ```bash
-   # Uygulamayı başlat
-   npm run dev
-   
-   # Tarayıcıdan seed API'sine erişerek veritabanını oluştur
-   # http://localhost:3000/api/seed
-   ```
-
-5. Uygulamayı çalıştır:
+4. Uygulamayı çalıştır:
    ```bash
    npm run dev
    ```
 
-6. Tarayıcıda `http://localhost:3000/admin` adresine git.
+5. Tarayıcıda `http://localhost:3000/admin` adresine git.
 
 ## Giriş Bilgileri
 

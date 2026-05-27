@@ -30,34 +30,12 @@ const statusColors = {
 
 export default function StockSummary({
     stockLevels = {
-        inStock: 152,
-        lowStock: 28,
-        outOfStock: 5,
-        onOrder: 12,
+        inStock: 0,
+        lowStock: 0,
+        outOfStock: 0,
+        onOrder: 0,
     },
-    criticalItems = [
-        {
-            code: 'KS-145',
-            name: 'Gümüş Kolye',
-            current: 2,
-            minimum: 10,
-            status: 'kritik',
-        },
-        {
-            code: 'KS-287',
-            name: 'Altın Kaplama Bilezik',
-            current: 5,
-            minimum: 8,
-            status: 'azalıyor',
-        },
-        {
-            code: 'KS-302',
-            name: 'Çelik Erkek Yüzük',
-            current: 0,
-            minimum: 5,
-            status: 'tükendi',
-        },
-    ],
+    criticalItems = [],
     isLoading = false,
 }: StockSummaryProps) {
     if (isLoading) {

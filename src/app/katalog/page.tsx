@@ -16,7 +16,7 @@ export default async function KatalogPage() {
         name: product.name,
         code: product.code,
         categoryId: product.categoryId,
-        imageSrc: product.imageSrc || "/katalog/gold-necklace.png",
+        imageSrc: product.imageSrc,
         price: product.price,
         compareAtPrice: product.compareAtPrice,
         stock: product.stock,

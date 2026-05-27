@@ -10,16 +10,11 @@ type MarketingHomeProps = {
   featuredProducts?: MarketingHomeProduct[];
 };
 
-const imageAt = (images: string[], index: number) =>
-  images[index] || defaultMarketingHomeContent.heroImages[index] || "/kudattr.png";
-
 export function MarketingHome({
   content = defaultMarketingHomeContent,
   featuredProducts,
 }: MarketingHomeProps) {
-  const heroImages = content.heroImages.length
-    ? content.heroImages
-    : defaultMarketingHomeContent.heroImages;
+  const heroImages = content.heroImages;
   const visibleFeaturedProducts =
     featuredProducts?.length ? featuredProducts : content.featuredProducts;
 
@@ -57,60 +52,68 @@ export function MarketingHome({
           </div>
         </div>
 
-        <div className="relative -mx-1 sm:mx-0">
-          <div className="grid grid-cols-[0.9fr_1fr] gap-2.5 sm:gap-4">
-            <img
-              src={imageAt(heroImages, 0)}
-              alt="Kudat ana ürün görseli"
-              className="mt-10 aspect-[0.82] w-full rounded-[22px] object-cover sm:mt-14 sm:rounded-[28px]"
-            />
-            <div className="grid gap-2.5 sm:gap-4">
+        {heroImages.length ? (
+          <div className="relative -mx-1 sm:mx-0">
+            <div className="grid grid-cols-[0.9fr_1fr] gap-2.5 sm:gap-4">
               <img
-                src={imageAt(heroImages, 1)}
-                alt="Kudat koleksiyon görseli"
-                className="aspect-[1.08] w-full rounded-[22px] object-cover sm:rounded-[28px]"
+                src={heroImages[0]}
+                alt="Kudat ana ürün görseli"
+                className="mt-10 aspect-[0.82] w-full rounded-[22px] object-cover sm:mt-14 sm:rounded-[28px]"
               />
-              <img
-                src={imageAt(heroImages, 2)}
-                alt="Kudat ürün detayı"
-                className="aspect-[1.08] w-full rounded-[22px] object-cover sm:rounded-[28px]"
-              />
+              <div className="grid gap-2.5 sm:gap-4">
+                {heroImages[1] ? (
+                  <img
+                    src={heroImages[1]}
+                    alt="Kudat koleksiyon görseli"
+                    className="aspect-[1.08] w-full rounded-[22px] object-cover sm:rounded-[28px]"
+                  />
+                ) : null}
+                {heroImages[2] ? (
+                  <img
+                    src={heroImages[2]}
+                    alt="Kudat ürün detayı"
+                    className="aspect-[1.08] w-full rounded-[22px] object-cover sm:rounded-[28px]"
+                  />
+                ) : null}
+              </div>
             </div>
           </div>
-        </div>
+        ) : null}
       </section>
 
-      <section className="border-y border-black/[0.06] bg-white/44">
-        <div className="mx-auto max-w-6xl px-5 py-10 sm:px-8">
-          <p className="mb-5 text-[10px] font-semibold uppercase tracking-[0.22em] text-black/34 sm:hidden">
-            {content.collectionsEyebrow}
-          </p>
-          <div className="grid gap-6 sm:gap-5 lg:grid-cols-3">
-            {content.collections.map((collection) => (
-              <Link key={collection.title} href={collection.href} className="group block">
-                <img
-                  src={collection.image}
-                  alt={collection.title}
-                  className="aspect-[1.08] w-full rounded-[22px] object-cover sm:rounded-[24px]"
-                />
-                <div className="mt-4 flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <h2 className="text-[21px] font-semibold leading-7 text-black">
-                      {collection.title}
-                    </h2>
-                    <p className="mt-2 text-sm leading-6 text-black/50">
-                      {collection.text}
-                    </p>
+      {content.collections.length ? (
+        <section className="border-y border-black/[0.06] bg-white/44">
+          <div className="mx-auto max-w-6xl px-5 py-10 sm:px-8">
+            <p className="mb-5 text-[10px] font-semibold uppercase tracking-[0.22em] text-black/34 sm:hidden">
+              {content.collectionsEyebrow}
+            </p>
+            <div className="grid gap-6 sm:gap-5 lg:grid-cols-3">
+              {content.collections.map((collection) => (
+                <Link key={collection.title} href={collection.href} className="group block">
+                  <img
+                    src={collection.image}
+                    alt={collection.title}
+                    className="aspect-[1.08] w-full rounded-[22px] object-cover sm:rounded-[24px]"
+                  />
+                  <div className="mt-4 flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <h2 className="text-[21px] font-semibold leading-7 text-black">
+                        {collection.title}
+                      </h2>
+                      <p className="mt-2 text-sm leading-6 text-black/50">
+                        {collection.text}
+                      </p>
+                    </div>
+                    <span className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black text-lg text-white transition group-hover:translate-x-1">
+                      ›
+                    </span>
                   </div>
-                  <span className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black text-lg text-white transition group-hover:translate-x-1">
-                    ›
-                  </span>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      ) : null}
 
       <section className="mx-auto grid max-w-6xl gap-8 px-5 py-12 sm:px-8 sm:py-14 lg:grid-cols-[0.82fr_1.18fr] lg:items-start lg:gap-10">
         <div>
@@ -138,51 +141,53 @@ export function MarketingHome({
         </div>
       </section>
 
-      <section className="bg-[#efede8]">
-        <div className="mx-auto max-w-6xl px-5 py-12 sm:px-8 sm:py-14">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-black/36 sm:text-[11px]">
-                {content.featuredEyebrow}
-              </p>
-              <h2 className="mt-3 text-[32px] font-semibold leading-tight text-black sm:text-[36px]">
-                {content.featuredTitle}
-              </h2>
-            </div>
-            <Link
-              href={content.featuredLinkHref}
-              className="text-sm font-semibold text-black/58 hover:text-black"
-            >
-              {content.featuredLinkLabel}
-            </Link>
-          </div>
-
-          <div className="mt-7 grid gap-6 sm:mt-8 sm:grid-cols-2 lg:grid-cols-3">
-            {visibleFeaturedProducts.map((product) => (
-              <Link key={product.name} href={product.href} className="group block">
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  className="aspect-square w-full rounded-[22px] object-cover sm:rounded-[24px]"
-                />
-                <div className="mt-4 flex items-center justify-between gap-4">
-                  <div className="min-w-0">
-                    <h3 className="truncate text-base font-semibold text-black">
-                      {product.name}
-                    </h3>
-                    <p className="mt-1 truncate text-sm text-black/44">
-                      {product.category}
-                    </p>
-                  </div>
-                  <span className="shrink-0 text-sm font-semibold text-black/42 transition group-hover:text-black">
-                    İncele
-                  </span>
-                </div>
+      {visibleFeaturedProducts.length ? (
+        <section className="bg-[#efede8]">
+          <div className="mx-auto max-w-6xl px-5 py-12 sm:px-8 sm:py-14">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-black/36 sm:text-[11px]">
+                  {content.featuredEyebrow}
+                </p>
+                <h2 className="mt-3 text-[32px] font-semibold leading-tight text-black sm:text-[36px]">
+                  {content.featuredTitle}
+                </h2>
+              </div>
+              <Link
+                href={content.featuredLinkHref}
+                className="text-sm font-semibold text-black/58 hover:text-black"
+              >
+                {content.featuredLinkLabel}
               </Link>
-            ))}
+            </div>
+
+            <div className="mt-7 grid gap-6 sm:mt-8 sm:grid-cols-2 lg:grid-cols-3">
+              {visibleFeaturedProducts.map((product) => (
+                <Link key={product.name} href={product.href} className="group block">
+                  <img
+                    src={product.image}
+                    alt={product.name}
+                    className="aspect-square w-full rounded-[22px] object-cover sm:rounded-[24px]"
+                  />
+                  <div className="mt-4 flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <h3 className="truncate text-base font-semibold text-black">
+                        {product.name}
+                      </h3>
+                      <p className="mt-1 truncate text-sm text-black/44">
+                        {product.category}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-sm font-semibold text-black/42 transition group-hover:text-black">
+                      İncele
+                    </span>
+                  </div>
+                </Link>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      ) : null}
 
       <section className="mx-auto max-w-6xl px-5 py-12 sm:px-8 sm:py-14">
         <div className="rounded-[26px] bg-black p-5 text-white sm:rounded-[30px] sm:p-8">

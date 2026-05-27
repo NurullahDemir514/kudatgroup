@@ -25,6 +25,11 @@ service cloud.firestore {
     match /catalog_products/{document} {
       allow read, write: if true; // API'den erişim için geçici olarak açık
     }
+
+    // Qanta stok senkronunda idempotency için kullanılır
+    match /catalog_stock_adjustments/{document} {
+      allow read, write: if true; // API'den erişim için geçici olarak açık
+    }
     
     // Customers koleksiyonu - API'den erişim
     match /customers/{document} {
@@ -69,6 +74,11 @@ service cloud.firestore {
     
     // Toptan Satış form kayıtları - API'den yazma, admin'den okuma
     match /toptanSatis/{document} {
+      allow read, write: if true; // API'den erişim için geçici olarak açık
+    }
+
+    // Kudat katalog siparişleri - admin paneli ve sipariş API'si için
+    match /kudat_orders/{document} {
       allow read, write: if true; // API'den erişim için geçici olarak açık
     }
 

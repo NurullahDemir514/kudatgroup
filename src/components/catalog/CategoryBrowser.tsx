@@ -26,7 +26,7 @@ export type CatalogProduct = {
   id: string;
   name: string;
   code: string;
-  imageSrc: string;
+  imageSrc?: string;
   price: number;
   compareAtPrice?: number;
   stock: number;
@@ -38,67 +38,6 @@ export type CatalogProduct = {
 type ProductQuantities = Record<string, number>;
 
 const quickQuantityOptions = [12, 24, 36, 48];
-
-const productImagePool = [
-  "/catalog/categories/category-04-steel-necklaces.png",
-  "/catalog/categories/category-03-steel-bracelets.png",
-  "/catalog/categories/category-02-steel-earrings.png",
-  "/catalog/categories/category-06-vip-series.png",
-  "/katalog/gold-necklace.png",
-  "/katalog/rose-gold-bracelet.png",
-  "/katalog/pearl-earrings.png",
-];
-
-function categoryFallbackImage(node: CatalogNode) {
-  const title = node.title.toLocaleLowerCase("tr-TR");
-
-  if (title.includes("xuping")) return "/katalog/gold-necklace.png";
-  if (title.includes("cm")) return "/katalog/rose-gold-bracelet.png";
-  if (title.includes("bijuteri")) return "/katalog/pearl-earrings.png";
-  if (title.includes("yüzük")) return "/products/4.jpg";
-  if (title.includes("kelepçe")) return "/products/5.jpg";
-
-  return productImagePool[Math.abs(node.id.length) % productImagePool.length];
-}
-
-function productImageForCategory(title: string, index: number) {
-  const normalizedTitle = title.toLocaleLowerCase("tr-TR");
-
-  if (normalizedTitle.includes("kolye")) {
-    return "/catalog/categories/category-04-steel-necklaces.png";
-  }
-
-  if (normalizedTitle.includes("bileklik") || normalizedTitle.includes("kelepçe")) {
-    return "/catalog/categories/category-03-steel-bracelets.png";
-  }
-
-  if (normalizedTitle.includes("küpe")) {
-    return "/catalog/categories/category-02-steel-earrings.png";
-  }
-
-  if (normalizedTitle.includes("vip")) {
-    return "/catalog/categories/category-06-vip-series.png";
-  }
-
-  return productImagePool[index % productImagePool.length];
-}
-
-function createProductsForCategory(category: CatalogNode): CatalogProduct[] {
-  return Array.from({ length: 8 }, (_, index) => {
-    const number = String(index + 1).padStart(2, "0");
-
-    return {
-      id: `${category.id}-${number}`,
-      name: `${category.title} Model ${number}`,
-      code: `KDT-${category.id.slice(0, 3).toUpperCase()}-${number}`,
-      imageSrc: productImageForCategory(category.title, index),
-      price: 420 + index * 35,
-      compareAtPrice: index % 3 === 0 ? 520 + index * 45 : undefined,
-      stock: index % 4 === 0 ? 6 : 18 + index * 3,
-      isNew: index < 2,
-    };
-  });
-}
 
 function CategoryLink({
   node,
@@ -113,11 +52,13 @@ function CategoryLink({
       className="group block transition duration-200 active:opacity-60"
     >
       <span className="relative block aspect-[4/5] overflow-hidden rounded-[24px] bg-black/[0.035]">
-        <img
-          src={node.imageSrc ?? categoryFallbackImage(node)}
-          alt=""
-          className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
-        />
+        {node.imageSrc ? (
+          <img
+            src={node.imageSrc}
+            alt=""
+            className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+          />
+        ) : null}
       </span>
       <span className="mt-3 block min-w-0 text-center">
         <span className="block text-[15px] font-medium leading-[19px] tracking-[-0.03em] text-black">
@@ -138,6 +79,7 @@ function ProductCard({
   onChangeQuantity: (productId: string, quantity: number) => void;
 }) {
   const hasQuantity = quantity > 0;
+  const isOutOfStock = product.stock <= 0;
   const [isImageExpanded, setIsImageExpanded] = useState(false);
   const hasDiscount =
     typeof product.compareAtPrice === "number" && product.compareAtPrice > product.price;
@@ -145,6 +87,10 @@ function ProductCard({
     ? Math.round(((product.compareAtPrice! - product.price) / product.compareAtPrice!) * 100)
     : 0;
   const setQuantity = (nextQuantity: number) => {
+    if (isOutOfStock) {
+      onChangeQuantity(product.id, 0);
+      return;
+    }
     onChangeQuantity(product.id, Math.min(Math.max(nextQuantity, 0), product.stock));
   };
   const handleQuantityInput = (value: string) => {
@@ -162,11 +108,13 @@ function ProductCard({
           onClick={() => setIsImageExpanded(true)}
           className="block h-full w-full overflow-hidden"
         >
-          <img
-            src={product.imageSrc}
-            alt={product.name}
-            className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.035]"
-          />
+          {product.imageSrc ? (
+            <img
+              src={product.imageSrc}
+              alt={product.name}
+              className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.035]"
+            />
+          ) : null}
         </button>
         <div className="absolute inset-x-3 top-3 flex items-start justify-between gap-2">
           {hasDiscount ? (
@@ -181,12 +129,20 @@ function ProductCard({
             <span />
           )}
           <span className="rounded-full bg-black/70 px-2.5 py-1 text-[10px] font-medium text-white backdrop-blur">
-            {product.stock} stok
+            {isOutOfStock ? "Stok yok" : `${product.stock} stok`}
           </span>
         </div>
 
         <div className="absolute inset-x-3 bottom-3">
-          {hasQuantity ? (
+          {isOutOfStock ? (
+            <button
+              type="button"
+              disabled
+              className="h-11 w-full rounded-full bg-white/72 text-[14px] font-semibold text-black/38 shadow-sm backdrop-blur"
+            >
+              Stokta yok
+            </button>
+          ) : hasQuantity ? (
             <div className="space-y-2">
               <div className="grid grid-cols-4 gap-1.5">
                 {quickQuantityOptions.map((option) => {
@@ -294,11 +250,13 @@ function ProductCard({
               onClick={() => setIsImageExpanded(false)}
               className="block"
             >
-              <img
-                src={product.imageSrc}
-                alt={product.name}
-                className="max-h-[86vh] max-w-[min(92vw,760px)] rounded-[24px] object-contain shadow-[0_24px_80px_rgba(0,0,0,0.22)]"
-              />
+              {product.imageSrc ? (
+                <img
+                  src={product.imageSrc}
+                  alt={product.name}
+                  className="max-h-[86vh] max-w-[min(92vw,760px)] rounded-[24px] object-contain shadow-[0_24px_80px_rgba(0,0,0,0.22)]"
+                />
+              ) : null}
             </button>
           </div>
         </div>
@@ -316,26 +274,35 @@ function ProductCatalogView({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const allActiveProducts = useMemo(
+    () => (sourceProducts ?? []).filter((product) => product.isActive !== false),
+    [sourceProducts]
+  );
   const products = useMemo(() => {
-    const categoryProducts = (sourceProducts ?? []).filter(
-      (product) => product.categoryId === category.id && product.isActive !== false
+    const categoryProducts = allActiveProducts.filter(
+      (product) => product.categoryId === category.id
     );
 
-    return categoryProducts.length ? categoryProducts : createProductsForCategory(category);
-  }, [category, sourceProducts]);
+    return categoryProducts;
+  }, [allActiveProducts, category]);
   const [quantities, setQuantities] = useState<ProductQuantities>({});
+  const [cartHydrated, setCartHydrated] = useState(false);
   const [query, setQuery] = useState("");
 
   useEffect(() => {
     try {
       const cachedCart = window.localStorage.getItem(cartStorageKey);
-      if (!cachedCart) return;
+      if (!cachedCart) {
+        setCartHydrated(true);
+        return;
+      }
       const parsed = JSON.parse(cachedCart) as OrderPreviewDraft;
+      const catalogProducts = allActiveProducts.length ? allActiveProducts : products;
       const nextQuantities = Object.fromEntries(
         parsed.items
-          .filter((item) => products.some((product) => product.id === item.id))
+          .filter((item) => catalogProducts.some((product) => product.id === item.id))
           .map((item) => {
-            const product = products.find((candidate) => candidate.id === item.id);
+            const product = catalogProducts.find((candidate) => candidate.id === item.id);
             return [item.id, Math.min(item.quantity, product?.stock ?? item.quantity)];
           })
       );
@@ -343,20 +310,24 @@ function ProductCatalogView({
       setQuantities(nextQuantities);
     } catch {
       window.localStorage.removeItem(cartStorageKey);
+    } finally {
+      setCartHydrated(true);
     }
-  }, [products]);
+  }, [allActiveProducts, products]);
 
   const filteredProducts = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase("tr-TR");
-    if (!normalizedQuery) return products;
+    const availableProducts = products.filter((product) => product.stock > 0);
+    if (!normalizedQuery) return availableProducts;
 
-    return products.filter((product) => {
+    return availableProducts.filter((product) => {
       const searchable = `${product.name} ${product.code}`.toLocaleLowerCase("tr-TR");
       return searchable.includes(normalizedQuery);
     });
   }, [products, query]);
 
-  const selectedProducts = products.filter((product) => quantities[product.id] > 0);
+  const cartProducts = allActiveProducts.length ? allActiveProducts : products;
+  const selectedProducts = cartProducts.filter((product) => quantities[product.id] > 0);
   const selectedCount = selectedProducts.reduce(
     (total, product) => total + quantities[product.id],
     0
@@ -381,6 +352,8 @@ function ProductCatalogView({
   };
 
   useEffect(() => {
+    if (!cartHydrated) return;
+
     const draft: OrderPreviewDraft = {
       categoryTitle: category.title,
       sourcePath: pathname,
@@ -388,7 +361,7 @@ function ProductCatalogView({
         id: product.id,
         name: product.name,
         code: product.code,
-        imageSrc: product.imageSrc,
+        imageSrc: product.imageSrc ?? "",
         price: product.price,
         compareAtPrice: product.compareAtPrice,
         quantity: quantities[product.id],
@@ -402,7 +375,7 @@ function ProductCatalogView({
       window.localStorage.removeItem(cartStorageKey);
       window.sessionStorage.removeItem(orderPreviewStorageKey);
     }
-  }, [category.title, pathname, quantities, selectedProducts]);
+  }, [cartHydrated, category.title, pathname, quantities, selectedProducts]);
 
   const previewOrder = () => {
     const draft: OrderPreviewDraft = {
@@ -412,7 +385,7 @@ function ProductCatalogView({
         id: product.id,
         name: product.name,
         code: product.code,
-        imageSrc: product.imageSrc,
+        imageSrc: product.imageSrc ?? "",
         price: product.price,
         compareAtPrice: product.compareAtPrice,
         quantity: quantities[product.id],
@@ -476,9 +449,13 @@ function ProductCatalogView({
 
       {!filteredProducts.length ? (
         <div className="mt-10 rounded-[28px] bg-white/60 px-5 py-8 text-center">
-          <p className="text-[15px] font-medium text-black">Ürün bulunamadı</p>
+          <p className="text-[15px] font-medium text-black">
+            {query.trim() ? "Ürün bulunamadı" : "Bu kategoride stokta ürün yok"}
+          </p>
           <p className="mt-2 text-[13px] leading-5 text-black/45">
-            Arama metnini değiştirerek tekrar deneyebilirsin.
+            {query.trim()
+              ? "Arama metnini değiştirerek tekrar deneyebilirsin."
+              : "Yeni ürünler eklendiğinde bu kategori tekrar siparişe açılır."}
           </p>
         </div>
       ) : null}
