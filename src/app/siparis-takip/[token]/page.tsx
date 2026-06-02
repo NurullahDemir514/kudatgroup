@@ -1,10 +1,16 @@
 import Link from "next/link";
 import { formatPrice } from "@/lib/order-preview";
+import CustomerDecisionPanel, {
+  MissingTrackingItem,
+} from "@/components/order-tracking/CustomerDecisionPanel";
 
 type TrackingItem = {
   name: string;
   imageUrl?: string;
   quantity: number;
+  preparation_status?: string;
+  missing_quantity?: number;
+  available_quantity?: number;
   unitPrice: number;
   total: number;
 };
@@ -17,6 +23,9 @@ type TrackingOrder = {
   totalAmount: number;
   itemCount: number;
   items: TrackingItem[];
+  customer_decision?: string;
+  customer_decision_at?: string | null;
+  customer_decision_note?: string;
   orderDate?: string | null;
   updatedAt?: string | null;
   receiptPdfUrl?: string;
@@ -34,6 +43,10 @@ const statusCopy: Record<string, { label: string; description: string }> = {
   completed: {
     label: "Tamamlandı",
     description: "Siparişiniz tamamlandı. Satış belgenizi aşağıdan indirebilirsiniz.",
+  },
+  rejected: {
+    label: "Onaylanmadı",
+    description: "Sipariş talebiniz şu anda karşılanamadığı için onaylanmadı.",
   },
   cancelled: {
     label: "İptal edildi",
@@ -77,7 +90,38 @@ export default async function OrderTrackingPage({
   const { token } = await params;
   const receiptUrl = `/api/qanta-order-receipt/${encodeURIComponent(token)}`;
   const order = await getOrder(token);
-  const status = order ? statusCopy[order.status] ?? statusCopy.pending : null;
+  const missingItems: MissingTrackingItem[] = order
+    ? order.items
+        .filter(
+          (item) =>
+            item.preparation_status === "missing" &&
+            Number(item.missing_quantity || 0) > 0
+        )
+        .map((item) => ({
+          name: item.name,
+          quantity: item.quantity,
+          missing_quantity: Number(item.missing_quantity || 0),
+          available_quantity: Math.max(
+            0,
+            Number(item.available_quantity ?? item.quantity - Number(item.missing_quantity || 0))
+          ),
+        }))
+    : [];
+  const needsCustomerDecision =
+    order?.status !== "completed" &&
+    order?.status !== "rejected" &&
+    order?.status !== "cancelled" &&
+    missingItems.length > 0;
+  const status = order
+    ? needsCustomerDecision
+      ? {
+          label: order.customer_decision ? "Karar iletildi" : "Karar bekleniyor",
+          description: order.customer_decision
+            ? "Seçiminiz işletmeye iletildi. Siparişiniz bu karara göre güncellenecek."
+            : "Bazı ürünler eksik. Siparişin nasıl ilerleyeceğini aşağıdan seçebilirsiniz.",
+        }
+      : statusCopy[order.status] ?? statusCopy.pending
+    : null;
   const updatedAt = formatDate(order?.updatedAt ?? order?.orderDate);
 
   return (
@@ -170,7 +214,10 @@ export default async function OrderTrackingPage({
                           {item.name}
                         </p>
                         <p className="mt-1 text-black/42">
-                          {item.quantity} adet x {formatPrice(item.unitPrice)}
+                          {item.preparation_status === "missing" &&
+                          Number(item.missing_quantity || 0) > 0
+                            ? `${item.available_quantity ?? Math.max(0, item.quantity - Number(item.missing_quantity || 0))} hazır · ${item.missing_quantity} eksik`
+                            : `${item.quantity} adet x ${formatPrice(item.unitPrice)}`}
                         </p>
                       </div>
                     </div>
@@ -179,6 +226,14 @@ export default async function OrderTrackingPage({
                 ))}
               </div>
             </div>
+
+            {needsCustomerDecision ? (
+              <CustomerDecisionPanel
+                token={token}
+                initialDecision={order.customer_decision || ""}
+                items={missingItems}
+              />
+            ) : null}
 
             {order.status === "completed" && order.receiptPdfUrl ? (
               <a

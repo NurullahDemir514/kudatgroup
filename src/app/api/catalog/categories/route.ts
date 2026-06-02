@@ -7,7 +7,14 @@ import {
 export async function GET() {
   const categories = await getAdminCatalogCategories();
 
-  return NextResponse.json({ success: true, data: categories });
+  return NextResponse.json(
+    { success: true, data: categories },
+    {
+      headers: {
+        "Cache-Control": "public, s-maxage=30, stale-while-revalidate=120",
+      },
+    }
+  );
 }
 
 export async function POST(request: NextRequest) {

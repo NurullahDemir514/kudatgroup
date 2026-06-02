@@ -30,6 +30,7 @@ export type CatalogProduct = {
   price: number;
   compareAtPrice?: number;
   stock: number;
+  hideStock?: boolean;
   isNew?: boolean;
   categoryId?: string;
   isActive?: boolean;
@@ -38,6 +39,8 @@ export type CatalogProduct = {
 type ProductQuantities = Record<string, number>;
 
 const quickQuantityOptions = [12, 24, 36, 48];
+const initialVisibleProductCount = 48;
+const visibleProductStep = 48;
 
 function CategoryLink({
   node,
@@ -80,6 +83,7 @@ function ProductCard({
 }) {
   const hasQuantity = quantity > 0;
   const isOutOfStock = product.stock <= 0;
+  const showStock = product.hideStock !== true;
   const [isImageExpanded, setIsImageExpanded] = useState(false);
   const hasDiscount =
     typeof product.compareAtPrice === "number" && product.compareAtPrice > product.price;
@@ -112,6 +116,8 @@ function ProductCard({
             <img
               src={product.imageSrc}
               alt={product.name}
+              loading="lazy"
+              decoding="async"
               className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.035]"
             />
           ) : null}
@@ -128,9 +134,13 @@ function ProductCard({
           ) : (
             <span />
           )}
-          <span className="rounded-full bg-black/70 px-2.5 py-1 text-[10px] font-medium text-white backdrop-blur">
-            {isOutOfStock ? "Stok yok" : `${product.stock} stok`}
-          </span>
+          {showStock ? (
+            <span className="rounded-full bg-black/70 px-2.5 py-1 text-[10px] font-medium text-white backdrop-blur">
+              {isOutOfStock ? "Stok yok" : `${product.stock} stok`}
+            </span>
+          ) : (
+            <span />
+          )}
         </div>
 
         <div className="absolute inset-x-3 bottom-3">
@@ -288,6 +298,7 @@ function ProductCatalogView({
   const [quantities, setQuantities] = useState<ProductQuantities>({});
   const [cartHydrated, setCartHydrated] = useState(false);
   const [query, setQuery] = useState("");
+  const [visibleCount, setVisibleCount] = useState(initialVisibleProductCount);
 
   useEffect(() => {
     try {
@@ -325,6 +336,8 @@ function ProductCatalogView({
       return searchable.includes(normalizedQuery);
     });
   }, [products, query]);
+  const visibleProducts = filteredProducts.slice(0, visibleCount);
+  const hasMoreProducts = visibleProducts.length < filteredProducts.length;
 
   const cartProducts = allActiveProducts.length ? allActiveProducts : products;
   const selectedProducts = cartProducts.filter((product) => quantities[product.id] > 0);
@@ -350,6 +363,10 @@ function ProductCatalogView({
       return next;
     });
   };
+
+  useEffect(() => {
+    setVisibleCount(initialVisibleProductCount);
+  }, [category.id, query]);
 
   useEffect(() => {
     if (!cartHydrated) return;
@@ -437,7 +454,7 @@ function ProductCatalogView({
       </div>
 
       <div className="mt-6 grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 sm:gap-x-5">
-        {filteredProducts.map((product) => (
+        {visibleProducts.map((product) => (
           <ProductCard
             key={product.id}
             product={product}
@@ -446,6 +463,18 @@ function ProductCatalogView({
           />
         ))}
       </div>
+
+      {hasMoreProducts ? (
+        <div className="mt-8 flex justify-center">
+          <button
+            type="button"
+            onClick={() => setVisibleCount((current) => current + visibleProductStep)}
+            className="h-12 rounded-full border border-black/10 bg-white px-7 text-[14px] font-semibold text-black/70 shadow-sm transition hover:border-black/18 hover:text-black active:scale-[0.98]"
+          >
+            Daha fazla ürün göster
+          </button>
+        </div>
+      ) : null}
 
       {!filteredProducts.length ? (
         <div className="mt-10 rounded-[28px] bg-white/60 px-5 py-8 text-center">

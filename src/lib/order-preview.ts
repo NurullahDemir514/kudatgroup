@@ -37,6 +37,7 @@ export type SubmittedOrderStatus =
   | "pending"
   | "approved"
   | "completed"
+  | "rejected"
   | "cancelled";
 
 export type SubmittedOrder = {

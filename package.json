@@ -11,7 +11,12 @@
     "reset-newsletters": "node scripts/reset-newsletter-collection.js",
     "update-newsletters": "node scripts/update-newsletters.js",
     "test-model": "node scripts/test-model.js",
-    "migrate-address": "node scripts/migrate-address-data.js"
+    "migrate-address": "node scripts/migrate-address-data.js",
+    "load:smoke": "KUDAT_LOAD_PROFILE=smoke k6 run tests/load/kudat-load-test.js",
+    "load:normal": "KUDAT_LOAD_PROFILE=normal k6 run tests/load/kudat-load-test.js",
+    "load:stress": "KUDAT_LOAD_PROFILE=stress k6 run tests/load/kudat-load-test.js",
+    "load:spike": "KUDAT_LOAD_PROFILE=spike k6 run tests/load/kudat-load-test.js",
+    "load:soak": "KUDAT_LOAD_PROFILE=soak k6 run tests/load/kudat-load-test.js"
   },
   "dependencies": {
     "@fullpage/react-fullpage": "^0.1.49",

@@ -6,6 +6,10 @@ import {
     type AdminCatalogCategory,
 } from '@/services/catalogCategoryService';
 
+const publicCatalogCacheHeaders = {
+    'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=120',
+};
+
 const categoryWordMap: Record<string, string> = {
     bijuteri: 'Bijuteri',
     bujiteri: 'Bijuteri',
@@ -81,7 +85,10 @@ export async function GET(request: NextRequest) {
         const source = request.nextUrl.searchParams.get('source');
         if (source === 'legacy') {
             const legacyProducts = await productService.getAll();
-            return NextResponse.json({ success: true, data: legacyProducts });
+            return NextResponse.json(
+                { success: true, data: legacyProducts },
+                { headers: publicCatalogCacheHeaders }
+            );
         }
 
         const [legacyProducts, catalogProducts, catalogCategories] = await Promise.all([
@@ -116,6 +123,7 @@ export async function GET(request: NextRequest) {
                     wholesalePrice: product.purchasePrice || 0,
                     salePrice: product.price || 0,
                     stock: product.stock || 0,
+                    hideStock: product.hideStock === true,
                     supplier: product.supplier || '',
                     source: 'catalog',
                     catalogId: product.id,
@@ -125,7 +133,10 @@ export async function GET(request: NextRequest) {
             ? mappedCatalogProducts
             : legacyProducts;
 
-        return NextResponse.json({ success: true, data: products });
+        return NextResponse.json(
+            { success: true, data: products },
+            { headers: publicCatalogCacheHeaders }
+        );
     } catch (error) {
         console.error('Ürün listeleme hatası:', error);
         return NextResponse.json(

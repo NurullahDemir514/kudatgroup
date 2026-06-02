@@ -12,6 +12,16 @@ import {
 import { db } from "@/lib/firebase";
 
 const collectionName = "catalog_products";
+const catalogProductsCacheTtlMs = Number(
+  process.env.CATALOG_PRODUCTS_CACHE_TTL_MS ?? 30_000
+);
+
+let catalogProductsCache:
+  | {
+      expiresAt: number;
+      value: AdminCatalogProduct[];
+    }
+  | undefined;
 
 const withoutUndefined = <T extends Record<string, unknown>>(value: T) =>
   Object.fromEntries(
@@ -28,6 +38,7 @@ export type AdminCatalogProduct = {
   price: number;
   compareAtPrice?: number;
   stock: number;
+  hideStock?: boolean;
   supplier?: string;
   order: number;
   isActive: boolean;
@@ -38,10 +49,19 @@ export type CatalogStockAdjustmentItem = {
   quantity: number;
 };
 
+export function invalidateAdminCatalogProductsCache() {
+  catalogProductsCache = undefined;
+}
+
 export async function getAdminCatalogProducts(): Promise<AdminCatalogProduct[]> {
+  const now = Date.now();
+  if (catalogProductsCache && catalogProductsCache.expiresAt > now) {
+    return catalogProductsCache.value;
+  }
+
   const snapshot = await getDocs(query(collection(db, collectionName)));
 
-  return snapshot.docs
+  const products = snapshot.docs
     .map((document) => {
       const data = document.data() as Partial<AdminCatalogProduct>;
 
@@ -57,12 +77,20 @@ export async function getAdminCatalogProducts(): Promise<AdminCatalogProduct[]> 
         compareAtPrice:
           typeof data.compareAtPrice === "number" ? data.compareAtPrice : undefined,
         stock: typeof data.stock === "number" ? data.stock : 0,
+        hideStock: data.hideStock === true,
         supplier: data.supplier,
         order: typeof data.order === "number" ? data.order : 0,
         isActive: data.isActive !== false,
       };
     })
     .sort((first, second) => first.order - second.order);
+
+  catalogProductsCache = {
+    expiresAt: now + catalogProductsCacheTtlMs,
+    value: products,
+  };
+
+  return products;
 }
 
 export async function adjustAdminCatalogProductStock({
@@ -93,7 +121,7 @@ export async function adjustAdminCatalogProductStock({
 
   const adjustmentRef = doc(db, "catalog_stock_adjustments", cleanAdjustmentId);
 
-  return runTransaction(db, async (transaction) => {
+  const result = await runTransaction(db, async (transaction) => {
     const previousAdjustment = await transaction.get(adjustmentRef);
     if (previousAdjustment.exists()) {
       return { alreadyApplied: true };
@@ -141,6 +169,12 @@ export async function adjustAdminCatalogProductStock({
 
     return { alreadyApplied: false };
   });
+
+  if (!result.alreadyApplied) {
+    invalidateAdminCatalogProductsCache();
+  }
+
+  return result;
 }
 
 export async function createAdminCatalogProduct(
@@ -152,6 +186,7 @@ export async function createAdminCatalogProduct(
     updatedAt: serverTimestamp(),
   }));
 
+  invalidateAdminCatalogProductsCache();
   return { id: docRef.id, ...product };
 }
 
@@ -164,10 +199,12 @@ export async function updateAdminCatalogProduct(
     updatedAt: serverTimestamp(),
   }));
 
+  invalidateAdminCatalogProductsCache();
   return { id, ...product };
 }
 
 export async function deleteAdminCatalogProduct(id: string) {
   await deleteDoc(doc(db, collectionName, id));
+  invalidateAdminCatalogProductsCache();
   return true;
 }

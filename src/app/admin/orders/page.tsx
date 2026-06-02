@@ -60,6 +60,11 @@ const statusMeta: Record<
     tone: "bg-[#267A4F] text-white",
     helper: "Qanta’da satış tamamlandı.",
   },
+  rejected: {
+    label: "Reddedildi",
+    tone: "bg-[#B3261E] text-white",
+    helper: "Qanta’da onaylanmadı.",
+  },
   cancelled: {
     label: "İptal",
     tone: "bg-[#B3261E] text-white",
@@ -72,6 +77,7 @@ const filters: Array<{ value: "all" | SubmittedOrderStatus; label: string }> = [
   { value: "pending", label: "İşlem bekleyen" },
   { value: "approved", label: "Hazırlanan" },
   { value: "completed", label: "Tamamlanan" },
+  { value: "rejected", label: "Reddedilen" },
   { value: "cancelled", label: "İptal" },
 ];
 

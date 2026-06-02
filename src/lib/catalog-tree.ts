@@ -37,6 +37,52 @@ export const countProducts = (nodes: CatalogNode[] = []): number =>
     return total + countProducts(node.children);
   }, 0);
 
+export const pruneCatalogTreeByProductCounts = (
+  nodes: CatalogNode[],
+  productCounts: Map<string, number>
+): CatalogNode[] =>
+  nodes
+    .map((node) => {
+      const children = pruneCatalogTreeByProductCounts(node.children ?? [], productCounts);
+      const directProductCount = productCounts.get(node.id) ?? 0;
+      const totalProductCount = directProductCount + countProducts(children);
+
+      if (!totalProductCount) return null;
+
+      return {
+        ...node,
+        productCount: totalProductCount,
+        children: children.length ? children : undefined,
+      };
+    })
+    .filter((node): node is CatalogNode => Boolean(node));
+
+export type CatalogLeafMatch = {
+  node: CatalogNode;
+  path: string[];
+};
+
+export const findSingleProductLeaf = (
+  nodes: CatalogNode[]
+): CatalogLeafMatch | null => {
+  const leaves: CatalogLeafMatch[] = [];
+
+  const visit = (node: CatalogNode, path: string[]) => {
+    const nextPath = [...path, node.id];
+    if (node.children?.length) {
+      node.children.forEach((child) => visit(child, nextPath));
+      return;
+    }
+
+    if ((node.productCount ?? 0) > 0) {
+      leaves.push({ node, path: nextPath });
+    }
+  };
+
+  nodes.forEach((node) => visit(node, []));
+  return leaves.length === 1 ? leaves[0] : null;
+};
+
 export const findNodeByPath = (
   nodes: CatalogNode[],
   path: string[]

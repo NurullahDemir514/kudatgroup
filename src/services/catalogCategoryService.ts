@@ -21,6 +21,23 @@ type FirestoreCatalogCategory = Omit<CatalogCategoryRecord, "id">;
 
 const collectionName = "catalog_categories";
 const reservedCategoryDocumentIds = new Set(["marketing-home-content"]);
+const catalogCategoriesCacheTtlMs = Number(
+  process.env.CATALOG_CATEGORIES_CACHE_TTL_MS ?? 30_000
+);
+
+let catalogTreeCache:
+  | {
+      expiresAt: number;
+      value: CatalogNode[];
+    }
+  | undefined;
+
+let adminCatalogCategoriesCache:
+  | {
+      expiresAt: number;
+      value: AdminCatalogCategory[];
+    }
+  | undefined;
 
 const withoutUndefined = <T extends Record<string, unknown>>(value: T) =>
   Object.fromEntries(
@@ -59,7 +76,17 @@ const toCatalogCategoryRecord = (
   };
 };
 
+export function invalidateCatalogCategoryCaches() {
+  catalogTreeCache = undefined;
+  adminCatalogCategoriesCache = undefined;
+}
+
 export async function getCatalogTree(): Promise<CatalogNode[]> {
+  const now = Date.now();
+  if (catalogTreeCache && catalogTreeCache.expiresAt > now) {
+    return catalogTreeCache.value;
+  }
+
   try {
     const snapshot = await getDocs(query(collection(db, collectionName)));
     const records = snapshot.docs
@@ -71,10 +98,21 @@ export async function getCatalogTree(): Promise<CatalogNode[]> {
       )
       .filter((record): record is CatalogCategoryRecord => Boolean(record));
 
-    if (!records.length) return catalogTree;
+    if (!records.length) {
+      catalogTreeCache = {
+        expiresAt: now + catalogCategoriesCacheTtlMs,
+        value: catalogTree,
+      };
+      return catalogTree;
+    }
 
     const tree = buildCatalogTree(records);
-    return tree.length ? tree : catalogTree;
+    const value = tree.length ? tree : catalogTree;
+    catalogTreeCache = {
+      expiresAt: now + catalogCategoriesCacheTtlMs,
+      value,
+    };
+    return value;
   } catch (error) {
     console.error("Katalog kategori ağacı okunamadı:", error);
     return catalogTree;
@@ -82,6 +120,14 @@ export async function getCatalogTree(): Promise<CatalogNode[]> {
 }
 
 export async function getAdminCatalogCategories(): Promise<AdminCatalogCategory[]> {
+  const now = Date.now();
+  if (
+    adminCatalogCategoriesCache &&
+    adminCatalogCategoriesCache.expiresAt > now
+  ) {
+    return adminCatalogCategoriesCache.value;
+  }
+
   const snapshot = await getDocs(query(collection(db, collectionName)));
 
   const categories: AdminCatalogCategory[] = [];
@@ -105,7 +151,12 @@ export async function getAdminCatalogCategories(): Promise<AdminCatalogCategory[
       });
     });
 
-  return categories.sort((first, second) => first.order - second.order);
+  const value = categories.sort((first, second) => first.order - second.order);
+  adminCatalogCategoriesCache = {
+    expiresAt: now + catalogCategoriesCacheTtlMs,
+    value,
+  };
+  return value;
 }
 
 export async function createAdminCatalogCategory(
@@ -126,6 +177,7 @@ export async function createAdminCatalogCategory(
     updatedAt: serverTimestamp(),
   }));
 
+  invalidateCatalogCategoryCaches();
   return { id, ...category, slug: id };
 }
 
@@ -138,10 +190,12 @@ export async function updateAdminCatalogCategory(
     updatedAt: serverTimestamp(),
   }));
 
+  invalidateCatalogCategoryCaches();
   return { id, ...category };
 }
 
 export async function deleteAdminCatalogCategory(id: string) {
   await deleteDoc(doc(db, collectionName, id));
+  invalidateCatalogCategoryCaches();
   return true;
 }
