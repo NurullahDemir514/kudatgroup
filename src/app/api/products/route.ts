@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { unstable_cache } from 'next/cache';
 import { productService } from '@/services/firebaseServices';
 import { getAdminCatalogProducts } from '@/services/catalogProductService';
 import {
@@ -7,7 +8,7 @@ import {
 } from '@/services/catalogCategoryService';
 
 const publicCatalogCacheHeaders = {
-    'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=120',
+    'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
 };
 
 const categoryWordMap: Record<string, string> = {
@@ -79,18 +80,14 @@ function categoryPathFor(
     return path;
 }
 
-// Tüm ürünleri getir
-export async function GET(request: NextRequest) {
-    try {
-        const source = request.nextUrl.searchParams.get('source');
-        if (source === 'legacy') {
-            const legacyProducts = await productService.getAll();
-            return NextResponse.json(
-                { success: true, data: legacyProducts },
-                { headers: publicCatalogCacheHeaders }
-            );
-        }
+const getCachedLegacyProducts = unstable_cache(
+    async () => productService.getAll(),
+    ['public-legacy-products'],
+    { revalidate: 300 }
+);
 
+const getCachedPublicProducts = unstable_cache(
+    async () => {
         const [legacyProducts, catalogProducts, catalogCategories] = await Promise.all([
             productService.getAll(),
             getAdminCatalogProducts(),
@@ -129,9 +126,28 @@ export async function GET(request: NextRequest) {
                     catalogId: product.id,
                 };
             });
-        const products = mappedCatalogProducts.length
+
+        return mappedCatalogProducts.length
             ? mappedCatalogProducts
             : legacyProducts;
+    },
+    ['public-catalog-products'],
+    { revalidate: 300 }
+);
+
+// Tüm ürünleri getir
+export async function GET(request: NextRequest) {
+    try {
+        const source = request.nextUrl.searchParams.get('source');
+        if (source === 'legacy') {
+            const legacyProducts = await getCachedLegacyProducts();
+            return NextResponse.json(
+                { success: true, data: legacyProducts },
+                { headers: publicCatalogCacheHeaders }
+            );
+        }
+
+        const products = await getCachedPublicProducts();
 
         return NextResponse.json(
             { success: true, data: products },

@@ -1,17 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
+import { unstable_cache } from "next/cache";
 import {
   getAdminCatalogCategories,
   type AdminCatalogCategory,
 } from "@/services/catalogCategoryService";
 
+const getCachedPublicCatalogCategories = unstable_cache(
+  async () => getAdminCatalogCategories(),
+  ["public-catalog-categories"],
+  { revalidate: 300 }
+);
+
 export async function GET() {
-  const categories = await getAdminCatalogCategories();
+  const categories = await getCachedPublicCatalogCategories();
 
   return NextResponse.json(
     { success: true, data: categories },
     {
       headers: {
-        "Cache-Control": "public, s-maxage=30, stale-while-revalidate=120",
+        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
       },
     }
   );

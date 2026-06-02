@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server";
+import { unstable_cache } from "next/cache";
 import { getCatalogTree } from "@/services/catalogCategoryService";
 
+const getCachedCatalogTree = unstable_cache(
+  async () => getCatalogTree(),
+  ["public-catalog-tree"],
+  { revalidate: 300 }
+);
+
 export async function GET() {
-  const categories = await getCatalogTree();
+  const categories = await getCachedCatalogTree();
 
   return NextResponse.json(
     {
@@ -11,7 +18,7 @@ export async function GET() {
     },
     {
       headers: {
-        "Cache-Control": "public, s-maxage=30, stale-while-revalidate=120",
+        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
       },
     }
   );
