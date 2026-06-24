@@ -74,11 +74,30 @@ function cleanProduct(
   const purchasePrice = numberOrZero(product.purchasePrice);
   const price = numberOrZero(product.price);
   const compareAtPrice = numberOrZero(product.compareAtPrice);
+  const variantMode =
+    product.variantMode === "none" || product.variantMode === "custom"
+      ? product.variantMode
+      : "auto";
+  const variants = Array.isArray(product.variants)
+    ? product.variants
+        .map((variant) => ({
+          id: String(variant.id ?? "").trim(),
+          name: String(variant.name ?? "").trim(),
+          code: String(variant.code ?? "").trim(),
+          colorHex: String(variant.colorHex ?? "").trim(),
+        }))
+        .filter(
+          (variant) =>
+            variant.id && variant.name && variant.code && variant.colorHex
+        )
+    : undefined;
 
   return {
     name,
     code,
     categoryId,
+    variantMode,
+    variants: variantMode === "custom" && variants?.length ? variants : undefined,
     imageSrc: String(product.imageSrc ?? "").trim() || undefined,
     purchasePrice: purchasePrice || undefined,
     price,

@@ -33,6 +33,8 @@ export type AdminCatalogProduct = {
   name: string;
   code: string;
   categoryId: string;
+  variantMode?: "auto" | "none" | "custom";
+  variants?: AdminCatalogProductVariant[];
   imageSrc?: string;
   purchasePrice?: number;
   price: number;
@@ -42,6 +44,13 @@ export type AdminCatalogProduct = {
   supplier?: string;
   order: number;
   isActive: boolean;
+};
+
+export type AdminCatalogProductVariant = {
+  id: string;
+  name: string;
+  code: string;
+  colorHex: string;
 };
 
 export type CatalogStockAdjustmentItem = {
@@ -70,6 +79,23 @@ export async function getAdminCatalogProducts(): Promise<AdminCatalogProduct[]> 
         name: data.name ?? "",
         code: data.code ?? "",
         categoryId: data.categoryId ?? "",
+        variantMode:
+          data.variantMode === "none" || data.variantMode === "custom"
+            ? data.variantMode
+            : "auto",
+        variants: Array.isArray(data.variants)
+          ? data.variants
+              .map((variant) => ({
+                id: String(variant.id ?? "").trim(),
+                name: String(variant.name ?? "").trim(),
+                code: String(variant.code ?? "").trim(),
+                colorHex: String(variant.colorHex ?? "").trim(),
+              }))
+              .filter(
+                (variant) =>
+                  variant.id && variant.name && variant.code && variant.colorHex
+              )
+          : undefined,
         imageSrc: data.imageSrc,
         purchasePrice:
           typeof data.purchasePrice === "number" ? data.purchasePrice : undefined,

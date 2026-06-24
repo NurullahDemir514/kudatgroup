@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   categoryHref,
   countProducts,
@@ -14,6 +14,10 @@ import {
   orderPreviewStorageKey,
   type OrderPreviewDraft,
 } from "@/lib/order-preview";
+import {
+  variantsForCatalogProduct,
+  type CatalogProductVariant,
+} from "@/lib/catalog-product-variants";
 
 type CategoryBrowserProps = {
   categories: CatalogNode[];
@@ -26,6 +30,8 @@ export type CatalogProduct = {
   id: string;
   name: string;
   code: string;
+  variantMode?: "auto" | "none" | "custom";
+  variants?: CatalogProductVariant[];
   imageSrc?: string;
   price: number;
   compareAtPrice?: number;
@@ -37,10 +43,171 @@ export type CatalogProduct = {
 };
 
 type ProductQuantities = Record<string, number>;
+type ProductVariantQuantities = Record<string, Record<string, number>>;
 
 const quickQuantityOptions = [12, 24, 36, 48];
+const variantQuickQuantityOptions = [12, 24, 36, 48, 60];
 const initialVisibleProductCount = 48;
 const visibleProductStep = 48;
+
+function variantsForProduct(product: CatalogProduct) {
+  return variantsForCatalogProduct(product);
+}
+
+function variantSwatchStyle(variant: CatalogProductVariant) {
+  return variant.colorHex.startsWith("linear-gradient")
+    ? { background: variant.colorHex }
+    : { backgroundColor: variant.colorHex };
+}
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(Math.max(value, min), max);
+
+const distanceBetween = (
+  first: { x: number; y: number },
+  second: { x: number; y: number }
+) => Math.hypot(first.x - second.x, first.y - second.y);
+
+function ProductImageViewer({
+  imageSrc,
+  productName,
+  onClose,
+}: {
+  imageSrc: string;
+  productName: string;
+  onClose: () => void;
+}) {
+  const pointersRef = useRef(new Map<number, { x: number; y: number }>());
+  const lastDistanceRef = useRef<number | null>(null);
+  const lastPointRef = useRef<{ x: number; y: number } | null>(null);
+  const [scale, setScale] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
+
+  const resetImage = () => {
+    setScale(1);
+    setOffset({ x: 0, y: 0 });
+  };
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    pointersRef.current.set(event.pointerId, {
+      x: event.clientX,
+      y: event.clientY,
+    });
+
+    const points = Array.from(pointersRef.current.values());
+    lastPointRef.current = { x: event.clientX, y: event.clientY };
+    lastDistanceRef.current =
+      points.length >= 2 ? distanceBetween(points[0], points[1]) : null;
+  };
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!pointersRef.current.has(event.pointerId)) return;
+
+    pointersRef.current.set(event.pointerId, {
+      x: event.clientX,
+      y: event.clientY,
+    });
+
+    const points = Array.from(pointersRef.current.values());
+    if (points.length >= 2) {
+      const nextDistance = distanceBetween(points[0], points[1]);
+      const previousDistance = lastDistanceRef.current ?? nextDistance;
+      lastDistanceRef.current = nextDistance;
+
+      if (previousDistance > 0) {
+        setScale((currentScale) =>
+          clamp(currentScale * (nextDistance / previousDistance), 1, 4)
+        );
+      }
+      return;
+    }
+
+    if (scale <= 1 || !lastPointRef.current) {
+      lastPointRef.current = { x: event.clientX, y: event.clientY };
+      return;
+    }
+
+    const deltaX = event.clientX - lastPointRef.current.x;
+    const deltaY = event.clientY - lastPointRef.current.y;
+    lastPointRef.current = { x: event.clientX, y: event.clientY };
+    setOffset((currentOffset) => ({
+      x: clamp(currentOffset.x + deltaX, -220, 220),
+      y: clamp(currentOffset.y + deltaY, -220, 220),
+    }));
+  };
+
+  const handlePointerEnd = (event: React.PointerEvent<HTMLDivElement>) => {
+    pointersRef.current.delete(event.pointerId);
+    const points = Array.from(pointersRef.current.values());
+    lastPointRef.current = points[0] ?? null;
+    lastDistanceRef.current =
+      points.length >= 2 ? distanceBetween(points[0], points[1]) : null;
+
+    if (scale <= 1.02) resetImage();
+  };
+
+  const handleDoubleClick = () => {
+    if (scale > 1) {
+      resetImage();
+      return;
+    }
+    setScale(2.2);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-hidden bg-black">
+      <img
+        src={imageSrc}
+        alt=""
+        aria-hidden="true"
+        className="absolute inset-0 h-full w-full scale-110 object-cover opacity-45 blur-2xl"
+      />
+      <div className="absolute inset-0 bg-black/58" />
+      <button
+        type="button"
+        aria-label="Görseli kapat"
+        className="absolute inset-0"
+        onClick={onClose}
+      />
+      <button
+        type="button"
+        aria-label="Görseli kapat"
+        onClick={onClose}
+        className="absolute right-4 top-[max(16px,env(safe-area-inset-top))] z-20 flex size-11 items-center justify-center rounded-full bg-white/14 text-[28px] font-light text-white shadow-sm backdrop-blur-xl transition active:scale-95"
+      >
+        ×
+      </button>
+      <div
+        className="relative z-10 flex h-full w-full touch-none select-none items-center justify-center p-4"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerEnd}
+        onPointerCancel={handlePointerEnd}
+        onDoubleClick={handleDoubleClick}
+      >
+        <img
+          src={imageSrc}
+          alt={productName}
+          draggable={false}
+          className="max-h-[88dvh] max-w-[94vw] rounded-[18px] object-contain shadow-[0_28px_90px_rgba(0,0,0,0.42)] will-change-transform"
+          style={{
+            transform: `translate3d(${offset.x}px, ${offset.y}px, 0) scale(${scale})`,
+            transition: pointersRef.current.size ? "none" : "transform 180ms ease",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
 
 function CategoryLink({
   node,
@@ -75,16 +242,31 @@ function CategoryLink({
 function ProductCard({
   product,
   quantity,
+  variantQuantities,
   onChangeQuantity,
+  onChangeVariantQuantity,
 }: {
   product: CatalogProduct;
   quantity: number;
+  variantQuantities?: Record<string, number>;
   onChangeQuantity: (productId: string, quantity: number) => void;
+  onChangeVariantQuantity: (
+    productId: string,
+    variantId: string,
+    quantity: number
+  ) => void;
 }) {
-  const hasQuantity = quantity > 0;
+  const variants = variantsForProduct(product);
+  const hasVariants = variants.length > 0;
+  const totalVariantQuantity = variants.reduce(
+    (total, variant) => total + (variantQuantities?.[variant.id] ?? 0),
+    0
+  );
+  const hasQuantity = hasVariants ? totalVariantQuantity > 0 : quantity > 0;
   const isOutOfStock = product.stock <= 0;
   const showStock = product.hideStock !== true;
   const [isImageExpanded, setIsImageExpanded] = useState(false);
+  const [isVariantSheetOpen, setIsVariantSheetOpen] = useState(false);
   const hasDiscount =
     typeof product.compareAtPrice === "number" && product.compareAtPrice > product.price;
   const discountRate = hasDiscount
@@ -97,6 +279,17 @@ function ProductCard({
     }
     onChangeQuantity(product.id, Math.min(Math.max(nextQuantity, 0), product.stock));
   };
+  const setVariantQuantity = (variantId: string, nextQuantity: number) => {
+    if (isOutOfStock) {
+      onChangeVariantQuantity(product.id, variantId, 0);
+      return;
+    }
+    onChangeVariantQuantity(
+      product.id,
+      variantId,
+      Math.min(Math.max(nextQuantity, 0), product.stock)
+    );
+  };
   const handleQuantityInput = (value: string) => {
     const numericValue = Number(value.replace(/\D/g, ""));
     setQuantity(Number.isFinite(numericValue) ? numericValue : 0);
@@ -104,7 +297,7 @@ function ProductCard({
 
   return (
     <article className="group min-w-0">
-      <div className="relative aspect-[4/5] overflow-hidden rounded-[24px] bg-black/[0.04]">
+      <div className="relative aspect-[4/5] overflow-hidden rounded-[18px] bg-black/[0.04]">
         <button
           type="button"
           aria-label={`${product.name} görselini büyüt`}
@@ -134,13 +327,28 @@ function ProductCard({
           ) : (
             <span />
           )}
-          {showStock ? (
-            <span className="rounded-full bg-black/70 px-2.5 py-1 text-[10px] font-medium text-white backdrop-blur">
-              {isOutOfStock ? "Stok yok" : `${product.stock} stok`}
-            </span>
-          ) : (
-            <span />
-          )}
+          <span className="flex items-center gap-1.5">
+            {hasVariants ? (
+              <span
+                aria-label={`${variants.length} renk seçeneği`}
+                className="flex h-7 items-center gap-1 rounded-full bg-white/92 px-2 shadow-sm backdrop-blur"
+              >
+                {variants.map((variant) => (
+                  <span
+                    key={variant.id}
+                    aria-hidden="true"
+                    className="size-3 rounded-full border border-black/10"
+                    style={variantSwatchStyle(variant)}
+                  />
+                ))}
+              </span>
+            ) : null}
+            {showStock ? (
+              <span className="rounded-full bg-black/70 px-2.5 py-1 text-[10px] font-medium text-white backdrop-blur">
+                {isOutOfStock ? "Stok yok" : `${product.stock} stok`}
+              </span>
+            ) : null}
+          </span>
         </div>
 
         <div className="absolute inset-x-3 bottom-3">
@@ -151,6 +359,14 @@ function ProductCard({
               className="h-11 w-full rounded-full bg-white/72 text-[14px] font-semibold text-black/38 shadow-sm backdrop-blur"
             >
               Stokta yok
+            </button>
+          ) : hasVariants ? (
+            <button
+              type="button"
+              className="h-11 w-full rounded-full bg-white/94 text-[14px] font-semibold text-black shadow-sm backdrop-blur transition active:scale-[0.98]"
+              onClick={() => setIsVariantSheetOpen(true)}
+            >
+              {totalVariantQuantity ? `${totalVariantQuantity} adet seçildi` : "Sepete ekle"}
             </button>
           ) : hasQuantity ? (
             <div className="space-y-2">
@@ -237,39 +453,137 @@ function ProductCard({
           </span>
         </div>
       </div>
-      {isImageExpanded ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {isVariantSheetOpen ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
           <button
             type="button"
-            aria-label="Görseli kapat"
-            className="absolute inset-0 cursor-default bg-transparent"
-            onClick={() => setIsImageExpanded(false)}
+            aria-label="Renk seçimini kapat"
+            className="absolute inset-0 bg-black/24"
+            onClick={() => setIsVariantSheetOpen(false)}
           />
-          <div className="relative z-10">
+          <div className="relative z-10 w-full max-w-md rounded-t-[30px] bg-[#f8f6f2] px-5 pb-[max(20px,env(safe-area-inset-bottom))] pt-3 shadow-[0_-24px_80px_rgba(0,0,0,0.22)] sm:rounded-[30px] sm:pb-5">
+            <div className="mx-auto mb-5 h-1 w-11 rounded-full bg-black/12" />
+            <div className="grid grid-cols-[76px_1fr_auto] items-start gap-4">
+              <img
+                src={product.imageSrc ?? ""}
+                alt={product.name}
+                className="aspect-square rounded-[14px] bg-black/[0.04] object-cover"
+              />
+              <div className="min-w-0">
+                <p className="line-clamp-2 text-[18px] font-semibold leading-6 tracking-[-0.04em] text-black">
+                  {product.name}
+                </p>
+                <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-black/38">
+                  {product.code}
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-label="Kapat"
+                className="flex size-10 items-center justify-center rounded-full bg-white text-[24px] font-medium text-black/50 shadow-sm transition active:scale-95"
+                onClick={() => setIsVariantSheetOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="mt-6 space-y-4">
+              {variants.map((variant) => {
+                const variantQuantity = variantQuantities?.[variant.id] ?? 0;
+
+                return (
+                  <div
+                    key={variant.id}
+                    className="rounded-[18px] bg-white p-3 shadow-sm"
+                  >
+                    <div className="grid min-h-10 grid-cols-[minmax(0,1fr)_36px_44px_36px] items-center gap-2">
+                      <span className="flex min-w-0 items-center gap-3">
+                        <span
+                          aria-hidden="true"
+                          className="size-6 shrink-0 rounded-full border border-black/10"
+                          style={variantSwatchStyle(variant)}
+                        />
+                        <span className="truncate text-[15px] font-semibold text-black">
+                          {variant.name}
+                        </span>
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={`${product.name} ${variant.name} adedini azalt`}
+                        className="size-9 rounded-full bg-black/[0.045] text-[20px] font-semibold text-black/58 transition active:scale-95 disabled:text-black/20"
+                        disabled={variantQuantity <= 0}
+                        onClick={() => setVariantQuantity(variant.id, variantQuantity - 1)}
+                      >
+                        −
+                      </button>
+                      <input
+                        aria-label={`${product.name} ${variant.name} adedi`}
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={variantQuantity || ""}
+                        placeholder="0"
+                        onChange={(event) => {
+                          const numericValue = Number(event.target.value.replace(/\D/g, ""));
+                          setVariantQuantity(
+                            variant.id,
+                            Number.isFinite(numericValue) ? numericValue : 0
+                          );
+                        }}
+                        onBlur={() => setVariantQuantity(variant.id, variantQuantity)}
+                        className="min-w-0 bg-transparent text-center text-[18px] font-semibold tracking-[-0.03em] text-black outline-none placeholder:text-black/24"
+                      />
+                      <button
+                        type="button"
+                        aria-label={`${product.name} ${variant.name} adedini artır`}
+                        className="size-9 rounded-full bg-black text-[20px] font-semibold text-white transition active:scale-95"
+                        onClick={() => setVariantQuantity(variant.id, variantQuantity + 1)}
+                      >
+                        +
+                      </button>
+                    </div>
+                    <div className="mt-3 grid grid-cols-5 gap-1.5">
+                      {variantQuickQuantityOptions.map((option) => {
+                        const selected = variantQuantity === option;
+
+                        return (
+                          <button
+                            key={option}
+                            type="button"
+                            className={`h-8 rounded-full text-[12px] font-semibold transition active:scale-[0.98] ${
+                              selected
+                                ? "bg-black text-white"
+                                : "bg-black/[0.045] text-black/54"
+                            }`}
+                            onClick={() => setVariantQuantity(variant.id, option)}
+                          >
+                            {option}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
             <button
               type="button"
-              aria-label="Görseli kapat"
-              onClick={() => setIsImageExpanded(false)}
-              className="absolute right-2 top-2 z-10 flex h-10 w-10 items-center justify-center text-[22px] font-medium text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.55)]"
+              className="mt-5 h-14 w-full rounded-full bg-black text-[15px] font-semibold text-white shadow-[0_16px_42px_rgba(0,0,0,0.2)] transition active:scale-[0.98]"
+              onClick={() => setIsVariantSheetOpen(false)}
             >
-              ×
-            </button>
-            <button
-              type="button"
-              aria-label={`${product.name} görselini kapat`}
-              onClick={() => setIsImageExpanded(false)}
-              className="block"
-            >
-              {product.imageSrc ? (
-                <img
-                  src={product.imageSrc}
-                  alt={product.name}
-                  className="max-h-[86vh] max-w-[min(92vw,760px)] rounded-[24px] object-contain shadow-[0_24px_80px_rgba(0,0,0,0.22)]"
-                />
-              ) : null}
+              {totalVariantQuantity
+                ? `${totalVariantQuantity} adet sepete eklendi`
+                : "Seçimi kapat"}
             </button>
           </div>
         </div>
+      ) : null}
+      {isImageExpanded && product.imageSrc ? (
+        <ProductImageViewer
+          imageSrc={product.imageSrc}
+          productName={product.name}
+          onClose={() => setIsImageExpanded(false)}
+        />
       ) : null}
     </article>
   );
@@ -296,6 +610,7 @@ function ProductCatalogView({
     return categoryProducts;
   }, [allActiveProducts, category]);
   const [quantities, setQuantities] = useState<ProductQuantities>({});
+  const [variantQuantities, setVariantQuantities] = useState<ProductVariantQuantities>({});
   const [cartHydrated, setCartHydrated] = useState(false);
   const [query, setQuery] = useState("");
   const [visibleCount, setVisibleCount] = useState(initialVisibleProductCount);
@@ -340,13 +655,34 @@ function ProductCatalogView({
   const hasMoreProducts = visibleProducts.length < filteredProducts.length;
 
   const cartProducts = allActiveProducts.length ? allActiveProducts : products;
-  const selectedProducts = cartProducts.filter((product) => quantities[product.id] > 0);
+  const selectedProducts = cartProducts.filter((product) => {
+    const variants = variantsForProduct(product);
+    if (variants.length) {
+      return variants.some((variant) => (variantQuantities[product.id]?.[variant.id] ?? 0) > 0);
+    }
+    return quantities[product.id] > 0;
+  });
   const selectedCount = selectedProducts.reduce(
-    (total, product) => total + quantities[product.id],
+    (total, product) => {
+      const variants = variantsForProduct(product);
+      if (!variants.length) return total + quantities[product.id];
+      return total + variants.reduce(
+        (variantTotal, variant) => variantTotal + (variantQuantities[product.id]?.[variant.id] ?? 0),
+        0
+      );
+    },
     0
   );
   const selectedTotal = selectedProducts.reduce(
-    (total, product) => total + product.price * quantities[product.id],
+    (total, product) => {
+      const variants = variantsForProduct(product);
+      if (!variants.length) return total + product.price * quantities[product.id];
+      const quantity = variants.reduce(
+        (variantTotal, variant) => variantTotal + (variantQuantities[product.id]?.[variant.id] ?? 0),
+        0
+      );
+      return total + product.price * quantity;
+    },
     0
   );
 
@@ -363,6 +699,61 @@ function ProductCatalogView({
       return next;
     });
   };
+  const updateVariantQuantity = (
+    productId: string,
+    variantId: string,
+    quantity: number
+  ) => {
+    setVariantQuantities((current) => {
+      const product = products.find((candidate) => candidate.id === productId);
+      const clampedQuantity = Math.min(
+        Math.max(quantity, 0),
+        product?.stock ?? Number.MAX_SAFE_INTEGER
+      );
+      const nextProductQuantities = { ...(current[productId] ?? {}) };
+      if (clampedQuantity <= 0) delete nextProductQuantities[variantId];
+      else nextProductQuantities[variantId] = clampedQuantity;
+
+      const next = { ...current };
+      if (Object.keys(nextProductQuantities).length) {
+        next[productId] = nextProductQuantities;
+      } else {
+        delete next[productId];
+      }
+      return next;
+    });
+  };
+
+  const buildDraftItems = () =>
+    selectedProducts.flatMap((product) => {
+      const variants = variantsForProduct(product);
+      if (!variants.length) {
+        return [{
+          id: product.id,
+          name: product.name,
+          code: product.code,
+          imageSrc: product.imageSrc ?? "",
+          price: product.price,
+          compareAtPrice: product.compareAtPrice,
+          quantity: quantities[product.id],
+        }];
+      }
+
+      return variants
+        .map((variant) => ({
+          id: `${product.id}:${variant.id}`,
+          productId: product.id,
+          variantId: variant.id,
+          variantName: variant.name,
+          name: `${product.name} - ${variant.name}`,
+          code: `${product.code}-${variant.code}`,
+          imageSrc: product.imageSrc ?? "",
+          price: product.price,
+          compareAtPrice: product.compareAtPrice,
+          quantity: variantQuantities[product.id]?.[variant.id] ?? 0,
+        }))
+        .filter((item) => item.quantity > 0);
+    });
 
   useEffect(() => {
     setVisibleCount(initialVisibleProductCount);
@@ -374,15 +765,7 @@ function ProductCatalogView({
     const draft: OrderPreviewDraft = {
       categoryTitle: category.title,
       sourcePath: pathname,
-      items: selectedProducts.map((product) => ({
-        id: product.id,
-        name: product.name,
-        code: product.code,
-        imageSrc: product.imageSrc ?? "",
-        price: product.price,
-        compareAtPrice: product.compareAtPrice,
-        quantity: quantities[product.id],
-      })),
+      items: buildDraftItems(),
     };
 
     if (draft.items.length) {
@@ -392,21 +775,13 @@ function ProductCatalogView({
       window.localStorage.removeItem(cartStorageKey);
       window.sessionStorage.removeItem(orderPreviewStorageKey);
     }
-  }, [cartHydrated, category.title, pathname, quantities, selectedProducts]);
+  }, [cartHydrated, category.title, pathname, quantities, selectedProducts, variantQuantities]);
 
   const previewOrder = () => {
     const draft: OrderPreviewDraft = {
       categoryTitle: category.title,
       sourcePath: pathname,
-      items: selectedProducts.map((product) => ({
-        id: product.id,
-        name: product.name,
-        code: product.code,
-        imageSrc: product.imageSrc ?? "",
-        price: product.price,
-        compareAtPrice: product.compareAtPrice,
-        quantity: quantities[product.id],
-      })),
+      items: buildDraftItems(),
     };
 
     window.localStorage.setItem(cartStorageKey, JSON.stringify(draft));
@@ -459,7 +834,9 @@ function ProductCatalogView({
             key={product.id}
             product={product}
             quantity={quantities[product.id] ?? 0}
+            variantQuantities={variantQuantities[product.id]}
             onChangeQuantity={updateQuantity}
+            onChangeVariantQuantity={updateVariantQuantity}
           />
         ))}
       </div>

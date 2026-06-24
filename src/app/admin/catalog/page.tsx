@@ -19,6 +19,8 @@ type Product = {
   name: string;
   code: string;
   categoryId: string;
+  variantMode?: "auto" | "none" | "custom";
+  variants?: ProductVariant[];
   imageSrc?: string;
   purchasePrice?: number;
   price: number;
@@ -27,6 +29,13 @@ type Product = {
   supplier?: string;
   order: number;
   isActive: boolean;
+};
+
+type ProductVariant = {
+  id: string;
+  name: string;
+  code: string;
+  colorHex: string;
 };
 
 type CategoryForm = {
@@ -41,6 +50,8 @@ type ProductForm = {
   name: string;
   code: string;
   categoryId: string;
+  variantMode: "auto" | "none" | "custom";
+  variants: ProductVariant[];
   imageSrc: string;
   purchasePrice: string;
   price: string;
@@ -67,6 +78,8 @@ const emptyProductForm: ProductForm = {
   name: "",
   code: "",
   categoryId: "",
+  variantMode: "auto",
+  variants: [],
   imageSrc: "",
   purchasePrice: "",
   price: "",
@@ -81,6 +94,18 @@ const formatPrice = (value: number) =>
     currency: "TRY",
     maximumFractionDigits: 0,
   }).format(value || 0);
+
+const metalVariantTemplate: ProductVariant[] = [
+  { id: "gold", name: "Gold", code: "GLD", colorHex: "#D5A642" },
+  { id: "silver", name: "Silver", code: "SLV", colorHex: "#C7CBD1" },
+];
+
+const emptyProductVariant = (): ProductVariant => ({
+  id: `variant-${Date.now()}`,
+  name: "",
+  code: "",
+  colorHex: "#D5A642",
+});
 
 function childrenOf(categories: Category[], parentId: string | null) {
   return categories
@@ -289,6 +314,8 @@ export default function CatalogAdminPage() {
       name: product.name,
       code: product.code,
       categoryId: product.categoryId,
+      variantMode: product.variantMode ?? "auto",
+      variants: product.variants ?? [],
       imageSrc: product.imageSrc ?? "",
       purchasePrice: String(product.purchasePrice || ""),
       price: String(product.price || ""),
@@ -400,6 +427,21 @@ export default function CatalogAdminPage() {
       code: productForm.code.trim(),
       categoryId,
       imageSrc: productForm.imageSrc.trim(),
+      variantMode: productForm.variantMode,
+      variants:
+        productForm.variantMode === "custom"
+          ? productForm.variants
+              .map((variant) => ({
+                id: variant.id.trim(),
+                name: variant.name.trim(),
+                code: variant.code.trim(),
+                colorHex: variant.colorHex.trim(),
+              }))
+              .filter(
+                (variant) =>
+                  variant.id && variant.name && variant.code && variant.colorHex
+              )
+          : [],
       purchasePrice: Number(productForm.purchasePrice) || 0,
       price: Number(productForm.price) || 0,
       stock: Number(productForm.stock) || 0,
@@ -453,6 +495,26 @@ export default function CatalogAdminPage() {
     if (!file || !file.type.startsWith("image/")) return;
     const imageSrc = await uploadImage(file, "catalog/products");
     if (imageSrc) setProductForm((current) => ({ ...current, imageSrc }));
+  };
+
+  const updateProductVariant = (
+    index: number,
+    field: keyof ProductVariant,
+    value: string
+  ) => {
+    setProductForm((current) => ({
+      ...current,
+      variants: current.variants.map((variant, variantIndex) =>
+        variantIndex === index ? { ...variant, [field]: value } : variant
+      ),
+    }));
+  };
+
+  const removeProductVariant = (index: number) => {
+    setProductForm((current) => ({
+      ...current,
+      variants: current.variants.filter((_, variantIndex) => variantIndex !== index),
+    }));
   };
 
   return (
@@ -906,6 +968,114 @@ export default function CatalogAdminPage() {
                       <option key={supplier} value={supplier} />
                     ))}
                   </datalist>
+                  <div className="rounded-[22px] border border-black/[0.08] bg-white/70 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[13px] font-semibold text-black">
+                          Varyant ayarı
+                        </p>
+                        <p className="mt-0.5 text-[12px] leading-5 text-black/44">
+                          Renk/flavor toplarını ürün bazında yönetin.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setProductForm((current) => ({
+                            ...current,
+                            variantMode: "custom",
+                            variants: metalVariantTemplate,
+                          }))
+                        }
+                        className="h-8 shrink-0 rounded-full bg-black px-3 text-[11px] font-semibold text-white"
+                      >
+                        Gold/Silver
+                      </button>
+                    </div>
+                    <div className="mt-3 grid grid-cols-3 gap-2">
+                      {[
+                        { value: "auto", label: "Otomatik" },
+                        { value: "none", label: "Varyantsız" },
+                        { value: "custom", label: "Özel" },
+                      ].map((option) => {
+                        const isSelected = productForm.variantMode === option.value;
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() =>
+                              setProductForm((current) => ({
+                                ...current,
+                                variantMode: option.value as ProductForm["variantMode"],
+                              }))
+                            }
+                            className={
+                              isSelected
+                                ? "h-10 rounded-full bg-black text-[12px] font-semibold text-white"
+                                : "h-10 rounded-full bg-black/[0.045] text-[12px] font-semibold text-black/52"
+                            }
+                          >
+                            {option.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {productForm.variantMode === "custom" ? (
+                      <div className="mt-3 grid gap-2">
+                        {productForm.variants.map((variant, index) => (
+                          <div
+                            key={`${variant.id}-${index}`}
+                            className="grid grid-cols-[44px_minmax(0,1fr)_72px_36px] gap-2"
+                          >
+                            <input
+                              value={variant.colorHex}
+                              onChange={(event) =>
+                                updateProductVariant(index, "colorHex", event.target.value)
+                              }
+                              aria-label="Varyant rengi"
+                              className="h-11 min-w-0 rounded-2xl border border-black/[0.08] bg-[#f7f4ef] px-2 text-[11px] outline-none focus:border-black/25"
+                            />
+                            <input
+                              value={variant.name}
+                              onChange={(event) =>
+                                updateProductVariant(index, "name", event.target.value)
+                              }
+                              placeholder="Ad"
+                              className="h-11 min-w-0 rounded-2xl border border-black/[0.08] bg-[#f7f4ef] px-3 text-sm outline-none focus:border-black/25"
+                            />
+                            <input
+                              value={variant.code}
+                              onChange={(event) =>
+                                updateProductVariant(index, "code", event.target.value)
+                              }
+                              placeholder="Kod"
+                              className="h-11 min-w-0 rounded-2xl border border-black/[0.08] bg-[#f7f4ef] px-3 text-sm outline-none focus:border-black/25"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeProductVariant(index)}
+                              aria-label={`${variant.name || "Varyant"} sil`}
+                              className="h-11 rounded-2xl bg-red-50 text-[18px] font-semibold text-red-500"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setProductForm((current) => ({
+                              ...current,
+                              variants: [...current.variants, emptyProductVariant()],
+                            }))
+                          }
+                          className="h-10 rounded-full bg-black/[0.045] text-[12px] font-semibold text-black/56"
+                        >
+                          Varyant ekle
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
                   <div className="grid grid-cols-3 gap-2">
                     <input
                       value={productForm.purchasePrice}

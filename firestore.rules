@@ -86,5 +86,10 @@ service cloud.firestore {
     match /admin_settings/{document} {
       allow read, write: if true; // API'den erişim için geçici olarak açık
     }
+
+    // Sunucu tarafı rate-limit sayaçları
+    match /server_rate_limits/{document} {
+      allow read, write: if true; // API rate-limit kontrolü için
+    }
   }
 }

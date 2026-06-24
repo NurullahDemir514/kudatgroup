@@ -3,19 +3,22 @@ import {
   findSingleProductLeaf,
 } from "@/lib/catalog-tree";
 import { getVisibleCatalogCategories } from "@/lib/catalog-visibility";
-import { getCatalogTree } from "@/services/catalogCategoryService";
-import { getAdminCatalogProducts } from "@/services/catalogProductService";
+import {
+  getPublicCatalogProducts,
+  getPublicCatalogTree,
+} from "@/services/publicCatalogSnapshotService";
+
+export const revalidate = 300;
 
 export default async function KatalogPage() {
-  const [categories, products] = await Promise.all([
-    getCatalogTree(),
-    getAdminCatalogProducts(),
-  ]);
+  const categories = getPublicCatalogTree();
+  const products = getPublicCatalogProducts();
   const catalogProducts = products.map((product) => ({
     id: product.id,
     name: product.name,
     code: product.code,
     categoryId: product.categoryId,
+    variants: product.variants,
     imageSrc: product.imageSrc,
     price: product.price,
     compareAtPrice: product.compareAtPrice,

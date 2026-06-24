@@ -6,6 +6,9 @@ export const latestSubmittedOrderStorageKey = "kudat.latest-submitted-order.v1";
 
 export type OrderPreviewItem = {
   id: string;
+  productId?: string;
+  variantId?: string;
+  variantName?: string;
   name: string;
   code: string;
   imageSrc: string;

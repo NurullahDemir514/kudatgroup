@@ -1,8 +1,29 @@
 import { CategoryBrowser } from "@/components/catalog/CategoryBrowser";
 import { findNodeByPath } from "@/lib/catalog-tree";
 import { getVisibleCatalogCategories } from "@/lib/catalog-visibility";
-import { getCatalogTree } from "@/services/catalogCategoryService";
-import { getAdminCatalogProducts } from "@/services/catalogProductService";
+import {
+  getPublicCatalogProducts,
+  getPublicCatalogTree,
+} from "@/services/publicCatalogSnapshotService";
+
+export const revalidate = 300;
+
+function collectCategoryPaths(nodes: ReturnType<typeof getPublicCatalogTree>) {
+  const paths: { slug: string[] }[] = [];
+
+  const visit = (node: (typeof nodes)[number], path: string[]) => {
+    const nextPath = [...path, node.id];
+    paths.push({ slug: nextPath });
+    node.children?.forEach((child) => visit(child, nextPath));
+  };
+
+  nodes.forEach((node) => visit(node, []));
+  return paths;
+}
+
+export function generateStaticParams() {
+  return collectCategoryPaths(getPublicCatalogTree());
+}
 
 type CategoryPageProps = {
   params: Promise<{
@@ -12,15 +33,14 @@ type CategoryPageProps = {
 
 export default async function CategoryPage({ params }: CategoryPageProps) {
   const { slug } = await params;
-  const [categories, products] = await Promise.all([
-    getCatalogTree(),
-    getAdminCatalogProducts(),
-  ]);
+  const categories = getPublicCatalogTree();
+  const products = getPublicCatalogProducts();
   const catalogProducts = products.map((product) => ({
     id: product.id,
     name: product.name,
     code: product.code,
     categoryId: product.categoryId,
+    variants: product.variants,
     imageSrc: product.imageSrc,
     price: product.price,
     compareAtPrice: product.compareAtPrice,

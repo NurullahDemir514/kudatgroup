@@ -1,8 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminCode } from "@/lib/admin-access";
 import { cookieName, createAdminSessionToken, maxAgeSeconds } from "@/lib/admin-session";
+import { assertFirestoreRateLimit } from "@/lib/server-rate-limit";
+
+const adminLoginRateLimitWindowMs = 60_000;
+const adminLoginRateLimitMaxRequests = 8;
 
 export async function POST(request: NextRequest) {
+  const rateLimitResponse = await assertFirestoreRateLimit(request, {
+    namespace: "admin_login",
+    windowMs: adminLoginRateLimitWindowMs,
+    maxRequests: adminLoginRateLimitMaxRequests,
+    error: "Çok fazla giriş denemesi yapıldı.",
+  });
+  if (rateLimitResponse) return rateLimitResponse;
+
   const body = await request.json().catch(() => null);
   const code = typeof body?.code === "string" ? body.code.trim() : "";
 

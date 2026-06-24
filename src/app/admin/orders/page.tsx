@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   formatCustomerAddress,
   formatPrice,
-  submittedOrdersStorageKey,
   type SubmittedOrder,
   type SubmittedOrderStatus,
 } from "@/lib/order-preview";
@@ -94,10 +93,12 @@ function orderTrackingPath(order: SubmittedOrder) {
   return `/siparis-takip/${encodeURIComponent(order.trackingToken)}`;
 }
 
-async function fetchTrackingOrder(token: string): Promise<TrackingOrder | null> {
+async function fetchTrackingOrder(
+  token: string,
+): Promise<TrackingOrder | null> {
   const response = await fetch(
     `/api/qanta-order-tracking/${encodeURIComponent(token)}`,
-    { cache: "no-store" }
+    { cache: "no-store" },
   );
   const data = await response.json().catch(() => null);
   if (!response.ok || data?.success !== true) return null;
@@ -113,24 +114,36 @@ async function fetchSavedOrders(): Promise<SubmittedOrder[]> {
   return data.data as SubmittedOrder[];
 }
 
-function mergeOrders(
-  savedOrders: SubmittedOrder[],
-  localOrders: SubmittedOrder[]
-) {
+async function deleteSavedOrder(order: OrderViewModel) {
+  const response = await fetch("/api/kudat-orders", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: order.id, trackingToken: order.trackingToken }),
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok || data?.success !== true) {
+    throw new Error(data?.error || "Sipariş silinemedi.");
+  }
+}
+
+function sortOrders(savedOrders: SubmittedOrder[]) {
   const byId = new Map<string, SubmittedOrder>();
-  for (const order of [...savedOrders, ...localOrders]) {
+  for (const order of savedOrders) {
     if (!order.id || byId.has(order.id)) continue;
     byId.set(order.id, order);
   }
   return Array.from(byId.values()).sort(
     (first, second) =>
-      new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime()
+      new Date(second.createdAt).getTime() -
+      new Date(first.createdAt).getTime(),
   );
 }
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<OrderViewModel[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
+  const [orderActionError, setOrderActionError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<
     "all" | SubmittedOrderStatus
   >("all");
@@ -140,12 +153,8 @@ export default function AdminOrdersPage() {
 
     async function loadOrders() {
       try {
-        const savedOrders = window.localStorage.getItem(submittedOrdersStorageKey);
-        const localOrders = savedOrders
-          ? (JSON.parse(savedOrders) as SubmittedOrder[])
-          : [];
         const serverOrders = await fetchSavedOrders();
-        const orders = mergeOrders(serverOrders, localOrders);
+        const orders = sortOrders(serverOrders);
         const enriched = await Promise.all(
           orders.map(async (order) => {
             const qanta = order.trackingToken
@@ -156,11 +165,10 @@ export default function AdminOrdersPage() {
               qanta: qanta ?? undefined,
               qantaStatus: qanta?.status ?? order.status,
             };
-          })
+          }),
         );
         if (!cancelled) setOrders(enriched);
       } catch {
-        window.localStorage.removeItem(submittedOrdersStorageKey);
         if (!cancelled) setOrders([]);
       } finally {
         if (!cancelled) setIsLoading(false);
@@ -183,11 +191,34 @@ export default function AdminOrdersPage() {
       count: orders.length,
       amount: orders.reduce(
         (sum, order) => sum + (order.qanta?.totalAmount ?? order.totalAmount),
-        0
+        0,
       ),
     }),
-    [orders]
+    [orders],
   );
+
+  const handleDeleteOrder = async (order: OrderViewModel) => {
+    if (deletingOrderId) return;
+    const confirmed = window.confirm(
+      `${order.id} siparişi kalıcı olarak silinsin mi? Bu işlem yalnızca Kudat admin listesindeki kaydı kaldırır.`,
+    );
+    if (!confirmed) return;
+
+    setDeletingOrderId(order.id);
+    setOrderActionError(null);
+    try {
+      await deleteSavedOrder(order);
+      setOrders((current) =>
+        current.filter((savedOrder) => savedOrder.id !== order.id),
+      );
+    } catch (error) {
+      setOrderActionError(
+        error instanceof Error ? error.message : "Sipariş silinemedi.",
+      );
+    } finally {
+      setDeletingOrderId(null);
+    }
+  };
 
   return (
     <section>
@@ -236,6 +267,12 @@ export default function AdminOrdersPage() {
         })}
       </div>
 
+      {orderActionError ? (
+        <p className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 ring-1 ring-red-100">
+          {orderActionError}
+        </p>
+      ) : null}
+
       <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {isLoading
           ? Array.from({ length: 6 }).map((_, index) => (
@@ -272,124 +309,145 @@ export default function AdminOrdersPage() {
             ))
           : null}
 
-        {!isLoading && visibleOrders.map((order) => {
-          const status = statusMeta[order.qantaStatus] ?? statusMeta.pending;
-          const items = order.qanta?.items.length ? order.qanta.items : order.items;
-          const totalAmount = order.qanta?.totalAmount ?? order.totalAmount;
-          const totalQuantity = order.qanta?.itemCount ?? order.totalQuantity;
-          const trackingPath = orderTrackingPath(order);
-          const address = formatCustomerAddress(order.customer);
+        {!isLoading &&
+          visibleOrders.map((order) => {
+            const status = statusMeta[order.qantaStatus] ?? statusMeta.pending;
+            const items = order.qanta?.items.length
+              ? order.qanta.items
+              : order.items;
+            const totalAmount = order.qanta?.totalAmount ?? order.totalAmount;
+            const totalQuantity = order.qanta?.itemCount ?? order.totalQuantity;
+            const trackingPath = orderTrackingPath(order);
+            const address = formatCustomerAddress(order.customer);
 
-          return (
-            <article
-              key={order.id}
-              className="flex min-h-[330px] flex-col rounded-[26px] bg-white/84 p-5 ring-1 ring-black/6"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate text-xs font-semibold uppercase tracking-[0.16em] text-black/35">
-                      {order.id}
+            return (
+              <article
+                key={order.id}
+                className="flex min-h-[330px] flex-col rounded-[26px] bg-white/84 p-5 ring-1 ring-black/6"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-xs font-semibold uppercase tracking-[0.16em] text-black/35">
+                        {order.id}
+                      </p>
+                      <span
+                        className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${status.tone}`}
+                      >
+                        {status.label}
+                      </span>
+                    </div>
+                    <h2 className="mt-2 truncate text-xl font-semibold tracking-[-0.035em]">
+                      {order.customer.storeName ||
+                        order.customer.fullName ||
+                        "İsimsiz müşteri"}
+                    </h2>
+                    <p className="mt-1 line-clamp-1 text-sm leading-5 text-black/45">
+                      {order.customer.phone || "Telefon yok"}
+                      {order.customer.district
+                        ? ` · ${order.customer.district}`
+                        : ""}
                     </p>
-                    <span
-                      className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${status.tone}`}
-                    >
-                      {status.label}
-                    </span>
                   </div>
-                  <h2 className="mt-2 truncate text-xl font-semibold tracking-[-0.035em]">
-                    {order.customer.storeName || order.customer.fullName || "İsimsiz müşteri"}
-                  </h2>
-                  <p className="mt-1 line-clamp-1 text-sm leading-5 text-black/45">
-                    {order.customer.phone || "Telefon yok"}
-                    {order.customer.district ? ` · ${order.customer.district}` : ""}
-                  </p>
+                  <div className="shrink-0 text-right">
+                    <p className="text-sm font-semibold">
+                      {formatPrice(totalAmount)}
+                    </p>
+                    <p className="mt-1 text-xs text-black/38">
+                      {totalQuantity} adet
+                    </p>
+                  </div>
                 </div>
-                <div className="shrink-0 text-right">
-                  <p className="text-sm font-semibold">{formatPrice(totalAmount)}</p>
-                  <p className="mt-1 text-xs text-black/38">{totalQuantity} adet</p>
-                </div>
-              </div>
 
-              <p className="mt-4 text-xs font-medium text-black/36">
-                {status.helper}
-              </p>
-              <p className="mt-2 text-xs font-medium text-black/35">
-                {formatDate(order.qanta?.updatedAt ?? order.createdAt)}
-              </p>
+                <p className="mt-4 text-xs font-medium text-black/36">
+                  {status.helper}
+                </p>
+                <p className="mt-2 text-xs font-medium text-black/35">
+                  {formatDate(order.qanta?.updatedAt ?? order.createdAt)}
+                </p>
 
-              <div className="mt-4 grid gap-2.5">
-                {items.slice(0, 3).map((item, index) => {
-                  const imageSrc =
-                    "imageSrc" in item ? item.imageSrc : item.imageUrl ?? "";
-                  const price = "price" in item ? item.price : item.unitPrice;
-                  const itemTotal =
-                    "total" in item ? item.total : item.price * item.quantity;
-                  return (
-                    <div
-                      key={`${item.name}-${index}`}
-                      className="grid grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl bg-black/[0.025] p-2 text-sm"
-                    >
-                      {imageSrc ? (
-                        <img
-                          src={imageSrc}
-                          alt={item.name}
-                          className="aspect-square rounded-xl bg-black/[0.04] object-cover"
-                        />
-                      ) : (
-                        <div className="aspect-square rounded-xl bg-black/[0.04]" />
-                      )}
-                      <div className="min-w-0">
-                        <p className="truncate font-semibold tracking-[-0.02em] text-black/78">
-                          {item.name}
-                        </p>
-                        <p className="mt-0.5 truncate text-xs font-medium text-black/38">
-                          {item.quantity} adet · {formatPrice(price)}
+                <div className="mt-4 grid gap-2.5">
+                  {items.slice(0, 3).map((item, index) => {
+                    const imageSrc =
+                      "imageSrc" in item
+                        ? item.imageSrc
+                        : (item.imageUrl ?? "");
+                    const price = "price" in item ? item.price : item.unitPrice;
+                    const itemTotal =
+                      "total" in item ? item.total : item.price * item.quantity;
+                    return (
+                      <div
+                        key={`${item.name}-${index}`}
+                        className="grid grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl bg-black/[0.025] p-2 text-sm"
+                      >
+                        {imageSrc ? (
+                          <img
+                            src={imageSrc}
+                            alt={item.name}
+                            className="aspect-square rounded-xl bg-black/[0.04] object-cover"
+                          />
+                        ) : (
+                          <div className="aspect-square rounded-xl bg-black/[0.04]" />
+                        )}
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold tracking-[-0.02em] text-black/78">
+                            {item.name}
+                          </p>
+                          <p className="mt-0.5 truncate text-xs font-medium text-black/38">
+                            {item.quantity} adet · {formatPrice(price)}
+                          </p>
+                        </div>
+                        <p className="shrink-0 text-right text-sm font-semibold">
+                          {formatPrice(itemTotal)}
                         </p>
                       </div>
-                      <p className="shrink-0 text-right text-sm font-semibold">
-                        {formatPrice(itemTotal)}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
 
-              <div className="mt-auto border-t border-black/8 pt-4">
-                <div className="flex flex-wrap gap-2">
-                  {address ? (
-                    <span className="rounded-full bg-black/[0.04] px-3 py-1.5 text-xs font-semibold text-black/48">
-                      Adres var
-                    </span>
-                  ) : null}
-                  {order.customer.note ? (
-                    <span className="rounded-full bg-black/[0.04] px-3 py-1.5 text-xs font-semibold text-black/48">
-                      Not var
-                    </span>
-                  ) : null}
-                </div>
-                <div className="mt-4 flex gap-2">
-                  {trackingPath ? (
+                <div className="mt-auto border-t border-black/8 pt-4">
+                  <div className="flex flex-wrap gap-2">
+                    {address ? (
+                      <span className="rounded-full bg-black/[0.04] px-3 py-1.5 text-xs font-semibold text-black/48">
+                        Adres var
+                      </span>
+                    ) : null}
+                    {order.customer.note ? (
+                      <span className="rounded-full bg-black/[0.04] px-3 py-1.5 text-xs font-semibold text-black/48">
+                        Not var
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="mt-4 flex gap-2">
+                    {trackingPath ? (
+                      <a
+                        href={trackingPath}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex h-10 flex-1 items-center justify-center rounded-full bg-black text-sm font-semibold text-white"
+                      >
+                        Takip ekranı
+                      </a>
+                    ) : null}
                     <a
-                      href={trackingPath}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex h-10 flex-1 items-center justify-center rounded-full bg-black text-sm font-semibold text-white"
+                      href="/admin"
+                      className="flex h-10 flex-1 items-center justify-center rounded-full bg-white text-sm font-semibold text-black/62 ring-1 ring-black/8"
                     >
-                      Takip ekranı
+                      Qanta’da yönet
                     </a>
-                  ) : null}
-                  <a
-                    href="/admin"
-                    className="flex h-10 flex-1 items-center justify-center rounded-full bg-white text-sm font-semibold text-black/62 ring-1 ring-black/8"
-                  >
-                    Qanta’da yönet
-                  </a>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteOrder(order)}
+                      disabled={deletingOrderId === order.id}
+                      className="flex h-10 flex-1 items-center justify-center rounded-full bg-red-50 text-sm font-semibold text-red-700 ring-1 ring-red-100 transition active:scale-[0.98] disabled:opacity-55"
+                    >
+                      {deletingOrderId === order.id ? "Siliniyor" : "Sil"}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </article>
-          );
-        })}
+              </article>
+            );
+          })}
 
         {!isLoading && !visibleOrders.length ? (
           <div className="py-16 text-center md:col-span-2 xl:col-span-3">

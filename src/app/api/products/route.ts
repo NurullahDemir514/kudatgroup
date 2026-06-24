@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { unstable_cache } from 'next/cache';
 import { productService } from '@/services/firebaseServices';
-import { getAdminCatalogProducts } from '@/services/catalogProductService';
-import {
-    getAdminCatalogCategories,
-    type AdminCatalogCategory,
-} from '@/services/catalogCategoryService';
+import { getPublicCatalogCategories, getPublicCatalogProducts } from '@/services/publicCatalogSnapshotService';
+import type { AdminCatalogCategory } from '@/services/catalogCategoryService';
 
 const publicCatalogCacheHeaders = {
-    'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+    'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
 };
 
 const categoryWordMap: Record<string, string> = {
@@ -80,74 +76,49 @@ function categoryPathFor(
     return path;
 }
 
-const getCachedLegacyProducts = unstable_cache(
-    async () => productService.getAll(),
-    ['public-legacy-products'],
-    { revalidate: 300 }
-);
+function getPublicProducts() {
+    const catalogProducts = getPublicCatalogProducts();
+    const catalogCategories = getPublicCatalogCategories();
+    const categoriesById = new Map(
+        catalogCategories.map((category) => [category.id, category])
+    );
 
-const getCachedPublicProducts = unstable_cache(
-    async () => {
-        const [legacyProducts, catalogProducts, catalogCategories] = await Promise.all([
-            productService.getAll(),
-            getAdminCatalogProducts(),
-            getAdminCatalogCategories(),
-        ]);
-        const categoriesById = new Map(
-            catalogCategories.map((category) => [category.id, category])
-        );
-        const mappedCatalogProducts = catalogProducts
-            .filter((product) => product.isActive !== false)
-            .map((product) => {
-                const categoryPath = categoryPathFor(product.categoryId, categoriesById);
-                const mainCategory = categoryPath[0] ?? '';
-                const subCategory = categoryPath.length > 1
-                    ? categoryPath[categoryPath.length - 1]
-                    : '';
+    return catalogProducts
+        .filter((product) => product.isActive !== false)
+        .map((product) => {
+            const categoryPath = categoryPathFor(product.categoryId, categoriesById);
+            const mainCategory = categoryPath[0] ?? '';
+            const subCategory = categoryPath.length > 1
+                ? categoryPath[categoryPath.length - 1]
+                : '';
 
-                return {
-                    id: product.id,
-                    name: product.name,
-                    code: product.code,
-                    category: categoryPath.join(' / ') || product.categoryId,
-                    categoryId: product.categoryId,
-                    categoryPath,
-                    categoryMain: mainCategory,
-                    mainCategory,
-                    categoryTitle: subCategory || mainCategory,
-                    subCategory,
-                    image: product.imageSrc || '',
-                    wholesalePrice: product.purchasePrice || 0,
-                    salePrice: product.price || 0,
-                    stock: product.stock || 0,
-                    hideStock: product.hideStock === true,
-                    supplier: product.supplier || '',
-                    source: 'catalog',
-                    catalogId: product.id,
-                };
-            });
-
-        return mappedCatalogProducts.length
-            ? mappedCatalogProducts
-            : legacyProducts;
-    },
-    ['public-catalog-products'],
-    { revalidate: 300 }
-);
+            return {
+                id: product.id,
+                name: product.name,
+                code: product.code,
+                category: categoryPath.join(' / ') || product.categoryId,
+                categoryId: product.categoryId,
+                categoryPath,
+                categoryMain: mainCategory,
+                mainCategory,
+                categoryTitle: subCategory || mainCategory,
+                subCategory,
+                image: product.imageSrc || '',
+                wholesalePrice: product.purchasePrice || 0,
+                salePrice: product.price || 0,
+                stock: product.stock || 0,
+                hideStock: product.hideStock === true,
+                supplier: product.supplier || '',
+                source: 'catalog',
+                catalogId: product.id,
+            };
+        });
+}
 
 // Tüm ürünleri getir
-export async function GET(request: NextRequest) {
+export async function GET() {
     try {
-        const source = request.nextUrl.searchParams.get('source');
-        if (source === 'legacy') {
-            const legacyProducts = await getCachedLegacyProducts();
-            return NextResponse.json(
-                { success: true, data: legacyProducts },
-                { headers: publicCatalogCacheHeaders }
-            );
-        }
-
-        const products = await getCachedPublicProducts();
+        const products = getPublicProducts();
 
         return NextResponse.json(
             { success: true, data: products },

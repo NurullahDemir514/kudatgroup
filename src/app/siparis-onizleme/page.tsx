@@ -37,6 +37,50 @@ type LatestSubmittedOrderPreview = {
   trackingUrl: string | null;
 };
 
+type OrderSubmitFeedback = "processing" | "retrying";
+
+type OrderSubmitResult = {
+  success?: boolean;
+  error?: string;
+  data?: {
+    trackingUrl?: string;
+  };
+};
+
+const retryableOrderStatuses = new Set([408, 425, 429, 500, 502, 503, 504]);
+
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function submitOrderWithRetry(
+  order: SubmittedOrder,
+  onRetry: () => void
+): Promise<OrderSubmitResult> {
+  const maxAttempts = 3;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const response = await fetch("/api/qanta-wholesale-order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(order),
+    });
+    const result = (await response.json().catch(() => null)) as OrderSubmitResult | null;
+
+    if (response.ok && result?.success === true) return result;
+
+    if (retryableOrderStatuses.has(response.status) && attempt < maxAttempts) {
+      onRetry();
+      await wait(850 * attempt);
+      continue;
+    }
+
+    throw new Error(result?.error || "Sipariş oluşturulamadı. Lütfen tekrar deneyin.");
+  }
+
+  throw new Error("Sipariş oluşturulamadı. Lütfen tekrar deneyin.");
+}
+
 function normalizePhone(value: string) {
   const digits = value.replace(/\D/g, "");
   if (!digits) return "";
@@ -219,6 +263,7 @@ export default function OrderPreviewPage() {
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
   const [createdTrackingUrl, setCreatedTrackingUrl] = useState<string | null>(null);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
+  const [submitFeedback, setSubmitFeedback] = useState<OrderSubmitFeedback | null>(null);
   const [orderError, setOrderError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -246,6 +291,19 @@ export default function OrderPreviewPage() {
     if (!draft) return;
     window.sessionStorage.setItem(orderPreviewStorageKey, JSON.stringify(draft));
   }, [draft]);
+
+  useEffect(() => {
+    if (!isCreatingOrder) {
+      setSubmitFeedback(null);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setSubmitFeedback((current) => current ?? "processing");
+    }, 3200);
+
+    return () => window.clearTimeout(timer);
+  }, [isCreatingOrder]);
 
   const totals = useMemo(() => {
     const items = draft?.items ?? [];
@@ -295,17 +353,12 @@ export default function OrderPreviewPage() {
     };
 
     setIsCreatingOrder(true);
+    setSubmitFeedback(null);
     setOrderError(null);
     try {
-      const response = await fetch("/api/qanta-wholesale-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(order),
+      const result = await submitOrderWithRetry(order, () => {
+        setSubmitFeedback("retrying");
       });
-      const result = await response.json().catch(() => null);
-      if (!response.ok || result?.success !== true) {
-        throw new Error(result?.error || "Sipariş Qanta'ya gönderilemedi.");
-      }
 
       saveCustomerToCache(customer);
       const trackingUrl = result?.data?.trackingUrl || (order.trackingToken ? `/siparis-takip/${order.trackingToken}` : "");
@@ -320,7 +373,9 @@ export default function OrderPreviewPage() {
       setCreatedTrackingUrl(trackingUrl || null);
     } catch (error) {
       setOrderError(
-        error instanceof Error ? error.message : "Sipariş oluşturulamadı."
+        error instanceof Error
+          ? error.message
+          : "Sipariş oluşturulamadı. Lütfen tekrar deneyin."
       );
     } finally {
       setIsCreatingOrder(false);
@@ -514,10 +569,26 @@ export default function OrderPreviewPage() {
           </div>
         </div>
 
-        {orderError ? (
-          <p className="mt-5 rounded-2xl bg-red-50 px-4 py-3 text-[13px] font-medium leading-5 text-red-700">
-            {orderError}
+        {submitFeedback ? (
+          <p className="mt-5 rounded-2xl bg-amber-50 px-4 py-3 text-[13px] font-semibold leading-5 text-amber-900">
+            {submitFeedback === "retrying"
+              ? "Şu anda yoğunluk var. Siparişinizi tekrar deniyoruz."
+              : "Siparişiniz işleniyor. Lütfen ekranı kapatmayın."}
           </p>
+        ) : null}
+
+        {orderError ? (
+          <div className="mt-5 rounded-2xl bg-red-50 px-4 py-3 text-[13px] font-medium leading-5 text-red-700">
+            <p>{orderError}</p>
+            <button
+              type="button"
+              onClick={createOrder}
+              disabled={isCreatingOrder}
+              className="mt-3 rounded-full bg-red-700 px-4 py-2 text-[12px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-60"
+            >
+              Tekrar dene
+            </button>
+          </div>
         ) : null}
 
         {activeDraft.items.length ? (
@@ -532,7 +603,7 @@ export default function OrderPreviewPage() {
                 disabled={isCreatingOrder}
                 className="shrink-0 rounded-full bg-white px-5 py-3 text-[14px] font-semibold text-black transition active:scale-[0.98] disabled:opacity-60"
               >
-                {isCreatingOrder ? "Gönderiliyor" : "Siparişi oluştur"}
+                {isCreatingOrder ? "Sipariş alınıyor..." : "Siparişi oluştur"}
               </button>
             </div>
           </div>
